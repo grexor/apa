@@ -1,0 +1,38 @@
+#!/usr/bin/python
+
+import os
+import sys
+import apa
+
+maps = {}
+f = open(os.path.join(apa.path.root_folder, "icount", "icount.mappings.txt"))
+r = f.readline()
+while r:
+    r = r.replace("\n", "").replace("\r", "")
+    if r.endswith(":"):
+        lib_id = r.split("/")[0]
+        exp_id = r.split("/")[1][1:-1]
+    elif r!="":
+        map = r
+        assert(maps.get(map, None)==None)
+        maps[map] = "%s_e%s" % (lib_id, exp_id)
+    r = f.readline()
+f.close()
+
+print "# generated from icount comps file = %s" % sys.argv[1]
+f = open(sys.argv[1], "rt")
+header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+r = f.readline()
+print "\t".join(["id", "control_name", "control_id", "test_name", "test_id"])
+comp_id = 1
+while r:
+    r = r.replace("\r", "").replace("\n", "").split("\t")
+    data = dict(zip(header, r))
+    cmaps = data["control_ID"].replace(" ", "").replace("\"", "").split(",")
+    tmaps = data["test_ID"].replace(" ", "").replace("\"", "").split(",")
+    cmaps = [maps[i] for i in cmaps]
+    tmaps = [maps[i] for i in tmaps]
+    print "\t".join([str(comp_id), data["control_name"], ",".join(cmaps), data["test_name"], ",".join(tmaps)])
+    comp_id += 1
+    r = f.readline()
+f.close()

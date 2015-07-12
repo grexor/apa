@@ -1,0 +1,5 @@
+#!/usr/bin/python
+import apa
+import sys
+
+apa.comps.sitelist(sys.argv[1])

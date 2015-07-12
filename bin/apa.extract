@@ -1,0 +1,5 @@
+#!/usr/bin/python
+
+import apa
+for lib_id in apa.annotation.libs.keys():
+    apa.extract.process_lib(lib_id)

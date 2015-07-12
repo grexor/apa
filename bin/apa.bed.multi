@@ -1,0 +1,33 @@
+#!/usr/bin/python
+
+import apa
+import sys
+import glob
+from Queue import *
+from threading import *
+import os
+
+num_worker_threads = 40
+q = Queue()
+
+def worker():
+    while True:
+        task = q.get()
+        os.system(task)
+        q.task_done()
+
+# STEP1: process all study data
+tasks = []
+for lib_id, lib_data in apa.annotation.libs.items():
+    for exp_id in lib_data.experiments.keys():
+        tasks.append("apa.bed.process %s %s" % (lib_id, exp_id))
+
+for i in range(num_worker_threads):
+     t = Thread(target=worker)
+     t.daemon = True
+     t.start()
+     
+for task in tasks:
+    q.put(task)
+    
+q.join()

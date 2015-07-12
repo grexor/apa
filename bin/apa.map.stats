@@ -1,0 +1,10 @@
+#!/usr/bin/python
+import apa
+import sys
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('-lib_id', action="store", dest="lib_id")
+args = parser.parse_args()
+
+apa.map.stats(args.lib_id)

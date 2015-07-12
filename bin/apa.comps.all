@@ -1,0 +1,38 @@
+#!/usr/bin/python
+
+import apa
+import sys
+import glob
+from Queue import *
+from threading import *
+import os
+
+num_worker_threads = 40
+q = Queue()
+
+def worker():
+    while True:
+        task = q.get()
+        os.system(task)
+        q.task_done()
+
+# STEP1: process all comps data
+tasks = []
+files = glob.glob(apa.path.comps_folder+"/*")
+for f in files:
+    if not os.path.isdir(f):
+        continue
+    comps_id = os.path.basename(f)
+    print comps_id
+    command = "apa.comps %s" % comps_id
+    tasks.append(command)
+
+for i in range(num_worker_threads):
+     t = Thread(target=worker)
+     t.daemon = True
+     t.start()
+     
+for task in tasks:
+    q.put(task)
+    
+q.join()
