@@ -24,7 +24,7 @@ ref1, dic1 = readExonFormat(file_reference)
 cat1, _ = readExonFormat(file_group)
 
 print "gene_exon records in %s (%s): %s" % (our_label, len(cat1), ", ".join(cat1))
-print "control:", len(ref1)
+print "control exp:", len(ref1)
 
 ontology = obiGO.Ontology.Load()
 annot1 = obiGO.Annotations.Load("goa_human", ontology=ontology)
