@@ -18,16 +18,15 @@ def worker():
 
 # STEP1: process all study data
 tasks = []
-for lib_id, lib_data in apa.annotation.libs.items():
-    for exp_id in lib_data.experiments.keys():
-        tasks.append("apa.bed.process %s %s" % (lib_id, exp_id))
+for lib_id in apa.annotation.libs.keys():
+    tasks.append("apa.bed.e -lib_id %s" % lib_id)
 
 for i in range(num_worker_threads):
      t = Thread(target=worker)
      t.daemon = True
      t.start()
-     
+
 for task in tasks:
     q.put(task)
-    
+
 q.join()

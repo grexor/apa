@@ -1,6 +1,0 @@
-#!/usr/bin/python
-
-import apa
-import sys
-
-apa.bindmap.process_space(sys.argv[1])

@@ -1,5 +1,6 @@
 # PATHS (all paths are relative to apa root_folder (see apa.path)
 
+version = 0.1
 data_folder = "data.apa"
 polya_folder = "data.polya"
 comps_folder = "data.comps"
