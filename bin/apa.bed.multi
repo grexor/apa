@@ -7,6 +7,11 @@ from Queue import *
 from threading import *
 import os
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
+args = parser.parse_args()
+
 num_worker_threads = 40
 q = Queue()
 
@@ -16,10 +21,9 @@ def worker():
         os.system(task)
         q.task_done()
 
-# STEP1: process all study data
 tasks = []
 for lib_id in apa.annotation.libs.keys():
-    tasks.append("apa.bed.e -lib_id %s" % lib_id)
+    tasks.append("apa.bed -type %s -lib_id %s" % (args.type, lib_id))
 
 for i in range(num_worker_threads):
      t = Thread(target=worker)
