@@ -105,7 +105,8 @@ def read_comps(comps_id):
             comps.test.append((id, experiments, name))
         r = f.readline()
     f.close()
-    # determine study species
+
+    # determine comps species
     species = set()
     all_exp = set()
     for (_, exp, _) in comps.test:
@@ -119,7 +120,8 @@ def read_comps(comps_id):
     if len(comps.control)>0 and len(comps.test)>0:
         assert(len(species)==1)
         comps.species = species.pop()
-    # finally, make experimental annotation available
+
+    # finally, load experiment annotation into comps object
     for exp in all_exp:
         lib_id = exp[:exp.rfind("_")]
         exp_id = int(exp.split("_")[-1][1:])
