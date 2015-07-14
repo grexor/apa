@@ -34,6 +34,8 @@ def polyadb_filename(species, filetype="bed"):
         return os.path.join(apa.path.polya_folder, "%s_complete.tab" % species)
     if filetype=="tab":
         return os.path.join(apa.path.polya_folder, "%s.tab" % species)
+    if filetype=="class_hist":
+        return os.path.join(apa.path.polya_folder, "%s_class_hist" % species)
     return os.path.join(apa.path.polya_folder, "%s.%s" % (species, filetype))
 
 def polyadb_ann_filename(species):

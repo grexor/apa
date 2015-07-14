@@ -182,6 +182,14 @@ def annotate(poly_id):
     classify_polya(poly_id)
 
 def classify_polya(poly_id):
+    """
+    Create a fasta file from the -100, 100 sequence around detected poly-A sites.
+    Use polyar to classify those sites.
+    Update the polya_db.tab file to include site type (strong, weak, less, "").
+    Empty means no CS detected;
+    Also add the location of the CS.
+    """
+
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
     polyadb_fasta = apa.path.polyadb_filename(poly_id, filetype="fasta")
     shutil.copy2(polyadb_fasta, os.path.join(os.getenv("HOME"), "software/polyar/"))
@@ -206,6 +214,7 @@ def classify_polya(poly_id):
             chr = id.split(":")[0][1:]
             pos = id.split(":")[1]
             pas_type = ""
+            cs = ""
             if line[2]!="":
                     if line[2].find("strong")!=-1:
                             pas_type = "strong"
@@ -214,6 +223,7 @@ def classify_polya(poly_id):
                     elif line[2].find("less")!=-1:
                             pas_type = "less"
                     cs = int(line[3].replace("\t", "").split("CS:")[1][:5])
+                    cs = cs-100 # since sequence is -100, 100, the loci 100 on the sequence = 0 (detected and predicted the same)
             polyar_results[(chr, strand, pos)] = (pas_type, cs)
 
     f = open(polyadb_tab, "rt")
@@ -238,6 +248,47 @@ def classify_polya(poly_id):
     os.system("rm *.fasta")
     return
 
+def polyadb_class_histogram(poly_id):
+
+    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
+    f = open(polyadb_tab, "rt")
+    y = {"strong":[], "weak":[], "less":[]}
+    header = f.readline().replace("\n", "").replace("\r", "").split("\t")
+    r = f.readline()
+    while r:
+        r = r.replace("\n", "").replace("\r", "").split("\t")
+        data = dict(zip(header, r))
+        if data["pas_type"]!="":
+            y[data["pas_type"]].append(int(data["cs_site"]))
+        r = f.readline()
+    f.close()
+
+    import numpy as np
+    import pylab as P
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as tkr
+
+    def func(x, pos):  # formatter function takes tick label and tick position
+       s = '{:0,d}'.format(int(x))
+       return s
+
+    n, bins, patches = P.hist(y["strong"], 50, histtype='stepfilled')
+    P.setp(patches, 'facecolor', 'gray', 'alpha', 0.75)
+    P.title(poly_id)
+    P.ylim(bottom=0)
+    P.xlabel("distance [nt]")
+    P.ylabel("number of sites")
+
+    a_format = tkr.FuncFormatter(func)
+    axes = plt.gca()
+    axes.xaxis.set_major_formatter(a_format)
+    axes.xaxis.set_major_formatter(a_format)
+    axes.spines['bottom'].set_alpha(0.5)
+    axes.spines['top'].set_alpha(0.5)
+    axes.spines['right'].set_alpha(0.5)
+    axes.spines['left'].set_alpha(0.5)
+    polyadb_image = apa.path.polyadb_filename(poly_id, filetype="class_hist")
+    P.savefig(polyadb_image+".png")
 
 def annotate_pair(species, chr, strand, pos1, pos2):
     # keep positions in positive orientation
