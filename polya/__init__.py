@@ -6,6 +6,7 @@ import pybio
 import time
 import glob
 import numpy as np
+import shutil
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -143,7 +144,7 @@ def annotate(poly_id):
             accepted[key] = 1
 
     ftab = open(polyadb_tab, "wt")
-    ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "seq_-125_0"]) + "\n")
+    ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "cs_site", "seq_-100_100"]) + "\n")
     fbed = open(polyadb_bed, "wt")
     fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"" % (poly_id, poly_id))
 
@@ -159,21 +160,16 @@ def annotate(poly_id):
         cDNA = float(r[-1])
         strand = "+" if cDNA>=0 else "-"
         # get upstream sequence
-        if strand=="+":
-            seq = pybio.genomes.seq(species, chr, strand, pos-125, pos)
-        else:
-            seq = pybio.genomes.seq(species, chr, strand, pos, pos+125)
-        if seq==None:
-            seq = "" # todo: check for which chrs there is no seq
+        seq = pybio.genomes.seq(species, chr, strand, pos-100, pos+100)
         gid_up, gid, gid_down, gid_interval = annotate_position(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
         if accepted.get(key, None)!=None:
             if gid==None:
-                row = [chr, strand, pos, "", "", "", cDNA, seq]
+                row = [chr, strand, pos, "", "", "", cDNA, "", "", seq]
             else:
                 gene = get_gene(species, gid)
                 interval = "%s:%s:%s" % (str(gid_interval[0]), str(gid_interval[1]), interval_types[gid_interval[2]])
-                row = [chr, strand, pos, gid, gene["gene_name"], interval, cDNA, seq]
+                row = [chr, strand, pos, gid, gene["gene_name"], interval, cDNA, "", "", seq]
             ftab.write("\t".join(str(e) for e in row)+"\n")
             fbed.write("\t".join(r)+"\n")
             ffasta.write(">%s\n%s\n" % ("%s%s:%s" % (strand, chr, pos), seq))
@@ -183,6 +179,65 @@ def annotate(poly_id):
     fbed.close()
     ffasta.close()
     os.remove(polyadb_temp)
+    classify_polya(poly_id)
+
+def classify_polya(poly_id):
+    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
+    polyadb_fasta = apa.path.polyadb_filename(poly_id, filetype="fasta")
+    shutil.copy2(polyadb_fasta, os.path.join(os.getenv("HOME"), "software/polyar/"))
+    os.chdir(os.path.join(os.getenv("HOME"), "software/polyar/"))
+
+    # run polyar
+    os.system("java polyar -i %s" % polyadb_fasta)
+
+    polyar_results = {}
+    f = open("output.res", "rt")
+    r = f.readline()
+    text = ""
+    while r:
+    	text = text + r
+    	r = f.readline()
+    f.close()
+    text = text.split("Query Name")
+    for line in text[1:]:
+            line = line.split("\n")
+            id = line[0][4:]
+            strand = id[0]
+            chr = id.split(":")[0][1:]
+            pos = id.split(":")[1]
+            pas_type = ""
+            if line[2]!="":
+                    if line[2].find("strong")!=-1:
+                            pas_type = "strong"
+                    elif line[2].find("weak")!=-1:
+                            pas_type = "weak"
+                    elif line[2].find("less")!=-1:
+                            pas_type = "less"
+                    cs = int(line[3].replace("\t", "").split("CS:")[1][:5])
+            polyar_results[(chr, strand, pos)] = (pas_type, cs)
+
+    f = open(polyadb_tab, "rt")
+    fout = open("temp.tab", "wt")
+    header = f.readline()
+    fout.write(header)
+
+    r = f.readline()
+    while r:
+    	r = r.replace("\n", "").replace("\r", "").split("\t")
+    	chr = r[0]
+    	strand = r[1]
+    	pos = r[2]
+    	r[-3], r[-2] = polyar_results[(chr, strand, pos)]
+    	fout.write("\t".join([str(e) for e in r])+"\n")
+    	r = f.readline()
+    f.close()
+    fout.close()
+
+    os.system("cp %s %s" % ("temp.tab", polyadb_tab))
+    os.system("rm *.tab")
+    os.system("rm *.fasta")
+    return
+
 
 def annotate_pair(species, chr, strand, pos1, pos2):
     # keep positions in positive orientation

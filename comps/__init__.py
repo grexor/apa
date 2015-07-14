@@ -33,6 +33,8 @@ class Comps:
         self.control_thr = 0.025
         self.pair_dist = 450
         self.exp_data = {}
+        self.polya_db = None
+        self.polya_db_filter = ["strong"] # default
 
     def __str__(self):
         print "comps_id = %s" % (self.comps_id)
@@ -60,7 +62,7 @@ def read_comps(comps_id):
         if r[0].startswith("#"):
             r = f.readline()
             continue
-        if r[0].startswith("pc_thr"):
+        if r[0].startswith("pc_thr:"):
             comps.pc_thr = float(r[0].split("pc_thr:")[1])
             r = f.readline()
             continue
@@ -84,16 +86,24 @@ def read_comps(comps_id):
             comps.cDNA_thr = int(r[0].split("cDNA_thr:")[1])
             r = f.readline()
             continue
-        if r[0].startswith("presence_thr"):
+        if r[0].startswith("presence_thr:"):
             comps.presence_thr = int(r[0].split("presence_thr:")[1])
             r = f.readline()
             continue
-        if r[0].startswith("control_name"):
+        if r[0].startswith("control_name:"):
             comps.control_name = r[0].split("control_name:")[1]
             r = f.readline()
             continue
-        if r[0].startswith("test_name"):
+        if r[0].startswith("test_name:"):
             comps.test_name = r[0].split("test_name:")[1]
+            r = f.readline()
+            continue
+        if r[0].startswith("polya_db:"):
+            comps.polya_db = r[0].split("polya_db:")[1]
+            r = f.readline()
+            continue
+        if r[0].startswith("polya_db_filter:"):
+            comps.polya_db_filter = eval(r[0].split("polya_db_filter:")[1])
             r = f.readline()
             continue
         id = data["id"]
@@ -157,6 +167,23 @@ def process_comps(comps_id):
     comps = read_comps(comps_id) # study data
     pybio.genomes.load(comps.species)
 
+    # if there is a polya-db specified in the comparison, load the positions into the filter
+    # (strong, weak, less)
+    poly_filter = {}
+    if comps.polya_db!=None:
+        polyadb_tab = apa.path.polyadb_filename(comps.polya_db, filetype="tab")
+        f = open(polyadb_tab, "rt")
+        header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+        r = f.readline()
+        while r:
+            r = r.replace("\r", "").replace("\n", "").split("\t")
+            data = dict(zip(header, r))
+            if data["pas_type"] not in comps.polya_db_filter:
+                key = "%s%s:%s" % (data["strand"], data["chr"], data["pos"])
+                poly_filter[key] = 1
+            r = f.readline()
+        f.close()
+
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
 
@@ -188,7 +215,7 @@ def process_comps(comps_id):
 
     # finally, save a combined control and test bed files
     b = pybio.data.Bedgraph()
-    for (comp_id, experiments, comp_name) in comps.control:
+    for (comp_id, experiments, comp_name) in comps.control: # control
         for id in experiments:
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
@@ -198,7 +225,7 @@ def process_comps(comps_id):
     b.save(bed_filename, track_id="%s.control_all" % (comps_id), genome=comps.species)
 
     b = pybio.data.Bedgraph()
-    for (comp_id, experiments, comp_name) in comps.test:
+    for (comp_id, experiments, comp_name) in comps.test: # test
         for id in experiments:
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
@@ -208,19 +235,21 @@ def process_comps(comps_id):
     b.save(bed_filename, track_id="%s.test_all" % (comps_id), genome=comps.species)
 
     # find common list of positions
+    # allow to filter positions
     positions = {}
     for id, bg in expression.items():
         for chr, strand_data in bg.raw.items():
             positions.setdefault(chr, {})
-            for strand, pos in strand_data.items():
+            for strand, pos_set in strand_data.items():
                 positions.setdefault(chr, {}).setdefault(strand, set())
-                positions[chr][strand] = positions[chr][strand].union(set(pos.keys()))
+                # is position present in poly_filter and should be filtered out?
+                valid_positions = set()
+                for pos in pos_set:
+                    if poly_filter.get("%s%s:%s" % (strand, chr, pos), None)==None:
+                        valid_positions.add(pos)
+                positions[chr][strand] = positions[chr][strand].union(valid_positions)
 
     # organize polya sites inside genes
-
-    # TODO: make such a structure
-    # gsites[gene_id] -> sites[site_pos] -> es[rshort], es["cDNA_sum"]
-
     gsites = {}
     for chr, strand_data in positions.items():
         for strand, pos_set in strand_data.items():
