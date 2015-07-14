@@ -6,7 +6,7 @@ genes (test/control experimental setups).
 Dependencies
 
 * R : library amap : http://cran.r-project.org/web/packages/amap/index.html
-* pybio : NGS analytics with Python: https://bitbucket.org/rogrro/pybio
+* pybio : NGS analytics with Python: https://github.com/grexor/pybio
 * scikit-learn: http://scikit-learn.org/0.11/install.html
 
 Installation
