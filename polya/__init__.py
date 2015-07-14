@@ -180,6 +180,7 @@ def annotate(poly_id):
     ffasta.close()
     os.remove(polyadb_temp)
     classify_polya(poly_id)
+    polyadb_class_histogram(poly_id)
 
 def classify_polya(poly_id):
     """
@@ -259,6 +260,7 @@ def polyadb_class_histogram(poly_id):
         r = r.replace("\n", "").replace("\r", "").split("\t")
         data = dict(zip(header, r))
         if data["pas_type"]!="":
+            y.setdefault
             y[data["pas_type"]].append(int(data["cs_site"]))
         r = f.readline()
     f.close()
@@ -272,23 +274,26 @@ def polyadb_class_histogram(poly_id):
        s = '{:0,d}'.format(int(x))
        return s
 
-    n, bins, patches = P.hist(y["strong"], 50, histtype='stepfilled')
-    P.setp(patches, 'facecolor', 'gray', 'alpha', 0.75)
+    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"]], bins=range(-30, 30+1), color=["#FFAEAE", 'lightgreen', "lightblue"], label=['strong', 'weak', "less"], histtype="barstacked", edgecolor="lightgray")
+    #P.setp(patches, 'facecolor', 'lightblue', 'alpha', 0.75)
     P.title(poly_id)
     P.ylim(bottom=0)
+    #P.xlim(left=-30, right=30)
     P.xlabel("distance [nt]")
     P.ylabel("number of sites")
+    P.legend()
 
     a_format = tkr.FuncFormatter(func)
     axes = plt.gca()
     axes.xaxis.set_major_formatter(a_format)
-    axes.xaxis.set_major_formatter(a_format)
+    axes.yaxis.set_major_formatter(a_format)
     axes.spines['bottom'].set_alpha(0.5)
     axes.spines['top'].set_alpha(0.5)
     axes.spines['right'].set_alpha(0.5)
     axes.spines['left'].set_alpha(0.5)
     polyadb_image = apa.path.polyadb_filename(poly_id, filetype="class_hist")
     P.savefig(polyadb_image+".png")
+    P.savefig(polyadb_image+".svg")
 
 def annotate_pair(species, chr, strand, pos1, pos2):
     # keep positions in positive orientation

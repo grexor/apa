@@ -8,6 +8,7 @@ Dependencies
 * R : library amap : http://cran.r-project.org/web/packages/amap/index.html
 * pybio : NGS analytics with Python: https://github.com/grexor/pybio
 * scikit-learn: http://scikit-learn.org/0.11/install.html
+* polyar (http://cub.comsats.edu.pk/polyapredict.htm) installed to ~/software/polyar
 
 Installation
 
