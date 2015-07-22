@@ -6,7 +6,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 # either draw RNA maps from a comps definition
-parser.add_argument('-comps_id', action="store", dest="comps_id", default=None)
+parser.add_argument('-comps', action="store", dest="comps_id", default=None)
 
 # or directly from a tab file of sites
 parser.add_argument('-tab_file', action="store", dest="tab_file", default=None)

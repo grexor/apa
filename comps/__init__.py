@@ -57,8 +57,14 @@ def read_comps(comps_id):
     header = r.replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
     while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
+        r = r.replace("\r", "").replace("\n", "")
+        r = r.split("#")[0] # remove comments
+        r = r.rstrip() # remove whitespace characters from end of string
+        r = r.split("\t")
         data = dict(zip(header, r))
+        if r==[""]:
+            r = f.readline()
+            continue
         if r[0].startswith("#"):
             r = f.readline()
             continue
@@ -446,7 +452,7 @@ def process_comps(comps_id):
             site2 = L[1][1]
             major = max(site1["cDNA_sum"], site2["cDNA_sum"])
             minor = min(site1["cDNA_sum"], site2["cDNA_sum"])
-            if minor < major*0.05:
+            if minor < major*0.1:
                 continue
             if (site1["pos"]<site2["pos"] and strand=="+") or (site1["pos"]>site2["pos"] and strand=="-"):
                 up_site = site1

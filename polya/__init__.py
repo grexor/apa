@@ -197,10 +197,10 @@ def classify_polya(poly_id):
     os.chdir(os.path.join(os.getenv("HOME"), "software/polyar/"))
 
     # run polyar
-    os.system("java polyar -i %s" % polyadb_fasta)
+    os.system("java polyar -i %s -o %s.res" % (polyadb_fasta, poly_id))
 
     polyar_results = {}
-    f = open("output.res", "rt")
+    f = open("%s.res" % poly_id, "rt")
     r = f.readline()
     text = ""
     while r:
@@ -228,7 +228,7 @@ def classify_polya(poly_id):
             polyar_results[(chr, strand, pos)] = (pas_type, cs)
 
     f = open(polyadb_tab, "rt")
-    fout = open("temp.tab", "wt")
+    fout = open("%s.tab" % poly_id, "wt")
     header = f.readline()
     fout.write(header)
 
@@ -244,9 +244,10 @@ def classify_polya(poly_id):
     f.close()
     fout.close()
 
-    os.system("cp %s %s" % ("temp.tab", polyadb_tab))
-    os.system("rm *.tab")
-    os.system("rm *.fasta")
+    os.system("cp %s.tab %s" % (poly_id, polyadb_tab))
+    os.system("rm %s.res" % poly_id)
+    os.system("rm %s.fasta" % poly_id)
+    os.system("rm %s.tab" % poly_id)
     return
 
 def polyadb_class_histogram(poly_id):
@@ -274,9 +275,10 @@ def polyadb_class_histogram(poly_id):
        s = '{:0,d}'.format(int(x))
        return s
 
+    P.figure(figsize=(20,4))
     n, bins, patches = P.hist([y["strong"], y["weak"], y["less"]], bins=range(-30, 30+1), color=["#FFAEAE", 'lightgreen', "lightblue"], label=['strong', 'weak', "less"], histtype="barstacked", edgecolor="lightgray")
     #P.setp(patches, 'facecolor', 'lightblue', 'alpha', 0.75)
-    P.title(poly_id)
+    P.title("distribution of predicted poly-AR (strong, weak, less) around original sites (pool = %s)" % poly_id)
     P.ylim(bottom=0)
     #P.xlim(left=-30, right=30)
     P.xlabel("distance [nt]")
@@ -292,6 +294,7 @@ def polyadb_class_histogram(poly_id):
     axes.spines['right'].set_alpha(0.5)
     axes.spines['left'].set_alpha(0.5)
     polyadb_image = apa.path.polyadb_filename(poly_id, filetype="class_hist")
+    P.tight_layout()
     P.savefig(polyadb_image+".png")
     P.savefig(polyadb_image+".svg")
 
