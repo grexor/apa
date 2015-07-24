@@ -25,18 +25,18 @@ def e_filename(lib_id, exp_id, map_id=1, polyid=None, filetype=None):
         return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.E.%s.bed" % (lib_id, exp_id, map_id, polyid, filetype))
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.E.bed" % (lib_id, exp_id, map_id, polyid))
 
-def polyadb_filename(species, filetype="bed"):
+def polyadb_filename(poly_id, filetype="bed"):
     if filetype=="bed":
-        return os.path.join(apa.path.polya_folder, "%s.bed" % species)
+        return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)
     if filetype=="temp":
-        return os.path.join(apa.path.polya_folder, "%s.temp" % species)
+        return os.path.join(apa.path.polya_folder, "%s.temp" % poly_id)
     if filetype=="complete":
-        return os.path.join(apa.path.polya_folder, "%s_complete.tab" % species)
+        return os.path.join(apa.path.polya_folder, "%s_complete.tab" % poly_id)
     if filetype=="tab":
-        return os.path.join(apa.path.polya_folder, "%s.tab" % species)
+        return os.path.join(apa.path.polya_folder, "%s.tab" % poly_id)
     if filetype=="class_hist":
-        return os.path.join(apa.path.polya_folder, "%s_class_hist" % species)
-    return os.path.join(apa.path.polya_folder, "%s.%s" % (species, filetype))
+        return os.path.join(apa.path.polya_folder, "%s_class_hist" % poly_id)
+    return os.path.join(apa.path.polya_folder, "%s.%s" % (poly_id, filetype))
 
 def polyadb_ann_filename(species):
     return os.path.join(apa.path.polya_folder, "polyadb.%s.tab" % species)

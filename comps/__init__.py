@@ -177,18 +177,7 @@ def process_comps(comps_id):
     # (strong, weak, less)
     poly_filter = {}
     if comps.polya_db!=None:
-        polyadb_tab = apa.path.polyadb_filename(comps.polya_db, filetype="tab")
-        f = open(polyadb_tab, "rt")
-        header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-        r = f.readline()
-        while r:
-            r = r.replace("\r", "").replace("\n", "").split("\t")
-            data = dict(zip(header, r))
-            if data["pas_type"] not in comps.polya_db_filter:
-                key = "%s%s:%s" % (data["strand"], data["chr"], data["pos"])
-                poly_filter[key] = 1
-            r = f.readline()
-        f.close()
+        polydb = apa.polya.read(comps.polya_db)
 
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
@@ -241,17 +230,19 @@ def process_comps(comps_id):
     b.save(bed_filename, track_id="%s.test_all" % (comps_id), genome=comps.species)
 
     # find common list of positions
-    # allow to filter positions
+    # filter positions
     positions = {}
     for id, bg in expression.items():
         for chr, strand_data in bg.raw.items():
             positions.setdefault(chr, {})
             for strand, pos_set in strand_data.items():
                 positions.setdefault(chr, {}).setdefault(strand, set())
-                # is position present in poly_filter and should be filtered out?
                 valid_positions = set()
                 for pos in pos_set:
-                    if poly_filter.get("%s%s:%s" % (strand, chr, pos), None)==None:
+                    if comps.polya_db!=None:
+                        if polydb.get((chr, strand, pos))["pas_type"] in comps.polya_db_filter:
+                            valid_positions.add(pos)
+                    else:
                         valid_positions.add(pos)
                 positions[chr][strand] = positions[chr][strand].union(valid_positions)
 
@@ -362,6 +353,14 @@ def process_comps(comps_id):
     input_fname = apa.path.comps_expression_filename(comps_id)
     output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes.svg" % comps_id)
     command = "R --vanilla --args %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), R_file)
+    print command
+    pybio.utils.Cmd(command).run()
+
+    # heatmap of differentially expressed genes
+    R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_genes.R")
+    input_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
+    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap_genes.pdf" % comps_id)
+    command = "R --vanilla --args %s %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()
 

@@ -95,6 +95,21 @@ def process(poly_id):
     #bed.save(apa.path.polyadb_filename(poly_id, filetype="bed"), db_save="raw", min_support=min_support)
     #bed.save(apa.path.polyadb_filename(poly_id, filetype="complete"), db_save="raw", min_support=min_support, filetype="complete")
 
+def read(poly_id):
+    db = {}
+    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
+    f = open(polyadb_tab, "rt")
+    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+    r = f.readline()
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        data = dict(zip(header, r))
+        key = (data["chr"], data["strand"], int(data["pos"]))
+        db[key] = data
+        r = f.readline()
+    f.close()
+    return db
+
 def get_gene(species, gid):
     # only used by apa.annotate_position
     # return only one number of gene_start and gene_stop
@@ -144,7 +159,7 @@ def annotate(poly_id):
             accepted[key] = 1
 
     ftab = open(polyadb_tab, "wt")
-    ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "cs_site", "seq_-100_100"]) + "\n")
+    ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "pas_loci", "cs_loci", "seq_-100_100"]) + "\n")
     fbed = open(polyadb_bed, "wt")
     fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"" % (poly_id, poly_id))
 
@@ -165,11 +180,11 @@ def annotate(poly_id):
         key = "%s:%s:%s" % (chr, strand, pos)
         if accepted.get(key, None)!=None:
             if gid==None:
-                row = [chr, strand, pos, "", "", "", cDNA, "", "", seq]
+                row = [chr, strand, pos, "", "", "", cDNA, "", "", "", seq]
             else:
                 gene = get_gene(species, gid)
                 interval = "%s:%s:%s" % (str(gid_interval[0]), str(gid_interval[1]), interval_types[gid_interval[2]])
-                row = [chr, strand, pos, gid, gene["gene_name"], interval, cDNA, "", "", seq]
+                row = [chr, strand, pos, gid, gene["gene_name"], interval, cDNA, "", "", "", seq]
             ftab.write("\t".join(str(e) for e in row)+"\n")
             fbed.write("\t".join(r)+"\n")
             ffasta.write(">%s\n%s\n" % ("%s%s:%s" % (strand, chr, pos), seq))
@@ -216,6 +231,7 @@ def classify_polya(poly_id):
             pos = id.split(":")[1]
             pas_type = ""
             cs = ""
+            pas = ""
             if line[2]!="":
                     if line[2].find("strong")!=-1:
                             pas_type = "strong"
@@ -223,9 +239,10 @@ def classify_polya(poly_id):
                             pas_type = "weak"
                     elif line[2].find("less")!=-1:
                             pas_type = "less"
-                    cs = int(line[3].replace("\t", "").split("CS:")[1][:5])
-                    cs = cs-100 # since sequence is -100, 100, the loci 100 on the sequence = 0 (detected and predicted the same)
-            polyar_results[(chr, strand, pos)] = (pas_type, cs)
+                    cs = int(line[3].replace("\t", "").split("CS:")[1][:5]) - 100 # since sequence is -100, 100, the loci 100 on the sequence = 0 (detected and predicted the same)
+                    if line[3].replace("\t", "").find("PAS")!=-1:
+                        pas = int(line[3].replace("\t", "").split("PAS:")[1][:5]) - 100 # since sequence is -100, 100, the loci 100 on the sequence = 0 (detected and predicted the same)
+            polyar_results[(chr, strand, pos)] = (pas_type, pas, cs)
 
     f = open(polyadb_tab, "rt")
     fout = open("%s.tab" % poly_id, "wt")
@@ -238,7 +255,7 @@ def classify_polya(poly_id):
     	chr = r[0]
     	strand = r[1]
     	pos = r[2]
-    	r[-3], r[-2] = polyar_results[(chr, strand, pos)]
+    	r[-4], r[-3], r[-2] = polyar_results[(chr, strand, pos)]
     	fout.write("\t".join([str(e) for e in r])+"\n")
     	r = f.readline()
     f.close()
@@ -262,7 +279,7 @@ def polyadb_class_histogram(poly_id):
         data = dict(zip(header, r))
         if data["pas_type"]!="":
             y.setdefault
-            y[data["pas_type"]].append(int(data["cs_site"]))
+            y[data["pas_type"]].append(int(data["cs_loci"]))
         r = f.readline()
     f.close()
 

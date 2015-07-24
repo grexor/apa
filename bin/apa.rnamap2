@@ -2,5 +2,22 @@
 
 import apa
 import sys
+import argparse
+parser = argparse.ArgumentParser()
 
-apa.rnamap2.process_space(sys.argv[1])
+# either draw RNA maps from a comps definition
+parser.add_argument('-comps', action="store", dest="comps_id", default=None)
+
+# or directly from a tab file of sites
+parser.add_argument('-tab_file', action="store", dest="tab_file", default=None)
+parser.add_argument('-genome', action="store", dest="genome")
+parser.add_argument('-clip_file', action="store", dest="clip_file", default="")
+parser.add_argument('-rnamap_dest', action="store", dest="rnamap_dest", default=".")
+
+args = parser.parse_args()
+
+if args.comps_id!=None:
+    apa.rnamap2.process(args.comps_id)
+
+if args.tab_file!=None:
+    apa.rnamap2.process(tab_file=args.tab_file, clip_file=args.clip_file, genome=args.genome, rnamap_dest=args.rnamap_dest)

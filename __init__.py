@@ -14,6 +14,7 @@ import bed
 import polya
 import comps
 import rnamap
+import rnamap2
 import model
 import analysis
 
