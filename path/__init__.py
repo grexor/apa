@@ -41,6 +41,9 @@ def polyadb_filename(poly_id, filetype="bed"):
 def polyadb_ann_filename(species):
     return os.path.join(apa.path.polya_folder, "polyadb.%s.tab" % species)
 
+def lib_folder(lib_id):
+    return os.path.join(apa.path.data_folder, lib_id)
+
 def map_folder(lib_id, exp_id, map_id=1):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id)
 
