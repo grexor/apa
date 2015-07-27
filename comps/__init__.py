@@ -359,7 +359,7 @@ def process_comps(comps_id):
     # heatmap of differentially expressed genes
     R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_genes.R")
     input_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap_genes.pdf" % comps_id)
+    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap_genes" % comps_id)
     command = "R --vanilla --args %s %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()

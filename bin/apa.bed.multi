@@ -10,9 +10,10 @@ import os
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
+parser.add_argument('-lib', action="store", dest="lib", default=None)
 args = parser.parse_args()
 
-num_worker_threads = 40
+num_worker_threads = 10
 q = Queue()
 
 def worker():
@@ -21,9 +22,17 @@ def worker():
         os.system(task)
         q.task_done()
 
+# get experiments
+eids = apa.annotation.libs[args.lib].experiments.keys()
+
 tasks = []
-for lib_id in apa.annotation.libs.keys():
-    tasks.append("apa.bed -type %s -lib_id %s" % (args.type, lib_id))
+for eid in eids:
+    tasks.append("apa.bed -type %s -lib_id %s -exp_id %s -force" % (args.type, args.lib, eid))
+
+for t in tasks:
+    print t
+
+#sys.exit(1)
 
 for i in range(num_worker_threads):
      t = Thread(target=worker)
