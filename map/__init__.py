@@ -28,18 +28,28 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False):
     pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id))
 
 def stats(lib_id):
-    f = open(os.path.join(apa.path.lib_folder(lib_id), "%s_stats.tab" % lib_id), "wt")
-    header = ["exp_id", "tissue", "condition", "replicate", "#reads [M]", "#mapped [M]" , "mapped [%%]"]
+    fname = os.path.join(apa.path.lib_folder(lib_id), "%s_stats.tab" % lib_id)
+
+    #if os.path.exists(fname):
+    #    statinfo = os.stat(fname)
+    #    if statinfo.st_size>0:
+    #        return
+    
+    print "writting to: %s" % fname
+    f = open(fname, "wt")
+    header = ["exp_id", "tissue", "condition", "replicate", "#reads [M]", "#mapped [M]" , "mapped [%]"]
+    print "\t".join(header)
     f.write("\t".join(header) + "\n")
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         map_folder = apa.path.map_folder(lib_id, exp_id)
         bam_file = os.path.join(map_folder, "%s_e%s_m%s.bam" % (lib_id, exp_id, 1))
-        num_reads = commands.getoutput("zcat %s | wc -l" % fastq_file)
+        num_reads = commands.getoutput("zcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
         num_reads = int(num_reads)/4
-        map_reads = commands.getoutput("samtools view -c %s" % bam_file)
+        map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
         map_reads = int(map_reads)
-        print exp_id, num_reads, map_reads
-        row = [exp_id, exp_data["tissue"], exp_data["condition"], exp_data["replicate"], "%.3f" % (num_reads/1e6), "%.3f" % (map_reads/1e6), "%.2f" % (map_reads*100.0/num_reads)]
+        row = [exp_id, exp_data["tissue"], exp_data["condition"], exp_data["replicate"], "%.3f" % (num_reads/1e6), "%.3f" % (map_reads/1e6), "%.2f" % (map_reads*100.0/max(1, num_reads))]
+        print "\t".join(str(x) for x in row)
         f.write("\t".join(str(x) for x in row) + "\n")
+    f.close()
     return

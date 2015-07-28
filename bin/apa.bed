@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-lib_id', action="store", dest="lib_id", default=None)
 parser.add_argument('-exp_id', type=int, action="store", dest="exp_id", default=None)
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
-parser.add_argument('-poly_id', action="store", dest="poly_id", default=None)
+parser.add_argument('-poly', action="store", dest="poly", default=None)
 parser.add_argument('-force', action="store_true", default=False)
 parser.add_argument('-genome', action="store", default=None)
 args = parser.parse_args()
@@ -26,4 +26,4 @@ for exp_id in eids:
     if args.type=="raw":
         apa.bed.bed_raw(args.lib_id, exp_id, force=args.force)
     if args.type=="expression":
-        apa.bed.bed_expression(args.lib_id, exp_id, polyid=args.polyid, force=args.force)
+        apa.bed.bed_expression(args.lib_id, exp_id, polyid=args.poly, force=args.force)
