@@ -19,6 +19,7 @@ import cPickle
 from pandas import DataFrame
 import math
 import matplotlib.patches as mpatches
+import pickle
 
 def freq(data, all_genes):
     col_sums = []
@@ -138,6 +139,9 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
 
     for reg_type, d in [("pos", vpos), ("neg", vneg)]:
         d = DataFrame(d)
+
+        pickle.dump(d, open("heatmap.pickle", "wb"))
+
         order = d.sum(axis=1).order(ascending=False).index
         vals = [x[2] for x in d.ix[order, 0]]
         s = sum(vals)
@@ -153,11 +157,15 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         # Plot it out
         fig, ax = plt.subplots()
         if reg_type=="pos":
+            dn = d.ix[indices, 1:].sub(d.ix[indices, 1:].min(axis=1), axis=0)
+            dn_div = dn.max(axis=1)-dn.min(axis=1)
+            dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
+            dn = dn.div(dn_div, axis=0)
             #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Reds, alpha=alpha)
-            heatmap = ax.pcolor(d.ix[indices, 1:], cmap=cred, alpha=alpha)
+            heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha)
         else:
             #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Blues, alpha=alpha)
-            heatmap = ax.pcolor(d.ix[indices, 1:], cmap=cblue, alpha=alpha)
+            heatmap = ax.pcolor(dn, cmap=cblue, alpha=alpha)
 
         fig = plt.gcf()
         fig.set_size_inches(30, 5)

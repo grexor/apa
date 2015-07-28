@@ -34,7 +34,7 @@ def stats(lib_id):
     #    statinfo = os.stat(fname)
     #    if statinfo.st_size>0:
     #        return
-    
+
     print "writting to: %s" % fname
     f = open(fname, "wt")
     header = ["exp_id", "tissue", "condition", "replicate", "#reads [M]", "#mapped [M]" , "mapped [%]"]
@@ -44,6 +44,9 @@ def stats(lib_id):
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         map_folder = apa.path.map_folder(lib_id, exp_id)
         bam_file = os.path.join(map_folder, "%s_e%s_m%s.bam" % (lib_id, exp_id, 1))
+        # not fastq or bam perhaps? (bedgraph data)
+        if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
+            continue
         num_reads = commands.getoutput("zcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
         num_reads = int(num_reads)/4
         map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
