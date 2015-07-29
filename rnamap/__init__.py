@@ -156,11 +156,19 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
 
         # Plot it out
         fig, ax = plt.subplots()
+
+        # -min, divide by (max-min)
+        #dn = d.ix[indices, 1:].sub(d.ix[indices, 1:].min(axis=1), axis=0)
+        #dn_div = dn.max(axis=1)-dn.min(axis=1)
+        #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
+        #dn = dn.div(dn_div, axis=0)
+
+        # divide by row sum
+        dn = d.ix[indices, 1:] # get only subset of rows
+        dn_div = dn.sum(axis=1) # get row sums
+        dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
+        dn = dn.div(dn_div, axis=0) # divide by row sums
         if reg_type=="pos":
-            dn = d.ix[indices, 1:].sub(d.ix[indices, 1:].min(axis=1), axis=0)
-            dn_div = dn.max(axis=1)-dn.min(axis=1)
-            dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
-            dn = dn.div(dn_div, axis=0)
             #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Reds, alpha=alpha)
             heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha)
         else:
@@ -266,6 +274,8 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
             clip_file = os.path.join(apa.path.iCLIP_folder, comps.iCLIP_filename)
         tab_file = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
         rnamap_dest = os.path.join(apa.path.comps_folder, comps_id, "rnamap")
+        if comps.polya_db!=None:
+            polydb = apa.polya.read(comps.polya_db)
 
     #if comps.iCLIP_filename==None:
     #    return
