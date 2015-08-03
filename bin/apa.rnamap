@@ -13,11 +13,13 @@ parser.add_argument('-tab_file', action="store", dest="tab_file", default=None)
 parser.add_argument('-genome', action="store", dest="genome")
 parser.add_argument('-clip_file', action="store", dest="clip_file", default="")
 parser.add_argument('-rnamap_dest', action="store", dest="rnamap_dest", default=".")
+parser.add_argument('-map_type', action='store', dest='map_type', default='original') # original, cs, pas
+parser.add_argument('-map_folder', action='store', dest='map_folder', default='rnamap')
 
 args = parser.parse_args()
 
 if args.comps_id!=None:
-    apa.rnamap.process(args.comps_id)
+    apa.rnamap.process(args.comps_id, map_type=args.map_type, map_folder=args.map_folder)
 
 if args.tab_file!=None:
-    apa.rnamap.process(tab_file=args.tab_file, clip_file=args.clip_file, genome=args.genome, rnamap_dest=args.rnamap_dest)
+    apa.rnamap.process(tab_file=args.tab_file, clip_file=args.clip_file, genome=args.genome, rnamap_dest=args.rnamap_dest, map_type=args.map_type, map_folder=args.map_folder)

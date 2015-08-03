@@ -139,13 +139,13 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
                 upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+36) # if strand=-, already returns RC
                 #aligned_seq = pybio.sequence.reverse_complement(a.query)
 
-            if match_pas(upstream_seq):
-                true_site = True
-                pas_count += 1
-
             if downstream_seq.startswith("AAAA") or downstream_seq[:10].count("A")>=5 or upstream_seq.endswith("AAAA") \
                 or upstream_seq[-10:].count("A")>=5:
                 true_site = False
+
+            if match_pas(upstream_seq):
+                true_site = True
+                pas_count += 1
 
             if true_site:
                 temp = dataT.get(key, {})
@@ -201,8 +201,9 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
 
         cigar = a.cigar
         cigar_types = [t for (t, v) in cigar]
-        if 3 in cigar_types: # skip spliced reads
-            continue
+
+        #if 3 in cigar_types: # skip spliced reads
+        #    continue
 
         aremoved = 0
         if a.is_reverse:
@@ -236,11 +237,11 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
             downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-15, pos_end-1)
             upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+36)
 
-        if match_pas(upstream_seq):
-            true_site = True
-
         if downstream_seq.startswith("AAAAA") or downstream_seq[:10].count("A")>=6:   #or upstream_seq.endswith("AAAA") or upstream_seq[-10:].count("A")>=5:
             true_site = False
+
+        if match_pas(upstream_seq):
+            true_site = True
 
         if true_site:
             temp = dataT.get(key, {})
