@@ -59,13 +59,15 @@ def bed_raw(lib_id, exp_id, map_id=1, force=False):
     # skip species we don't process (see apa.config)
     if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
         return
-    if exp_data["method"]=="pAseq":
+    if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_raw_paseq(lib_id, exp_id, map_id=1, force=force)
     if exp_data["method"]=="paseqx":
         apa.bed.bed_raw_paseqx(lib_id, exp_id, map_id=1, force=force)
+    if exp_data["method"]=="lexogen_fwd":
+        apa.bed.bed_raw_lexogen_fwd(lib_id, exp_id, map_id=1, force=force)
 
 def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
-    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="pAseq")
+    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"] in ["pAseq", "paseq"])
     # http://www.cgat.org/~andreas/documentation/pysam/api.html
     # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
@@ -262,11 +264,112 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
     # write T file
     write_bed(dataT, t_filename)
 
+def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
+    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexogen_fwd")
+    # http://www.cgat.org/~andreas/documentation/pysam/api.html
+    # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
+
+    r_filename = apa.path.r_filename(lib_id, exp_id)
+    t_filename = apa.path.t_filename(lib_id, exp_id)
+
+    # don't redo analysis if files exists
+    if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
+        print "%s_e%s_m%s : R/T BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        return
+
+    lib = apa.annotation.libs[lib_id]
+    exp_data = lib.experiments[exp_id]
+    if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
+        return
+
+    open(r_filename, "wt").close()
+    open(t_filename, "wt").close()
+
+    dataR = {}
+    dataT = {}
+    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
+    bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+    bam_file = pysam.Samfile(bam_filename)
+    a_number = 0
+    pas_count = 0
+    for a in bam_file.fetch():
+        a_number += 1
+
+        if a_number%10000==0:
+            print "%s_e%s_m%s : %sK reads processed : %s (pas count = %s)" % (lib_id, exp_id, map_id, a_number/1000, bam_filename, pas_count)
+
+        # do not process spliced reads
+        cigar = a.cigar
+        cigar_types = [t for (t, v) in cigar]
+        if 3 in cigar_types:
+            continue
+
+        read_id = a.qname
+        chr = bam_file.getrname(a.tid)
+        strand = "+" if not a.is_reverse else "-"
+        # we use the reference positions of the aligned read (aend, pos)
+        # relative positions are stored in qend, qstart
+        if strand=="+":
+            pos_end = a.aend - 1 # aend points to one past the last aligned residue, also see a.positions
+            assert(pos_end==a.positions[-1])
+        else:
+            pos_end = a.pos
+            assert(pos_end==a.positions[0])
+
+        aremoved = 0
+        if a.is_reverse:
+            last_cigar = a.cigar[0]
+        else:
+            last_cigar = a.cigar[-1]
+        if last_cigar[0]==4:
+            aremoved = last_cigar[1]
+
+        key = "%s:%s" % (chr, strand)
+
+        # update T file
+        if aremoved>=6:
+            true_site = True
+            if strand=="+":
+                downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+15)
+                upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-36, pos_end-1)
+            else:
+                downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-15, pos_end-1) # if strand=-, already returns RC
+                upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+36) # if strand=-, already returns RC
+
+            if downstream_seq.startswith("AAAA") or downstream_seq[:10].count("A")>=5 or upstream_seq.endswith("AAAA") \
+                or upstream_seq[-10:].count("A")>=5:
+                true_site = False
+
+            if match_pas(upstream_seq):
+                true_site = True
+                pas_count += 1
+
+            if true_site:
+                temp = dataT.get(key, {})
+                temp2 = temp.get(pos_end, set())
+                temp2.add(read_id)
+                temp[pos_end] = temp2
+                dataT[key] = temp
+
+        # update R file
+        temp = dataR.get(key, {})
+        temp2 = temp.get(pos_end, set())
+        temp2.add(read_id)
+        temp[pos_end] = temp2
+        dataR[key] = temp
+
+    # write R file
+    write_bed(dataR, r_filename)
+    # write T file
+    write_bed(dataT, t_filename)
+
+    return
+
 def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
     exp_id = int(exp_id)
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
     map_to = exp_data["map_to"]
-    if exp_data["method"]=="pAseq":
+    if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, force=force)
     if exp_data["method"]=="paseqx":
         apa.bed.bed_expression_paseqx(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
