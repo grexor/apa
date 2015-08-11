@@ -22,6 +22,30 @@ import matplotlib.patches as mpatches
 import pickle
 import shutil
 
+def read_deepbind(fname):
+    rall = []
+    f = open(fname, "rt")
+    header = f.readline()
+    r = f.readline()
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        v = []
+        for el in r:
+            v.append(float(el))
+        rall.append(v)
+        r = f.readline()
+    f.close()
+
+    # normalize
+    r = []
+    for nt in range(0, len(rall[0])):
+        s = 0
+        for i in range(0, len(rall)):
+            s+=rall[i][nt]
+        s = s / float(len(rall))
+        r.append(s)
+    return r[:-1]
+
 def freq(data, all_genes):
     col_sums = []
     for i in range(1, 401+1):
@@ -43,6 +67,63 @@ def freq(data, all_genes):
         else:
             temp.append(0)
     return temp
+
+def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proximal"):
+    """
+    Draw RNA maps
+    """
+    import matplotlib
+    matplotlib.use("Agg", warn=False)
+    import matplotlib.pyplot as plt
+    import math
+    import gzip
+    from matplotlib import cm as CM
+    import matplotlib.patches as mpatches
+    import matplotlib.ticker as mticker
+    from matplotlib.colors import LinearSegmentedColormap
+    import matplotlib.colors as mcolors
+    c = mcolors.ColorConverter().to_rgb
+
+    # styling
+    matplotlib.rcParams['axes.labelsize'] = 17
+    matplotlib.rcParams['axes.titlesize'] = 17
+    matplotlib.rcParams['xtick.labelsize'] = 14
+    matplotlib.rcParams['ytick.labelsize'] = 14
+    matplotlib.rcParams['legend.fontsize'] = 14
+    matplotlib.rc('axes',edgecolor='gray')
+    matplotlib.rcParams['axes.linewidth'] = 0.3
+    matplotlib.rcParams['legend.frameon'] = 'False'
+
+    fig = plt.figure(figsize=(20, 4))
+    a = plt.axes([0.07, 0.2, 0.9, 0.7])
+    a.set_xlim(0, 200)
+    if ymax!=None:
+        a.set_ylim(-ymax, ymax)
+    plt.ylabel("DeepBind score")
+    plt.xlabel("distance (nt)")
+
+    if site=="proximal":
+        vpos_draw = pybio.utils.smooth(vpos)
+        vneg_draw = [-el for el in pybio.utils.smooth(vneg)]
+        plt.plot(range(0, len(vpos_draw)), vpos_draw, color='red', alpha=1)
+        plt.plot(range(0, len(vneg_draw)), vneg_draw, color='blue', alpha=1)
+
+    # turn the graph around for distal sites
+    if site=="distal":
+        vpos_draw = pybio.utils.smooth(vneg)
+        vneg_draw = [-el for el in pybio.utils.smooth(vpos)]
+        plt.plot(range(0, len(vpos_draw)), vpos_draw, color='blue', alpha=1)
+        plt.plot(range(0, len(vneg_draw)), vneg_draw, color='red', alpha=1)
+
+    p = mpatches.Rectangle([100, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
+    p = mpatches.Rectangle([0, 0], 400, ymax*0.001, facecolor='none', edgecolor=(0.8, 0.8, 0.8), linestyle='dotted')
+    plt.gca().add_patch(p)
+    plt.xticks([0,25,50,75,100,125,150,175,200], [-100,-75,-50,-25,0,25,50,75,100])
+
+    print "saving", filename
+    plt.title(title)
+    plt.savefig(filename+".png", dpi=100)
+    plt.close()
 
 def rnamap_area(vpos, vneg, filename, title="test", ymax=None):
     """
@@ -453,6 +534,29 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
             rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
             rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
+    # deep bind
+    os.chdir(os.path.join(os.getenv("HOME"), "software/deepbind/"))
+    for pair_type in ["tandem", "composite", "skipped"]:
+        for site in ["proximal", "distal"]:
+            for reg in ["r", "e"]:
+                sname = "%s_%s_%s.fasta" % (site, pair_type, reg)
+                dname = "%s_%s_%s_deepbind.tab" % (site, pair_type, reg)
+                sname = os.path.join(apa.path.comps_folder, comps_id, map_folder, sname)
+                dname = os.path.join(apa.path.comps_folder, comps_id, map_folder, dname)
+                os.system("./deepbind D00156.001 < \"%s\" > \"%s\"" % (sname, dname))
+                print "./deepbind D00156.001 < \"%s\" > \"%s\"" % (sname, dname)
+
+    for pair_type in ["tandem", "composite", "skipped"]:
+        for site in ["proximal", "distal"]:
+            neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
+            neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
+            pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
+            pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
+            vneg = read_deepbind(neg_name)
+            vpos = read_deepbind(pos_name)
+            ymax = max(abs(max(pybio.utils.smooth(vneg), key=abs)), abs(max(pybio.utils.smooth(vpos), key=abs)))
+            rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax, site=site, title="%s %s %s" % (comps_id, site, pair_type))
+
     f = open(os.path.join(rnamap_dest, "index.html"), "wt")
     f.write("<html>\n")
 
@@ -465,7 +569,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
 <link rel="stylesheet" type="text/css" href="https://apa-db.org/software/highslide/highslide/highslide.css" />
 
 <script type="text/javascript">
-    hs.graphicsDir = 'https://apa-db.org/rnamotifs2/highslide/highslide/graphics/';
+    hs.graphicsDir = 'https://apa-db.org/software/highslide/highslide/graphics/';
     hs.showCredits = false;
 </script>
 
@@ -542,6 +646,11 @@ a {
 
     for t in ["tandem", "composite", "skipped"]:
         f.write("<tr><td align=center></td><td align=center>proximal (%s)</td><td align=center>distal (%s)</td></tr>\n" % (t, t))
+        f.write("<tr>")
+        f.write("<td align=right valign=center>DeepBind<br>TDP-43<br>e=%s<br>r=%s</td>" % (stats["e.%s" % t], stats["r.%s" % t]))
+        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
+        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_deepbind.png" % t, "%s_distal_deepbind.png" % t))
+        f.write("</tr>")
         f.write("<tr>")
         f.write("<td align=right valign=center>UG<br><font color=red>e=%s</font><br><font color=blue>r=%s</font></td>" % (stats["e.%s" % t], stats["r.%s" % t]))
         f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.siteup.png" % t, "seq.%s.siteup.png" % t))

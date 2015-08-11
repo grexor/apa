@@ -22,18 +22,22 @@ def worker():
         os.system(task)
         q.task_done()
 
-tasks = []
-tasks.append("apa.rnamap -comps %s -map_type original -map_folder rnamap" % args.comps)
-tasks.append("apa.rnamap -comps %s -map_type pas -map_folder rnamap_pas" % args.comps)
-tasks.append("apa.rnamap -comps %s -map_type cs -map_folder rnamap_cs" % args.comps)
-tasks.append("apa.rnamap -comps %s -map_type pas_manual -map_folder rnamap_pas_manual" % args.comps)
-
 for i in range(num_worker_threads):
      t = Thread(target=worker)
      t.daemon = True
      t.start()
 
+tasks = []
+tasks.append("apa.rnamap -comps %s -map_type original -map_folder rnamap" % args.comps)
+tasks.append("apa.rnamap -comps %s -map_type pas -map_folder rnamap_pas" % args.comps)
+tasks.append("apa.rnamap -comps %s -map_type cs -map_folder rnamap_cs" % args.comps)
+tasks.append("apa.rnamap -comps %s -map_type pas_manual -map_folder rnamap_pas_manual" % args.comps)
 for task in tasks:
     q.put(task)
+q.join()
 
+tasks = []
+tasks.append("apa.rnamap_tdp43 -comps %s" % args.comps)
+for task in tasks:
+    q.put(task)
 q.join()
