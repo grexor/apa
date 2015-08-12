@@ -35,6 +35,8 @@ class Comps:
         self.exp_data = {}
         self.polya_db = None
         self.polya_db_filter = ["strong"] # default
+        self.deepbind = None
+        self.rnamaps = ["pas"]
 
     def __str__(self):
         print "comps_id = %s" % (self.comps_id)
@@ -110,6 +112,14 @@ def read_comps(comps_id):
             continue
         if r[0].startswith("polya_db_filter:"):
             comps.polya_db_filter = eval(r[0].split("polya_db_filter:")[1])
+            r = f.readline()
+            continue
+        if r[0].startswith("deepbind:"):
+            comps.deepbind = r[0].split("deepbind:")[1]
+            r = f.readline()
+            continue
+        if r[0].startswith("rnamaps:"):
+            comps.rnamaps = r[0].split("rnamaps:")[1].split(",")
             r = f.readline()
             continue
         id = data["id"]
@@ -202,8 +212,8 @@ def process_comps(comps_id):
     if not os.path.exists(beds_folder):
         os.makedirs(beds_folder)
     for (rshort, rlong) in replicates:
-        rep_ucsc_filename = os.path.join(beds_folder, "%s.%s.E.bed" % (comps_id, rshort))
-        expression[rshort].save(rep_ucsc_filename, track_id="%s.%s" % (comps_id, rshort), genome=comps.species)
+        fname = os.path.join(beds_folder, "%s.%s.bed" % (comps_id, rshort))
+        expression[rshort].save(fname, track_id="%s.%s" % (comps_id, rshort), genome=comps.species)
 
     # combine all into single file
     os.system("cat %s/*.bed > %s" % (beds_folder, os.path.join(beds_folder, "%s_all.bed" % comps_id)))
@@ -216,7 +226,7 @@ def process_comps(comps_id):
             exp_id = int(id.split("_")[-1][1:])
             e_filename = apa.path.e_filename(lib_id, exp_id)
             b.load(e_filename)
-    bed_filename = os.path.join(beds_folder, "%s.%s.control.bed" % (comps_id, rshort))
+    bed_filename = os.path.join(beds_folder, "%s.control_all.bed" % comps_id)
     b.save(bed_filename, track_id="%s.control_all" % (comps_id), genome=comps.species)
 
     b = pybio.data.Bedgraph()
@@ -226,7 +236,7 @@ def process_comps(comps_id):
             exp_id = int(id.split("_")[-1][1:])
             e_filename = apa.path.e_filename(lib_id, exp_id)
             b.load(e_filename)
-    bed_filename = os.path.join(beds_folder, "%s.%s.test.bed" % (comps_id, rshort))
+    bed_filename = os.path.join(beds_folder, "%s.test_all.bed" % comps_id)
     b.save(bed_filename, track_id="%s.test_all" % (comps_id), genome=comps.species)
 
     # find common list of positions

@@ -102,8 +102,6 @@ def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proxima
 
     vpos_draw = pybio.utils.smooth(vpos)
     vneg_draw = pybio.utils.smooth(vneg)
-    vpos_draw = [abs(el) for el in vpos_draw]
-    vneg_draw = [abs(el) for el in vneg_draw]
     diff_draw = [x-y for x,y in zip(vpos_draw, vneg_draw)]
     plt.fill_between(range(0, len(diff_draw)), 0, diff_draw, facecolor='gray', alpha=0.6, interpolate=True)
 
@@ -515,54 +513,60 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
 
     for pair_type in ["tandem", "composite", "skipped"]:
         for (site, site2) in [("siteup", "proximal"), ("sitedown", "distal")]:
-            rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type])
-            rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type])
-            rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type])
 
-            # freq
-            rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
-            rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
-            rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+            # clip
+            if comps.iCLIP_filename!=None:
+                rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type])
+                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_heat(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id)
 
-            # heat
-            rnamap_heat(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id)
-            rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
-            rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
+            # ug
+            if "ug" in comps.rnamaps:
+                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type])
+                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
+
+            # pas
+            if "pas" in comps.rnamaps:
+                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type])
+                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
     # deep bind
-    os.chdir(os.path.join(os.getenv("HOME"), "software/deepbind/"))
-    for pair_type in ["tandem", "composite", "skipped"]:
-        for site in ["proximal", "distal"]:
-            for reg in ["r", "e"]:
-                sname = "%s_%s_%s.fasta" % (site, pair_type, reg)
-                dname = "%s_%s_%s_deepbind.tab" % (site, pair_type, reg)
-                sname = os.path.join(apa.path.comps_folder, comps_id, map_folder, sname)
-                dname = os.path.join(apa.path.comps_folder, comps_id, map_folder, dname)
-                os.system("./deepbind D00156.001 < \"%s\" > \"%s\"" % (sname, dname))
-                print "./deepbind D00156.001 < \"%s\" > \"%s\"" % (sname, dname)
+    if comps.deepbind!=None:
+        os.chdir(os.path.join(os.getenv("HOME"), "software/deepbind/"))
+        for pair_type in ["tandem", "composite", "skipped"]:
+            for site in ["proximal", "distal"]:
+                for reg in ["r", "e"]:
+                    sname = "%s_%s_%s.fasta" % (site, pair_type, reg)
+                    dname = "%s_%s_%s_deepbind.tab" % (site, pair_type, reg)
+                    sname = os.path.join(apa.path.comps_folder, comps_id, map_folder, sname)
+                    dname = os.path.join(apa.path.comps_folder, comps_id, map_folder, dname)
+                    os.system("./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname))
+                    print "./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname)
 
-    # ymax db
-    ymax_db = {"tandem":0, "composite":0, "skipped":0}
-    for pair_type in ["tandem", "composite", "skipped"]:
-        for site in ["proximal", "distal"]:
-            neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
-            neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
-            pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
-            pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
-            vneg = pybio.utils.smooth(read_deepbind(neg_name))
-            vpos = pybio.utils.smooth(read_deepbind(pos_name))
-            diff = [abs(x-y) for x,y in zip(vpos, vneg)]
-            ymax_db[pair_type] = max(ymax_db[pair_type], max(diff))
+        # ymax db
+        ymax_db = {"tandem":0, "composite":0, "skipped":0}
+        for pair_type in ["tandem", "composite", "skipped"]:
+            for site in ["proximal", "distal"]:
+                neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
+                neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
+                pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
+                pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
+                vneg = pybio.utils.smooth(read_deepbind(neg_name))
+                vpos = pybio.utils.smooth(read_deepbind(pos_name))
+                diff = [abs(x-y) for x,y in zip(vpos, vneg)]
+                ymax_db[pair_type] = max(ymax_db[pair_type], max(diff))
 
-    for pair_type in ["tandem", "composite", "skipped"]:
-        for site in ["proximal", "distal"]:
-            neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
-            neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
-            pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
-            pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
-            vneg = read_deepbind(neg_name)
-            vpos = read_deepbind(pos_name)
-            rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax_db[pair_type], site=site, title="%s %s %s" % (comps_id, site, pair_type))
+        for pair_type in ["tandem", "composite", "skipped"]:
+            for site in ["proximal", "distal"]:
+                neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
+                neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
+                pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
+                pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
+                vneg = read_deepbind(neg_name)
+                vpos = read_deepbind(pos_name)
+                rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax_db[pair_type], site=site, title="%s %s %s (%s)" % (comps_id, site, pair_type, comps.deepbind))
 
     f = open(os.path.join(rnamap_dest, "index.html"), "wt")
     f.write("<html>\n")
@@ -570,6 +574,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
     head = """
 
 <head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 </head>
 
 <script type="text/javascript" src="https://apa-db.org/software/highslide/highslide/highslide.js"></script>
@@ -578,6 +583,21 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
 <script type="text/javascript">
     hs.graphicsDir = 'https://apa-db.org/software/highslide/highslide/graphics/';
     hs.showCredits = false;
+</script>
+
+<script>
+
+$(document).ready(function () {
+  $(".slidingDiv").hide();
+
+  $('.show_hide').click(function (e) {
+    $(".slidingDiv").slideToggle("fast");
+    var val = $(this).text() == "- details" ? "+ details" : "- details";
+    $(this).hide().text(val).fadeIn("fast");
+    e.preventDefault();
+  });
+});
+
 </script>
 
 <style>
@@ -591,14 +611,21 @@ a {
     text-decoration: none;
 }
 
+.show_hide {
+  font-size: 13px;
+}
+
 </style>
 """
 
     f.write(head+"\n")
-
     f.write("<body>\n")
 
-    body = """<div style="font-size: 12px;">
+    body = """
+    <a href="#" class="show_hide">+ details</a>
+    """
+
+    body += """<div style="font-size: 12px; padding-left: 10px;" class="slidingDiv">
     """ + comps_id + """ : """ + comps.species + """<br><br>
     Description
     <div style="font-size: 12px; padding-left: 10px;">
@@ -617,8 +644,46 @@ a {
     <br>
     pair distance at least = """ + str(pair_dist) + """
     <br>
-    iCLIP = """ + os.path.basename(clip_file) + """
+    """
+
+    if comps.iCLIP_filename!=None:
+        body += "iCLIP = %s<br>" % os.path.basename(clip_file)
+
+    body += """
+    </div>
     <br>
+    Control
+    <div style="font-size: 12px; padding-left: 10px;">
+    """
+
+    for (comp_id, experiments, comp_name) in comps.control:
+        body += "%s<br>" % comp_id
+        for exp_string in experiments:
+            lib_id = "_".join(exp_string.split("_")[:-1]) # exp_string = "libid_e1"
+            exp_id = int(exp_string.split("_")[-1][1:])
+            condition = apa.annotation.libs[lib_id].experiments[exp_id]["condition"]
+            method = apa.annotation.libs[lib_id].experiments[exp_id]["method"]
+            replicate = apa.annotation.libs[lib_id].experiments[exp_id]["replicate"]
+            body += "&nbsp;&nbsp;%s, %s, %s, rep=%s<br>" % (exp_string, condition, method, replicate)
+
+    body += """
+    </div>
+    <br>
+    Test
+    <div style="font-size: 12px; padding-left: 10px;">
+    """
+
+    for (comp_id, experiments, comp_name) in comps.test:
+        body += "%s<br>" % comp_id
+        for exp_string in experiments:
+            lib_id = "_".join(exp_string.split("_")[:-1]) # exp_string = "libid_e1"
+            exp_id = int(exp_string.split("_")[-1][1:])
+            condition = apa.annotation.libs[lib_id].experiments[exp_id]["condition"]
+            method = apa.annotation.libs[lib_id].experiments[exp_id]["method"]
+            replicate = apa.annotation.libs[lib_id].experiments[exp_id]["replicate"]
+            body += "&nbsp;&nbsp;%s, %s, %s, rep=%s<br>" % (exp_string, condition, method, replicate)
+
+    body += """
     </div>
     </div>
     <br>
@@ -626,88 +691,98 @@ a {
     f.write(body+"\n")
     f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 12px;'>")
 
-    for t in ["tandem", "composite", "skipped"]:
-        f.write("<tr><td align=center></td><td align=center>proximal (%s)</td><td align=center>distal (%s)</td></tr>\n" % (t, t))
-        f.write("<tr>")
-        f.write("<td align=right valign=center>iCLIP<br><font color=red>e=%s</font><br><font color=blue>r=%s</font></td>" % (stats["e.%s" % t], stats["r.%s" % t]))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.siteup.png" % t, "clip.%s.siteup.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.sitedown.png" % t, "clip.%s.sitedown.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>iCLIP<br>cont.</td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.siteup.png" % t, "clip_freq.%s.siteup.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.sitedown.png" % t, "clip_freq.%s.sitedown.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>iCLIP<br><font color=red>top enh</font></td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_pos.png" % t, "clip_heat.%s.siteup_pos.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_pos.png" % t, "clip_heat.%s.sitedown_pos.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>iCLIP<br><font color=blue>top rep</font></td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_neg.png" % t, "clip_heat.%s.siteup_neg.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_neg.png" % t, "clip_heat.%s.sitedown_neg.png" % t))
-        f.write("</tr>")
-        f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
-        f.write("\n")
+    if comps.iCLIP_filename!=None:
+        for t in ["tandem", "composite", "skipped"]:
+            f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>e=%s<br>r=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.siteup.png" % t, "clip.%s.siteup.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.sitedown.png" % t, "clip.%s.sitedown.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>cont.</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.siteup.png" % t, "clip_freq.%s.siteup.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.sitedown.png" % t, "clip_freq.%s.sitedown.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>top enh</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_pos.png" % t, "clip_heat.%s.siteup_pos.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_pos.png" % t, "clip_heat.%s.sitedown_pos.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>top rep</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_neg.png" % t, "clip_heat.%s.siteup_neg.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_neg.png" % t, "clip_heat.%s.sitedown_neg.png" % t))
+            f.write("</tr>")
+            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
+            f.write("\n")
 
-    for t in ["tandem", "composite", "skipped"]:
-        f.write("<tr><td align=center></td><td align=center>proximal (%s)</td><td align=center>distal (%s)</td></tr>\n" % (t, t))
-        f.write("<tr>")
-        f.write("<td align=right valign=center>DeepBind<br>TDP-43<br>e=%s<br>r=%s</td>" % (stats["e.%s" % t], stats["r.%s" % t]))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_deepbind.png" % t, "%s_distal_deepbind.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br><font color=red>e=%s</font><br><font color=blue>r=%s</font></td>" % (stats["e.%s" % t], stats["r.%s" % t]))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.siteup.png" % t, "seq.%s.siteup.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.sitedown.png" % t, "seq.%s.sitedown.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br>cont.</td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.siteup.png" % t, "seq_freq.%s.siteup.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.sitedown.png" % t, "seq_freq.%s.sitedown.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br><font color=red>top enh</font></td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.siteup_pos.png" % t, "seq_heat.%s.siteup_pos.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.sitedown_pos.png" % t, "seq_heat.%s.sitedown_pos.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br><font color=blue>top rep</font></td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.siteup_neg.png" % t, "seq_heat.%s.siteup_neg.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.sitedown_neg.png" % t, "seq_heat.%s.sitedown_neg.png" % t))
-        f.write("</tr>")
-        f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
-        f.write("\n")
+    if comps.deepbind!=None:
+        f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+        for t in ["tandem", "composite", "skipped"]:
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_deepbind.png" % t, "%s_distal_deepbind.png" % t))
+            f.write("</tr>")
+            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
 
-    for t in ["tandem", "composite", "skipped"]:
-        f.write("<tr><td align=center></td><td align=center>proximal (%s)</td><td align=center>distal (%s)</td></tr>\n" % (t, t))
-        f.write("<tr>")
-        f.write("<td align=right valign=center>PAS<br><font color=red>e=%s</font><br><font color=blue>r=%s</font></td>" % (stats["e.%s" % t], stats["r.%s" % t]))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.siteup.png" % t, "pas.%s.siteup.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.sitedown.png" % t, "pas.%s.sitedown.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br>cont.</td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.siteup.png" % t, "pas_freq.%s.siteup.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.sitedown.png" % t, "pas_freq.%s.sitedown.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br><font color=red>top enh</font></td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.siteup_pos.png" % t, "pas_heat.%s.siteup_pos.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.sitedown_pos.png" % t, "pas_heat.%s.sitedown_pos.png" % t))
-        f.write("</tr>")
-        f.write("<tr>")
-        f.write("<td align=right valign=center>UG<br><font color=blue>top rep</font></td>")
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.siteup_neg.png" % t, "pas_heat.%s.siteup_neg.png" % t))
-        f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.sitedown_neg.png" % t, "pas_heat.%s.sitedown_neg.png" % t))
-        f.write("</tr>")
-        f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
-        f.write("\n")
+    if "ug" in comps.rnamaps:
+        for t in ["tandem", "composite", "skipped"]:
+            f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>UG<br>e=%s<br>r=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.siteup.png" % t, "seq.%s.siteup.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.sitedown.png" % t, "seq.%s.sitedown.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>UG<br>cont.</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.siteup.png" % t, "seq_freq.%s.siteup.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.sitedown.png" % t, "seq_freq.%s.sitedown.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>UG<br>top enh</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.siteup_pos.png" % t, "seq_heat.%s.siteup_pos.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.sitedown_pos.png" % t, "seq_heat.%s.sitedown_pos.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>UG<br>top rep</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.siteup_neg.png" % t, "seq_heat.%s.siteup_neg.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.sitedown_neg.png" % t, "seq_heat.%s.sitedown_neg.png" % t))
+            f.write("</tr>")
+            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
+            f.write("\n")
+
+    if "pas" in comps.rnamaps:
+        for t in ["tandem", "composite", "skipped"]:
+            f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>PAS<br>e=%s<br>r=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.siteup.png" % t, "pas.%s.siteup.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.sitedown.png" % t, "pas.%s.sitedown.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>PAS<br>cont.</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.siteup.png" % t, "pas_freq.%s.siteup.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.sitedown.png" % t, "pas_freq.%s.sitedown.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>PAS<br>top enh</td>" % t)
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.siteup_pos.png" % t, "pas_heat.%s.siteup_pos.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.sitedown_pos.png" % t, "pas_heat.%s.sitedown_pos.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>UG<br>top rep</td>")
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.siteup_neg.png" % t, "pas_heat.%s.siteup_neg.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.sitedown_neg.png" % t, "pas_heat.%s.sitedown_neg.png" % t))
+            f.write("</tr>")
+            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
+            f.write("\n")
 
     f.write("\n")
     f.write("</table>")
+
+
 
     f.write("</body>")
     f.write("</html>\n")
