@@ -97,23 +97,18 @@ def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proxima
     fig = plt.figure(figsize=(20, 4))
     a = plt.axes([0.07, 0.2, 0.9, 0.7])
     a.set_xlim(0, 200)
-    if ymax!=None:
-        a.set_ylim(-ymax, ymax)
     plt.ylabel("DeepBind score")
     plt.xlabel("distance (nt)")
 
-    if site=="proximal":
-        vpos_draw = pybio.utils.smooth(vpos)
-        vneg_draw = [-el for el in pybio.utils.smooth(vneg)]
-        plt.plot(range(0, len(vpos_draw)), vpos_draw, color='red', alpha=1)
-        plt.plot(range(0, len(vneg_draw)), vneg_draw, color='blue', alpha=1)
+    vpos_draw = pybio.utils.smooth(vpos)
+    vneg_draw = pybio.utils.smooth(vneg)
+    vpos_draw = [abs(el) for el in vpos_draw]
+    vneg_draw = [abs(el) for el in vneg_draw]
+    diff_draw = [x-y for x,y in zip(vpos_draw, vneg_draw)]
+    plt.fill_between(range(0, len(diff_draw)), 0, diff_draw, facecolor='gray', alpha=0.6, interpolate=True)
 
-    # turn the graph around for distal sites
-    if site=="distal":
-        vpos_draw = pybio.utils.smooth(vneg)
-        vneg_draw = [-el for el in pybio.utils.smooth(vpos)]
-        plt.plot(range(0, len(vpos_draw)), vpos_draw, color='blue', alpha=1)
-        plt.plot(range(0, len(vneg_draw)), vneg_draw, color='red', alpha=1)
+    if ymax!=None:
+        a.set_ylim(-ymax, ymax)
 
     p = mpatches.Rectangle([100, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
     p = mpatches.Rectangle([0, 0], 400, ymax*0.001, facecolor='none', edgecolor=(0.8, 0.8, 0.8), linestyle='dotted')
@@ -175,7 +170,7 @@ def rnamap_area(vpos, vneg, filename, title="test", ymax=None):
     print "saving", filename
     plt.title(title)
     plt.savefig(filename+".png", dpi=100)
-    plt.savefig(filename+".svg")
+    #plt.savefig(filename+".svg")
     plt.close()
 
 def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
@@ -282,7 +277,7 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
         print "saving %s" % (filename+"_%s.png" % reg_type)
         plt.savefig(filename+"_%s.png" % reg_type, dpi=150)
-        plt.savefig(filename+"_%s.svg" % reg_type)
+        #plt.savefig(filename+"_%s.svg" % reg_type)
     return
 
 def rnamap_freq(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem"):
@@ -342,7 +337,7 @@ def rnamap_freq(vpos, vneg, filename, title="test", site="proximal", stats=None,
     plt.title(title)
     #plt.tight_layout() # doesnt work for this type of graphs
     plt.savefig(filename+".png", dpi=100)
-    plt.savefig(filename+".svg")
+    #plt.savefig(filename+".svg")
     plt.close()
 
 def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest=".", map_type="original", map_folder="rnamap"):
@@ -546,6 +541,19 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
                 os.system("./deepbind D00156.001 < \"%s\" > \"%s\"" % (sname, dname))
                 print "./deepbind D00156.001 < \"%s\" > \"%s\"" % (sname, dname)
 
+    # ymax db
+    ymax_db = {"tandem":0, "composite":0, "skipped":0}
+    for pair_type in ["tandem", "composite", "skipped"]:
+        for site in ["proximal", "distal"]:
+            neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
+            neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
+            pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
+            pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
+            vneg = pybio.utils.smooth(read_deepbind(neg_name))
+            vpos = pybio.utils.smooth(read_deepbind(pos_name))
+            diff = [abs(x-y) for x,y in zip(vpos, vneg)]
+            ymax_db[pair_type] = max(ymax_db[pair_type], max(diff))
+
     for pair_type in ["tandem", "composite", "skipped"]:
         for site in ["proximal", "distal"]:
             neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
@@ -554,8 +562,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
             pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
             vneg = read_deepbind(neg_name)
             vpos = read_deepbind(pos_name)
-            ymax = max(abs(max(pybio.utils.smooth(vneg), key=abs)), abs(max(pybio.utils.smooth(vpos), key=abs)))
-            rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax, site=site, title="%s %s %s" % (comps_id, site, pair_type))
+            rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax_db[pair_type], site=site, title="%s %s %s" % (comps_id, site, pair_type))
 
     f = open(os.path.join(rnamap_dest, "index.html"), "wt")
     f.write("<html>\n")
