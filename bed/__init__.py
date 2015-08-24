@@ -5,6 +5,7 @@ import pybio
 import time
 import glob
 import sys
+import regex
 
 PAS_hexamers = [
     'AATAAA',
@@ -296,13 +297,7 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
         a_number += 1
 
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sK reads processed : %s (pas count = %s)" % (lib_id, exp_id, map_id, a_number/1000, bam_filename, pas_count)
-
-        # do not process spliced reads
-        cigar = a.cigar
-        cigar_types = [t for (t, v) in cigar]
-        if 3 in cigar_types:
-            continue
+            print "%s_e%s_m%s : %sK reads processed : %s" % (lib_id, exp_id, map_id, a_number/1000, bam_filename)
 
         read_id = a.qname
         chr = bam_file.getrname(a.tid)
@@ -326,30 +321,17 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
 
         key = "%s:%s" % (chr, strand)
 
-        # update T file
-        if aremoved>=6:
-            true_site = True
-            if strand=="+":
-                downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+15)
-                upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-36, pos_end-1)
-            else:
-                downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-15, pos_end-1) # if strand=-, already returns RC
-                upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+36) # if strand=-, already returns RC
+        # search for 15A and update T files
+        read_seq = a.seq # sequence of read
 
-            if downstream_seq.startswith("AAAA") or downstream_seq[:10].count("A")>=5 or upstream_seq.endswith("AAAA") \
-                or upstream_seq[-10:].count("A")>=5:
-                true_site = False
-
-            if match_pas(upstream_seq):
-                true_site = True
-                pas_count += 1
-
-            if true_site:
-                temp = dataT.get(key, {})
-                temp2 = temp.get(pos_end, set())
-                temp2.add(read_id)
-                temp[pos_end] = temp2
-                dataT[key] = temp
+        m = regex.search(r'A(?:AAAAAAAAAAAAAAA){s<=4}', read_seq)
+        #if aremoved>=6:
+        if m!=None:
+            temp = dataT.get(key, {})
+            temp2 = temp.get(pos_end, set())
+            temp2.add(read_id)
+            temp[pos_end] = temp2
+            dataT[key] = temp
 
         # update R file
         temp = dataR.get(key, {})

@@ -24,15 +24,34 @@ import shutil
 
 def read_deepbind(fname):
     rall = []
+    rscaled = []
     f = open(fname, "rt")
     header = f.readline()
     r = f.readline()
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
+        id = r[0][1:].split(" ")[0]
+        gene_id, gene_name = id.split(":")
+
+        # raw vectors
         v = []
-        for el in r:
+        for el in r[1:]:
             v.append(float(el))
+        while len(v)<400:
+            v.append(0)
         rall.append(v)
+
+        # min normalized vectors
+        v = []
+        for el in r[1:]:
+            v.append(float(el))
+        min_v = abs(min(v))
+        while len(v)<400:
+            v.append(-min_v)
+        v = [e + min_v for e in v]
+        v = [(gene_id, gene_name, sum(v))] + v
+        rscaled.append(v)
+
         r = f.readline()
     f.close()
 
@@ -44,7 +63,7 @@ def read_deepbind(fname):
             s+=rall[i][nt]
         s = s / float(len(rall))
         r.append(s)
-    return r[:-1]
+    return r[:-1], rscaled
 
 def freq(data, all_genes):
     col_sums = []
@@ -96,7 +115,7 @@ def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proxima
 
     fig = plt.figure(figsize=(20, 4))
     a = plt.axes([0.07, 0.2, 0.9, 0.7])
-    a.set_xlim(0, 200)
+    a.set_xlim(0, 400)
     plt.ylabel("DeepBind score")
     plt.xlabel("distance (nt)")
 
@@ -108,15 +127,122 @@ def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proxima
     if ymax!=None:
         a.set_ylim(-ymax, ymax)
 
-    p = mpatches.Rectangle([100, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
+    p = mpatches.Rectangle([200, -200], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
     p = mpatches.Rectangle([0, 0], 400, ymax*0.001, facecolor='none', edgecolor=(0.8, 0.8, 0.8), linestyle='dotted')
     plt.gca().add_patch(p)
-    plt.xticks([0,25,50,75,100,125,150,175,200], [-100,-75,-50,-25,0,25,50,75,100])
+    plt.xticks([0,50,100,150,200,250,300,350,400], [-200,-150,-100,-50,0,50,100,150,200])
 
     print "saving", filename
     plt.title(title)
     plt.savefig(filename+".png", dpi=100)
     plt.close()
+
+def rnamap_deepbind_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
+    """
+    Draw RNA heatmaps
+    """
+    def log_transform(x):
+        if type(x)==numpy.float64:
+            return math.log(x+1)
+        else:
+            return x
+
+    # styling
+    matplotlib.rcParams['axes.labelsize'] = 13
+    matplotlib.rcParams['axes.titlesize'] = 13
+    matplotlib.rcParams['xtick.labelsize'] = 11
+    matplotlib.rcParams['ytick.labelsize'] = 11
+    matplotlib.rcParams['legend.fontsize'] = 11
+    matplotlib.rc('axes',edgecolor='gray')
+    matplotlib.rcParams['axes.linewidth'] = 0.2
+    matplotlib.rcParams['legend.frameon'] = 'False'
+    import matplotlib.colors as mcolors
+
+    def make_colormap(seq):
+        """Return a LinearSegmentedColormap
+        seq: a sequence of floats and RGB-tuples. The floats should be increasing
+        and in the interval (0,1).
+        """
+        seq = [(None,) * 3, 0.0] + list(seq) + [1.0, (None,) * 3]
+        cdict = {'red': [], 'green': [], 'blue': []}
+        for i, item in enumerate(seq):
+            if isinstance(item, float):
+                r1, g1, b1 = seq[i - 1]
+                r2, g2, b2 = seq[i + 1]
+                cdict['red'].append([item, r1, r2])
+                cdict['green'].append([item, g1, g2])
+                cdict['blue'].append([item, b1, b2])
+        return mcolors.LinearSegmentedColormap('CustomMap', cdict)
+
+    c = mcolors.ColorConverter().to_rgb
+    cred = make_colormap([c('white'), c('#ff8383'), 0.5, c('#ff8383'), c('red')])
+    cblue = make_colormap([c('white'), c('#838cff'), 0.5, c('#838cff'), c('blue')])
+
+    for reg_type, d in [("pos", vpos), ("neg", vneg)]:
+        d = DataFrame(d)
+
+        order = d.sum(axis=1).order(ascending=False).index
+        vals = [x[2] for x in d.ix[order, 0]]
+        s = sum(vals)
+        c = 0
+        indices = []
+        for i in order:
+            z = d.ix[i, 0]
+            c += z[2]
+            indices.append(i)
+
+        indices = indices[:20]
+
+        # Plot it out
+        fig, ax = plt.subplots()
+
+        # -min, divide by (max-min)
+        #dn = d.ix[indices, 1:].sub(d.ix[indices, 1:].min(axis=1), axis=0)
+        #dn_div = dn.max(axis=1)-dn.min(axis=1)
+        #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
+        #dn = dn.div(dn_div, axis=0)
+
+        # divide by row sum
+        dn = d.ix[indices, 1:] # get only subset of rows
+        dn_div = dn.sum(axis=1) # get row sums
+        dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
+        dn = dn.div(dn_div, axis=0) # divide by row sums
+        if reg_type=="pos":
+            #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Reds, alpha=alpha)
+            heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha)
+        else:
+            #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Blues, alpha=alpha)
+            heatmap = ax.pcolor(dn, cmap=cblue, alpha=alpha)
+
+        fig = plt.gcf()
+        fig.set_size_inches(30, 5)
+
+        ax.set_yticks(np.arange(d.ix[indices, 1:].shape[0]) + 0.5, minor=False)
+        #ax.set_frame_on(False)
+        labels = ["%s : %.2f" % (x[1], x[2]) for x in d.ix[indices, 0]]
+        ax.set_yticklabels(labels, minor=False)
+        ax.set_xticklabels([-200,-150,-100,-50,0,50,100,150,200], minor=False)
+
+        #ax.grid(False)
+        ax.set_xlim(0, 401)
+        ax.set_ylim(0, len(indices))
+        ax.invert_yaxis()
+        ax = plt.gca()
+        for t in ax.xaxis.get_major_ticks():
+            t.tick1On = False
+            t.tick2On = False
+        for t in ax.yaxis.get_major_ticks():
+            t.tick1On = False
+            t.tick2On = False
+        p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
+        plt.gca().add_patch(p)
+        plt.title("%s (top 20)" % title)
+        plt.subplots_adjust(left=0.05, right=0.97, top=0.90, bottom=0.05)
+        cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
+        print "saving %s" % (filename+"_%s.png" % reg_type)
+        plt.savefig(filename+"_%s.png" % reg_type, dpi=150)
+        #plt.savefig(filename+"_%s.svg" % reg_type)
+    return
 
 def rnamap_area(vpos, vneg, filename, title="test", ymax=None):
     """
@@ -443,8 +569,11 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos-200, siteup_pos+200)
         seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos-200, sitedown_pos+200)
 
-        fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up[100:300]))
-        fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down[100:300]))
+        #fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up[100:300]))
+        #fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down[100:300]))
+
+        fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up))
+        fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down))
 
         # stringent: hw=25, hwt=10
         # TGTG
@@ -553,8 +682,10 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
                 neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
                 pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
                 pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
-                vneg = pybio.utils.smooth(read_deepbind(neg_name))
-                vpos = pybio.utils.smooth(read_deepbind(pos_name))
+                vneg, _ = read_deepbind(neg_name)
+                vpos, _ = read_deepbind(pos_name)
+                vneg = pybio.utils.smooth(vneg)
+                vpos = pybio.utils.smooth(vpos)
                 diff = [abs(x-y) for x,y in zip(vpos, vneg)]
                 ymax_db[pair_type] = max(ymax_db[pair_type], max(diff))
 
@@ -564,9 +695,10 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
                 neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
                 pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
                 pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
-                vneg = read_deepbind(neg_name)
-                vpos = read_deepbind(pos_name)
+                vneg, vneg_vectors = read_deepbind(neg_name)
+                vpos, vpos_vectors = read_deepbind(pos_name)
                 rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax_db[pair_type], site=site, title="%s %s %s (%s)" % (comps_id, site, pair_type, comps.deepbind))
+                rnamap_deepbind_heat(vpos_vectors, vneg_vectors, os.path.join(rnamap_dest, "%s_%s_hdeepbind" % (pair_type, site)), site=site, title="%s %s %s (%s)" % (comps_id, site, pair_type, comps.deepbind))
 
     f = open(os.path.join(rnamap_dest, "index.html"), "wt")
     f.write("<html>\n")
@@ -656,15 +788,20 @@ a {
     <div style="font-size: 12px; padding-left: 10px;">
     """
 
-    for (comp_id, experiments, comp_name) in comps.control:
-        body += "%s<br>" % comp_id
-        for exp_string in experiments:
-            lib_id = "_".join(exp_string.split("_")[:-1]) # exp_string = "libid_e1"
-            exp_id = int(exp_string.split("_")[-1][1:])
-            condition = apa.annotation.libs[lib_id].experiments[exp_id]["condition"]
-            method = apa.annotation.libs[lib_id].experiments[exp_id]["method"]
-            replicate = apa.annotation.libs[lib_id].experiments[exp_id]["replicate"]
-            body += "&nbsp;&nbsp;%s, %s, %s, rep=%s<br>" % (exp_string, condition, method, replicate)
+    def exp_print_out(L):
+        body = ""
+        for (comp_id, experiments, comp_name) in L:
+            body += "%s<br>" % comp_id
+            for exp_string in experiments:
+                lib_id = "_".join(exp_string.split("_")[:-1]) # exp_string = "libid_e1"
+                exp_id = int(exp_string.split("_")[-1][1:])
+                condition = apa.annotation.libs[lib_id].experiments[exp_id]["condition"]
+                method = apa.annotation.libs[lib_id].experiments[exp_id]["method"]
+                replicate = apa.annotation.libs[lib_id].experiments[exp_id]["replicate"]
+                body += "&nbsp;&nbsp;%s, %s, %s, rep=%s<br>" % (exp_string, condition, method, replicate)
+        return body
+
+    body += exp_print_out(comps.control)
 
     body += """
     </div>
@@ -673,15 +810,7 @@ a {
     <div style="font-size: 12px; padding-left: 10px;">
     """
 
-    for (comp_id, experiments, comp_name) in comps.test:
-        body += "%s<br>" % comp_id
-        for exp_string in experiments:
-            lib_id = "_".join(exp_string.split("_")[:-1]) # exp_string = "libid_e1"
-            exp_id = int(exp_string.split("_")[-1][1:])
-            condition = apa.annotation.libs[lib_id].experiments[exp_id]["condition"]
-            method = apa.annotation.libs[lib_id].experiments[exp_id]["method"]
-            replicate = apa.annotation.libs[lib_id].experiments[exp_id]["replicate"]
-            body += "&nbsp;&nbsp;%s, %s, %s, rep=%s<br>" % (exp_string, condition, method, replicate)
+    body += exp_print_out(comps.test)
 
     body += """
     </div>
@@ -724,6 +853,16 @@ a {
             f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_deepbind.png" % t, "%s_distal_deepbind.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_hdeepbind_neg.png" % t, "%s_proximal_hdeepbind_neg.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_hdeepbind_neg.png" % t, "%s_distal_hdeepbind_neg.png" % t))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_hdeepbind_pos.png" % t, "%s_proximal_hdeepbind_pos.png" % t))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_hdeepbind_pos.png" % t, "%s_distal_hdeepbind_pos.png" % t))
             f.write("</tr>")
             f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
 

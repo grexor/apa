@@ -36,7 +36,7 @@ class Comps:
         self.polya_db = None
         self.polya_db_filter = ["strong"] # default
         self.deepbind = None
-        self.rnamaps = ["pas"]
+        self.rnamaps = []
 
     def __str__(self):
         print "comps_id = %s" % (self.comps_id)

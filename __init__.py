@@ -1,5 +1,9 @@
-# main apa module
+"""
+apa
+====
 
+A research platform for bioinformatics analysis of NGS alternative polyadenylation data.
+"""
 import sys
 import os
 import pybio
