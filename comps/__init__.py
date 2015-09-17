@@ -60,7 +60,7 @@ def read_comps(comps_id):
     r = f.readline()
     while r:
         r = r.replace("\r", "").replace("\n", "")
-        r = r.split("#")[0] # remove comments
+        r = r.split(" #")[0] # remove comments
         r = r.rstrip() # remove whitespace characters from end of string
         r = r.split("\t")
         data = dict(zip(header, r))
@@ -362,7 +362,7 @@ def process_comps(comps_id):
     R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
     input_fname = apa.path.comps_expression_filename(comps_id)
     output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes.svg" % comps_id)
-    command = "R --vanilla --args %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), R_file)
+    command = "R --vanilla --args %s %s %s %s '%s (gene level)' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()
 

@@ -22,6 +22,17 @@ PAS_hexamers = [
     'AATGAA'
 ]
 
+def internal_priming(seq):
+    if seq.count("A")<10:
+        return False
+    else:
+        return True
+    #i = regex.search(r'(?:AAAAAAAAAA){s<=3}', seq)
+    #if i!=None:
+    #    return True
+    #else:
+    #    return False
+
 def match_pas(seq):
     for hexamer in PAS_hexamers:
         if seq.find(hexamer)!=-1:
@@ -324,9 +335,15 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
         # search for 15A and update T files
         read_seq = a.seq # sequence of read
 
-        m = regex.search(r'A(?:AAAAAAAAAAAAAAA){s<=4}', read_seq)
-        #if aremoved>=6:
-        if m!=None:
+        if strand=="+":
+            sur_seq = pybio.genomes.seq(genome, chr, strand, pos_end-18, pos_end)
+        else:
+            sur_seq = pybio.genomes.seq(genome, chr, strand, pos_end, pos_end+18)
+
+        #hit_read = regex.search(r'A(?:AAAAAAAAAAAAAAA){s<=4}', read_seq)
+        internal = internal_priming(sur_seq)
+
+        if not internal:
             temp = dataT.get(key, {})
             temp2 = temp.get(pos_end, set())
             temp2.add(read_id)
