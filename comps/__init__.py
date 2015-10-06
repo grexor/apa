@@ -345,10 +345,11 @@ def process_comps(comps_id):
     f_sites.close()
 
     # voom analysis
-    #R_file = os.path.join(apa.path.root_folder, "comps", "comps.voom.R")
-    #command = "R --vanilla --args %s %s %s %s %s < %s" % (os.path.join(apa.path.comps_folder, comps_id), comps_id, voom_filename, len(comps.control), len(comps.test), R_file)
-    #print command
-    #pybio.utils.Cmd(command).run()
+    expression_sites_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
+    R_file = os.path.join(apa.path.root_folder, "comps", "comps_voom.R")
+    command = "R --vanilla --args %s %s %s %s %s < %s" % (os.path.join(apa.path.comps_folder, comps_id), comps_id, expression_sites_fname, len(comps.control), len(comps.test), R_file)
+    print command
+    pybio.utils.Cmd(command).run()
 
     # differential gene expression with edgeR
     R_file = os.path.join(apa.path.root_folder, "comps", "comps_edgeR.R")

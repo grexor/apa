@@ -135,6 +135,20 @@ def make_fasta(comps_id):
         rnamotifs_file = open(rnamotifs_filename, "wt")
         rnamotifs_file.write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
 
+    voom = {}
+    voom_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.voom_exons.tab" % comps_id)
+    f = open(voom_fname, "rt")
+    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+    r = f.readline()
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        gene_id = r[2]
+        exon_id = r[1]
+        fdr = float(r[-1])
+        voom["%s:%s" % (gene_id, exon_id)] = fdr
+        r = f.readline()
+    f.close()
+
     # r = repressed, e = enhanced, c = control
     stats = Counter()
     ntdist = {}
@@ -152,11 +166,14 @@ def make_fasta(comps_id):
         data = dict(zip(header, r))
         chr = data["chr"]
         strand = data["strand"]
+        gene_id = data["gene_id"]
         siteup_pos = int(data["siteup_pos"])
         sitedown_pos = int(data["sitedown_pos"])
         pc = float(data["pc"])
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
+        fdr_voom_up = voom.get("%s:%s" % (gene_id, siteup_pos), 1)
+        fdr_voom_down = voom.get("%s:%s" % (gene_id, sitedown_pos), 1)
 
         if abs(siteup_pos-sitedown_pos)<comps.pair_dist:
             r = f.readline()
@@ -166,10 +183,25 @@ def make_fasta(comps_id):
             r = f.readline()
             continue
 
+        """
+        # filtering by Fisher
         reg_siteup = None
         if pc>0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
             reg_siteup = "e"
         if pc<0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
+            reg_siteup = "r"
+        if abs(pc)<comps.control_thr:
+            reg_siteup = "c"
+        if reg_siteup==None:
+            r = f.readline()
+            continue
+        """
+
+        # filtering by voom
+        reg_siteup = None
+        if pc>0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
+            reg_siteup = "e"
+        if pc<0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
             reg_siteup = "r"
         if abs(pc)<comps.control_thr:
             reg_siteup = "c"
