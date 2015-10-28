@@ -22,12 +22,14 @@ def e_filename(lib_id, exp_id, map_id=1, polyid=None, filetype=None):
     if polyid==None:
         polyid = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     if filetype!=None:
-        return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.E.%s.bed" % (lib_id, exp_id, map_id, polyid, filetype))
+        return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.%s.E.bed" % (lib_id, exp_id, map_id, polyid, filetype))
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.E.bed" % (lib_id, exp_id, map_id, polyid))
 
 def polyadb_filename(poly_id, filetype="bed"):
     if filetype=="bed":
         return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)
+    if filetype=="pas":
+        return os.path.join(apa.path.polya_folder, "%s_pas.bed" % poly_id)
     if filetype=="temp":
         return os.path.join(apa.path.polya_folder, "%s.temp" % poly_id)
     if filetype=="complete":

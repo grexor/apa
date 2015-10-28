@@ -25,7 +25,7 @@ from scipy.interpolate import interp1d
 from sklearn.metrics import explained_variance_score
 from sklearn.metrics import mean_absolute_error
 from sklearn.decomposition import PCA
-from sklearn.lda import LDA
+#from sklearn.lda import LDA
 import math
 from collections import Counter
 from sklearn.ensemble import ExtraTreesClassifier

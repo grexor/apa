@@ -1,6 +1,0 @@
-#!/usr/bin/python
-
-import apa
-import sys
-
-apa.motif.process_space(sys.argv[1])

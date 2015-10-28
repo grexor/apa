@@ -304,8 +304,48 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
     bam_file = pysam.Samfile(bam_filename)
     a_number = 0
     pas_count = 0
+    len_dist = {}
+    ft = {}
+
+    def aremoved_key(aremoved):
+        if aremoved==0:
+            return 0
+        elif 1<=aremoved<=10:
+            return 10
+        elif 11<=aremoved<=20:
+            return 20
+        elif 21<=aremoved<=30:
+            return 30
+        elif 31<=aremoved<=40:
+            return 40
+        elif 41<=aremoved<=50:
+            return 50
+        elif 51<=aremoved<=60:
+            return 60
+        elif 61<=aremoved<=70:
+            return 70
+        elif 71<=aremoved<=80:
+            return 80
+        elif 81<=aremoved<=90:
+            return 90
+        elif 91<=aremoved<=100:
+            return 100
+        elif 101<=aremoved<=110:
+            return 110
+        elif 111<=aremoved<=120:
+            return 120
+        elif 121<=aremoved<=130:
+            return 130
+        elif 131<=aremoved<=140:
+            return 140
+        elif 141<=aremoved<=150:
+            return 150
+
     for a in bam_file.fetch():
         a_number += 1
+
+        #if a_number>10000:
+        #    break
 
         if a_number%10000==0:
             print "%s_e%s_m%s : %sK reads processed : %s" % (lib_id, exp_id, map_id, a_number/1000, bam_filename)
@@ -332,6 +372,14 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
 
         key = "%s:%s" % (chr, strand)
 
+        t1 = ft.get(aremoved_key(aremoved), {})
+        t2 = t1.get(key, {})
+        t3 = t2.get(pos_end, set())
+        t3.add(read_id)
+        t2[pos_end] = t3
+        t1[key] = t2
+        ft[aremoved_key(aremoved)] = t1
+
         # search for 15A and update T files
         read_seq = a.seq # sequence of read
 
@@ -357,11 +405,28 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
         temp[pos_end] = temp2
         dataR[key] = temp
 
+        # len_dist
+        #mapped_len = len(a.query)
+        len_dist[aremoved_key(aremoved)] = len_dist.get(aremoved_key(aremoved), 0) + 1
+
     # write R file
     write_bed(dataR, r_filename)
     # write T file
     write_bed(dataT, t_filename)
 
+    f = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_clipped_dist.tab" % lib_id), "wt")
+    f.write("shows how many of the mapped reads were 3' clipped and by how much [nt]\n")
+    f.write("\t".join(["clipped_3", "#reads", "percentage_of_all_mapped"])+"\n")
+    keys = len_dist.keys()
+    keys.sort()
+    for k in keys:
+        row = [k, len_dist[k], "%.2f" % (len_dist[k]/float(a_number))]
+        f.write("\t".join([str(x) for x in row])+ "\n")
+    f.close()
+
+    for aremoved, data in ft.items():
+        fname = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.T%s.bed" % (lib_id, exp_id, map_id, aremoved))
+        write_bed(data, fname)
     return
 
 def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
@@ -372,8 +437,10 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
         apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, force=force)
     if exp_data["method"]=="paseqx":
         apa.bed.bed_expression_paseqx(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
+        apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
     if exp_data["method"]=="lexogen_fwd":
         apa.bed.bed_expression_lexogen_fwd(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
+        apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
@@ -391,7 +458,7 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
         print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, region_up=100, region_down=25)
+        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename)
 
     if os.path.exists(e_filename_ucsc) and not force:
@@ -400,7 +467,7 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
         print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename_ucsc, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, region_up=100, region_down=25)
+        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename_ucsc, genome=map_to, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
 def bed_expression_paseqx(lib_id, exp_id, map_id, map_to, polyid, force=False):
@@ -420,7 +487,7 @@ def bed_expression_paseqx(lib_id, exp_id, map_id, map_to, polyid, force=False):
         print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, region_up=100, region_down=25)
+        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
 def bed_expression_lexogen_fwd(lib_id, exp_id, map_id, map_to, polyid, force=False):
@@ -440,5 +507,29 @@ def bed_expression_lexogen_fwd(lib_id, exp_id, map_id, map_to, polyid, force=Fal
         print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, region_up=100, region_down=25)
+        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
+        e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
+
+def bed_expression_lexogen_pas(lib_id, exp_id, map_id, map_to, polyid, force=False):
+
+    region_start = 10
+    region_stop = 60
+
+    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
+    r_filename = apa.path.r_filename(lib_id, exp_id)
+    if polyid==None:
+        polyid = map_to
+    polyadb_filename = apa.path.polyadb_filename(polyid, filetype="pas")
+
+    if type(apa.config.process)==list and map_to not in apa.config.process:
+        return
+
+    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas")
+    if os.path.exists(e_filename) and not force:
+        print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+    else:
+        print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
+        open(e_filename, "wt").close() # touch E BED (processing)
+        e = pybio.data.Bedgraph()
+        e.overlay(polyadb_filename, r_filename, start=region_start, stop=region_stop)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))

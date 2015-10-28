@@ -37,6 +37,7 @@ class Comps:
         self.polya_db_filter = ["strong"] # default
         self.deepbind = None
         self.rnamaps = []
+        self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
 
     def __str__(self):
         print "comps_id = %s" % (self.comps_id)
@@ -122,6 +123,10 @@ def read_comps(comps_id):
             comps.rnamaps = r[0].split("rnamaps:")[1].split(",")
             r = f.readline()
             continue
+        if r[0].startswith("db_type:"):
+            comps.db_type = r[0].split("db_type:")[1]
+            r = f.readline()
+            continue
         id = data["id"]
         experiments = data["experiments"].split(",")
         name = data["name"]
@@ -186,7 +191,7 @@ def process_comps(comps_id):
     # if there is a polya-db specified in the comparison, load the positions into the filter
     # (strong, weak, less)
     poly_filter = {}
-    if comps.polya_db!=None:
+    if comps.polya_db!=None and comps.db_type=="cs":
         polydb = apa.polya.read(comps.polya_db)
 
     replicates = []
@@ -200,7 +205,10 @@ def process_comps(comps_id):
         for id in experiments:
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
-            e_filename = apa.path.e_filename(lib_id, exp_id)
+            if comps.db_type=="cs":
+                e_filename = apa.path.e_filename(lib_id, exp_id)
+            elif comps.db_type=="pas":
+                e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas")
             expression[comp_id].load(e_filename)
             print "adding: %s to %s" % (id, comp_id)
         print
@@ -256,7 +264,7 @@ def process_comps(comps_id):
                         valid_positions.add(pos)
                 positions[chr][strand] = positions[chr][strand].union(valid_positions)
 
-    # organize polya sites inside genes
+    # organize polya sites / pas signals inside genes
     gsites = {}
     for chr, strand_data in positions.items():
         for strand, pos_set in strand_data.items():

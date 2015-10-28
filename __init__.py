@@ -21,6 +21,7 @@ import rnamap
 import rnamap_tdp43
 import model
 import analysis
+import motifs
 
 apa.path.init() # inicialize paths
 apa.annotation.init() # read annotations
