@@ -437,10 +437,10 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
         apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, force=force)
     if exp_data["method"]=="paseqx":
         apa.bed.bed_expression_paseqx(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
-        apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
+        #apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
     if exp_data["method"]=="lexogen_fwd":
         apa.bed.bed_expression_lexogen_fwd(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
-        apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
+        #apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
@@ -473,6 +473,7 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
 def bed_expression_paseqx(lib_id, exp_id, map_id, map_to, polyid, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id)
+
     if polyid==None:
         polyid = map_to
     polyadb_filename = apa.path.polyadb_filename(polyid)

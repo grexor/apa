@@ -257,8 +257,9 @@ def process_comps(comps_id):
                 positions.setdefault(chr, {}).setdefault(strand, set())
                 valid_positions = set()
                 for pos in pos_set:
-                    if comps.polya_db!=None:
-                        if polydb.get((chr, strand, pos))["pas_type"] in comps.polya_db_filter:
+                    if comps.polya_db!=None and comps.db_type=="cs":
+                        polya_db_item = polydb.get((chr, strand, pos), None)
+                        if polya_db_item.get("pas_type", None) in comps.polya_db_filter:
                             valid_positions.add(pos)
                     else:
                         valid_positions.add(pos)

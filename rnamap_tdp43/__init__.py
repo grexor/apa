@@ -249,11 +249,12 @@ def compute_C(fname, x):
     ngenes = 0
     Rvec = []
     while f.read():
+        seq = f.sequence[100:300]
         ngenes += 1
-        _, s1 = pybio.sequence.search(f.sequence, set1)
-        _, s3 = pybio.sequence.search(f.sequence, set3)
-        _, s4 = pybio.sequence.search(f.sequence, set4)
-        _, s5 = pybio.sequence.search(f.sequence, set5)
+        _, s1 = pybio.sequence.search(seq, set1)
+        _, s3 = pybio.sequence.search(seq, set3)
+        _, s4 = pybio.sequence.search(seq, set4)
+        _, s5 = pybio.sequence.search(seq, set5)
         N1 = []
         N3 = []
         for index in range(0, len(s1)):
@@ -317,7 +318,8 @@ def process(comps_id):
     if not os.path.exists(rnamap_folder):
         os.makedirs(rnamap_folder)
 
-    fasta_folder = os.path.join(apa.path.comps_folder, comps_id, "rnamap_pas")
+    #fasta_folder = os.path.join(apa.path.comps_folder, comps_id, "rnamap_pas")
+    fasta_folder = os.path.join(apa.path.comps_folder, comps_id, "rnamap")
 
     xlist = [0.1, 0.01, 0.005, 0.003, 0.002, 0.001]
 
@@ -361,7 +363,7 @@ def process(comps_id):
     <link rel="stylesheet" type="text/css" href="https://apa-db.org/software/highslide/highslide/highslide.css" />
 
     <script type="text/javascript">
-        hs.graphicsDir = 'https://apa-db.org/rnamotifs2/highslide/highslide/graphics/';
+        hs.graphicsDir = 'https://apa-db.org/software/highslide/highslide/graphics/';
         hs.showCredits = false;
     </script>
 
@@ -416,5 +418,181 @@ def process(comps_id):
     f.write("</table>")
 
     f.write("</body>")
+    f.write("</html>\n")
+    f.close()
+
+def compute_C_new(fname, x, motif_set):
+    f = pybio.data.Fasta(fname)
+    Cacc = [0] * 200
+    Racc = [0] * 200
+    Cvec = []
+    ngenes = 0
+    Rvec = []
+    while f.read():
+        seq = f.sequence[100:300]
+        ngenes += 1
+        _, s1 = pybio.sequence.search(seq, motif_set)
+        N1 = []
+        for index in range(0, len(s1)):
+            if s1[index]==1:
+                val = sum(s1[max(0, index-15):index+15+1])
+                N1.append(val)
+            else:
+                N1.append(0)
+
+        # apply max_distal and max_proximal
+        C = [0]*200
+        for i in range(0, len(C)):
+            assert(N1[i]<=31)
+            C[i] = min(1, N1[i]*x)
+
+        Cacc = [x1+y1 for x1,y1 in zip(C, Cacc)]
+        Cvec.append([(f.id.split(" ")[0].split(":")[0], f.id.split(" ")[0].split(":")[1], sum(C))] + C)
+
+    Cacc = [e/float(ngenes) for e in Cacc] # average
+    return ngenes, Cacc, Cvec
+
+def process2(comps_id, folder_name, motif_set):
+
+    rnamap_folder = os.path.join(apa.path.comps_folder, comps_id, folder_name)
+    if not os.path.exists(rnamap_folder):
+        os.makedirs(rnamap_folder)
+
+    #fasta_folder = os.path.join(apa.path.comps_folder, comps_id, "rnamap_pas")
+    fasta_folder = os.path.join(apa.path.comps_folder, comps_id, "rnamap")
+
+    #xlist = [0.1, 0.01, 0.005, 0.003, 0.002, 0.001]
+    xlist = [0.12, 0.1, 0.07, 0.04]
+
+    stats = {}
+    ymax = {}
+
+    for x in xlist:
+        for pair in ["tandem", "composite", "skipped"]:
+            ymax["%s_%s" % (x, pair)] = 0
+            for site in ["proximal", "distal"]:
+                stats["%s_%s_r" % (site, pair)], vneg, vnegv = compute_C_new(os.path.join(fasta_folder, "%s_%s_r.fasta" % (site, pair)), x=x, motif_set=motif_set)
+                stats["%s_%s_e" % (site, pair)], vpos, vposv = compute_C_new(os.path.join(fasta_folder, "%s_%s_e.fasta" % (site, pair)), x=x, motif_set=motif_set)
+                vneg = pybio.utils.smooth(vneg)
+                vpos = pybio.utils.smooth(vpos)
+                ymax["%s_%s" % (x, pair)] = max(ymax["%s_%s" % (x, pair)], max(vneg), max(vpos))
+
+    for x in xlist:
+        for site in ["proximal", "distal"]:
+            for pair in ["tandem", "composite", "skipped"]:
+                print x
+                stats["%s_%s_r" % (site, pair)], vneg, vnegv = compute_C_new(os.path.join(fasta_folder, "%s_%s_r.fasta" % (site, pair)), x=x, motif_set=motif_set)
+                stats["%s_%s_e" % (site, pair)], vpos, vposv = compute_C_new(os.path.join(fasta_folder, "%s_%s_e.fasta" % (site, pair)), x=x, motif_set=motif_set)
+                rnamap_area(vpos, vneg, os.path.join(rnamap_folder, "%s_%s_x%s" % (site, pair, x)), title="%s, %s, x=%s" % (site, pair, x), ymax=ymax["%s_%s" % (x, pair)], site=site)
+                rnamap_heat(vposv, vnegv, os.path.join(rnamap_folder, "%s_%s_x%s_heat" % (site, pair, x)), title="%s, %s, x=%s" % (site, pair, x), site=site, stats=None, pair_type="tandem", alpha=0.8)
+
+    f = open(os.path.join(rnamap_folder, "index.html"), "wt")
+    f.write("<html>\n")
+
+    head = """
+
+    <head>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    </head>
+
+    <script type="text/javascript" src="https://apa-db.org/software/highslide/highslide/highslide.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://apa-db.org/software/highslide/highslide/highslide.css" />
+
+    <script type="text/javascript">
+        hs.graphicsDir = 'https://apa-db.org/software/highslide/highslide/graphics/';
+        hs.showCredits = false;
+    </script>
+
+    <script>
+
+    $(document).ready(function () {
+      //$("#tandem_div").hide();
+      $("#composite_div").hide();
+      $("#skipped_div").hide();
+
+      $('#tandem_btn').click(function (e) {
+        $("#tandem_div").slideToggle("fast");
+        var val = $(this).text() == "- tandem" ? "+ tandem" : "- tandem";
+        $(this).hide().text(val).fadeIn("fast");
+        e.preventDefault();
+      });
+
+      $('#composite_btn').click(function (e) {
+        $("#composite_div").slideToggle("fast");
+        var val = $(this).text() == "- composite" ? "+ composite" : "- composite";
+        $(this).hide().text(val).fadeIn("fast");
+        e.preventDefault();
+      });
+
+      $('#skipped_btn').click(function (e) {
+        $("#skipped_div").slideToggle("fast");
+        var val = $(this).text() == "- skipped" ? "+ skipped" : "- skipped";
+        $(this).hide().text(val).fadeIn("fast");
+        e.preventDefault();
+      });
+
+    });
+
+    </script>
+
+    <style>
+
+    .show_hide {
+      font-size: 16px;
+    }
+
+    .highslide img {
+       border: 0px;
+       outline: none;
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    </style>
+    """
+
+    f.write(head+"\n")
+
+    f.write("<body>\n")
+
+    body = """
+    """
+    f.write(body+"\n")
+
+    for t in ["tandem", "composite", "skipped"]:
+
+        if t=="tandem":
+            f.write("<a href='#' class='show_hide' id='%s_btn'>- %s</a>\n" % (t,t)) # tandem is already open
+        else:
+            f.write("<a href='#' class='show_hide' id='%s_btn'>+ %s</a>\n" % (t,t)) # composite and skipped are closed
+
+        f.write("<div id='%s_div' style='font-size: 12px; padding-left: 10px;' class='slidingDiv'>\n" % t)
+        f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 12px;'>\n")
+        f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+        for x in xlist:
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>x=%s<br>e=%s<br>r=%s</td>" % (t, x, stats["proximal_%s_e" % t], stats["proximal_%s_r" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>\n" % ("proximal_%s_x%s.png" % (t, x), "proximal_%s_x%s.png" % (t, x)))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>\n" % ("distal_%s_x%s.png" % (t, x), "distal_%s_x%s.png" % (t, x)))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>x=%s<br>e=%s<br>r=%s</td>" % (t, x, stats["proximal_%s_e" % t], stats["proximal_%s_r" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>\n" % ("proximal_%s_x%s_heat_pos.png" % (t, x), "proximal_%s_x%s_heat_pos.png" % (t, x)))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>\n" % ("distal_%s_x%s_heat_pos.png" % (t, x), "distal_%s_x%s_heat_pos.png" % (t, x)))
+            f.write("</tr>")
+            f.write("<tr>")
+            f.write("<td align=right valign=center>%s<br>x=%s<br>e=%s<br>r=%s</td>" % (t, x, stats["proximal_%s_e" % t], stats["proximal_%s_r" % t]))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>\n" % ("proximal_%s_x%s_heat_neg.png" % (t, x), "proximal_%s_x%s_heat_neg.png" % (t, x)))
+            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>\n" % ("distal_%s_x%s_heat_neg.png" % (t, x), "distal_%s_x%s_heat_neg.png" % (t, x)))
+            f.write("</tr>")
+            f.write("\n")
+        f.write("\n")
+        f.write("</table>\n")
+        f.write("</div>\n")
+        f.write("<br><br>\n")
+
+    f.write("</body>\n")
     f.write("</html>\n")
     f.close()

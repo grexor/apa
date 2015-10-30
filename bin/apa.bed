@@ -3,8 +3,8 @@ import apa
 import sys
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('-lib_id', action="store", dest="lib_id", default=None)
-parser.add_argument('-exp_id', type=int, action="store", dest="exp_id", default=None)
+parser.add_argument('-lib', action="store", dest="lib_id", default=None)
+parser.add_argument('-exp', type=int, action="store", dest="exp_id", default=None)
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
 parser.add_argument('-poly', action="store", dest="poly", default=None)
 parser.add_argument('-force', action="store_true", default=False)

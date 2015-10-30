@@ -98,6 +98,7 @@ def process(poly_id):
 def read(poly_id):
     db = {}
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
+    print "reading polya_db: %s" % polyadb_tab
     f = open(polyadb_tab, "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
