@@ -365,11 +365,18 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
         #dn = dn.div(dn_div, axis=0)
 
-        # divide by row sum
-        dn = d.ix[indices, 1:] # get only subset of rows
-        dn_div = dn.sum(axis=1) # get row sums
-        dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
-        dn = dn.div(dn_div, axis=0) # divide by row sums
+        # A: divide by row sum
+        #dn = d.ix[indices, 1:] # get only subset of rows
+        #dn_div = dn.sum(axis=1) # get row sums
+        #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
+        #dn = dn.div(dn_div, axis=0) # divide by row sums
+
+        # B: divide by max value in whole table
+        dn = d.ix[indices, 1:]
+        dn_div = dn.max()
+        dn_div = dn_div.replace(0, 1)
+        dn = dn.div(dn_div)
+
         if reg_type=="pos":
             #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Reds, alpha=alpha)
             heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha)
@@ -412,8 +419,10 @@ def rnamap_freq(vpos, vneg, vcon, filename, title="test", site="proximal", stats
 
     vpos = DataFrame(vpos)
     vneg = DataFrame(vneg)
+    vcon = DataFrame(vcon)
     freq_pos = freq(vpos, len(vpos))
     freq_neg = freq(vneg, len(vneg))
+    freq_con = freq(vcon, len(vcon))
 
     # styling
     matplotlib.rcParams['axes.labelsize'] = 11
@@ -435,13 +444,11 @@ def rnamap_freq(vpos, vneg, vcon, filename, title="test", site="proximal", stats
     for axis in [a.xaxis, a.yaxis]:
         axis.set_major_locator(ticker.MaxNLocator(integer=True))
 
-    vcon_graph = pybio.utils.smooth(vcon)
     vpos_graph = pybio.utils.smooth(freq_pos)
     vneg_graph = [-el for el in pybio.utils.smooth(freq_neg)]
+    vcon_graph = pybio.utils.smooth(freq_con)
 
-    ymax = max(max(vpos_graph), abs(min(vneg_graph)))
-    #ymax = math.ceil(ymax*100)/100.0 # round up at the 2nd decimal
-    #ymax += 0.01
+    ymax = max(max(vpos_graph), max(vcon_graph), abs(min(vneg_graph)))
     ymax = math.ceil(ymax)
 
     a.set_ylim(-ymax, ymax)
@@ -504,8 +511,8 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
                 fname = os.path.join(rnamap_dest, k+".fasta")
                 fasta_files[k] = open(fname, "wt")
 
-    pc_thr = 0.1
-    fisher_thr = 0.1
+    pc_thr = 0.05
+    fisher_thr = 0.2
     pair_dist = 450
 
     if clip_file!="":
@@ -549,15 +556,18 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
         pair_type = data["pair_type"]
 
         reg_siteup = None
+
         if abs(siteup_pos-sitedown_pos)<pair_dist:
             r = f.readline()
             continue
+
         if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
             reg_siteup = "e"
         if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
             reg_siteup = "r"
-        if abs(pc)<0.01 and fisher>0.5:
+        if abs(pc)<pc_thr and fisher>fisher_thr:
             reg_siteup = "c"
+
         if reg_siteup=="c":
             # add clip data for controls
             if clip!=None:
@@ -683,19 +693,19 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
             # clip
             if clip!=None:
                 rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type])
-                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id)
 
             # ug
             if "ug" in comps.rnamaps:
                 rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type])
-                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
             # pas
             if "pas" in comps.rnamaps:
                 rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type])
-                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
     # deep bind
@@ -868,22 +878,22 @@ a {
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
             f.write("<tr>")
-            f.write("<td align=right valign=top>%s<br>iCLIP<br>enh=%s<br>rep=%s<br>con=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t], stats["c.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s<br>rep=%s<br>con=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t], stats["c.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.siteup.png" % t, "clip.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.sitedown.png" % t, "clip.%s.sitedown.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=top>%s<br>iCLIP<br>targets</td>" % t)
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>targets</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.siteup.png" % t, "clip_freq.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.sitedown.png" % t, "clip_freq.%s.sitedown.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=top>%s<br>iCLIP<br>top enh</td>" % t)
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>top enh</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_pos.png" % t, "clip_heat.%s.siteup_pos.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_pos.png" % t, "clip_heat.%s.sitedown_pos.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=top>%s<br>iCLIP<br>top rep</td>" % t)
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>top rep</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_neg.png" % t, "clip_heat.%s.siteup_neg.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_neg.png" % t, "clip_heat.%s.sitedown_neg.png" % t))
             f.write("</tr>")
