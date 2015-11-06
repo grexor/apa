@@ -13,3 +13,4 @@ if args.poly==None:
     sys.exit(1)
 
 apa.polya.process(args.poly)
+apa.polya.pas_db(args.poly)

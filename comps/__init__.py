@@ -18,7 +18,7 @@ import sys
 import operator
 
 class Comps:
-    def __init__(self, comps_id, iCLIP_filename=None):
+    def __init__(self, comps_id=None, iCLIP_filename=None):
         self.comps_id = comps_id
         self.test = []
         self.control = []

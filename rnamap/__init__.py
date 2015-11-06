@@ -244,7 +244,7 @@ def rnamap_deepbind_heat(vpos, vneg, filename, title="test", site="proximal", st
         #plt.savefig(filename+"_%s.svg" % reg_type)
     return
 
-def rnamap_area(vpos, vneg, filename, title="test", ymax=None):
+def rnamap_area(vpos, vneg, vcon, filename, title="test", ymax=None):
     """
     Draw RNA maps
     """
@@ -280,12 +280,15 @@ def rnamap_area(vpos, vneg, filename, title="test", ymax=None):
 
     vpos = pybio.utils.smooth(vpos)
     vneg = [-el for el in pybio.utils.smooth(vneg)]
+    vcon = pybio.utils.smooth(vcon)
 
     plt.fill_between(range(0, len(vpos)), 0, vpos, facecolor='red', alpha=0.6, interpolate=True)
     plt.plot(range(0, len(vpos)), vpos, color='red', alpha=1)
 
     plt.fill_between(range(0, len(vneg)), 0, vneg, facecolor='blue', alpha=0.6, interpolate=True)
     plt.plot(range(0, len(vneg)), vneg, color='blue', alpha=1)
+
+    plt.plot(range(0, len(vcon)), vcon, color='grey', alpha=1, linewidth=1)
 
     p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
     plt.gca().add_patch(p)
@@ -404,7 +407,7 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         #plt.savefig(filename+"_%s.svg" % reg_type)
     return
 
-def rnamap_freq(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem"):
+def rnamap_freq(vpos, vneg, vcon, filename, title="test", site="proximal", stats=None, pair_type="tandem"):
     c = mcolors.ColorConverter().to_rgb
 
     vpos = DataFrame(vpos)
@@ -423,15 +426,16 @@ def rnamap_freq(vpos, vneg, filename, title="test", site="proximal", stats=None,
     matplotlib.rcParams['legend.frameon'] = 'False'
     from matplotlib import ticker
 
-    fig = plt.figure(figsize=(20, 2))
+    fig = plt.figure(figsize=(20, 4))
     a = plt.axes([0.05, 0.25, 0.9, 0.6])
     a.set_xlim(0, 400)
-    plt.ylabel("#genes (90% cov.)")
+    plt.ylabel("#genes (90% coverage)")
     plt.xlabel("distance from poly-A site (nt)")
 
     for axis in [a.xaxis, a.yaxis]:
         axis.set_major_locator(ticker.MaxNLocator(integer=True))
 
+    vcon_graph = pybio.utils.smooth(vcon)
     vpos_graph = pybio.utils.smooth(freq_pos)
     vneg_graph = [-el for el in pybio.utils.smooth(freq_neg)]
 
@@ -447,6 +451,8 @@ def rnamap_freq(vpos, vneg, filename, title="test", site="proximal", stats=None,
 
     plt.fill_between(range(0, len(vneg_graph)), 0, vneg_graph, facecolor='blue', alpha=0.1, interpolate=True)
     plt.plot(range(0, len(vneg_graph)), vneg_graph, color='blue', alpha=1)
+
+    plt.plot(range(0, len(vcon_graph)), vcon_graph, color='grey', alpha=1, linewidth=1)
 
     plt.margins(0)
 
@@ -464,7 +470,7 @@ def rnamap_freq(vpos, vneg, filename, title="test", site="proximal", stats=None,
     #plt.savefig(filename+".svg")
     plt.close()
 
-def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest=".", map_type="original", map_folder="rnamap"):
+def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="original", map_subfolder="rnamap", map_main_folder=None):
 
     if comps_id!=None:
         comps = apa.comps.read_comps(comps_id)
@@ -472,11 +478,17 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         if comps.iCLIP_filename!=None:
             clip_file = os.path.join(apa.path.iCLIP_folder, comps.iCLIP_filename)
         tab_file = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
-        rnamap_dest = os.path.join(apa.path.comps_folder, comps_id, map_folder)
+        rnamap_dest = os.path.join(apa.path.comps_folder, comps_id, map_subfolder)
         if comps.polya_db!=None:
             polydb = apa.polya.read(comps.polya_db)
+    else:
+        if map_main_folder==None:
+            print "specify map root folder"
+            return
+        rnamap_dest = os.path.join(map_main_folder, map_subfolder)
+        comps = apa.comps.Comps()
 
-    assert(len(map_folder)>5)
+    assert(len(rnamap_dest)>=10)
     if os.path.exists(rnamap_dest):
         shutil.rmtree(rnamap_dest)
     os.makedirs(rnamap_dest)
@@ -489,7 +501,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         for pair_type in ["tandem", "composite", "skipped"]:
             for reg in ["r", "e"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
-                fname = os.path.join(apa.path.comps_folder, comps_id, map_folder, k+".fasta")
+                fname = os.path.join(rnamap_dest, k+".fasta")
                 fasta_files[k] = open(fname, "wt")
 
     pc_thr = 0.1
@@ -499,7 +511,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
     if clip_file!="":
         clip = pybio.data.Bedgraph(clip_file)
     else:
-        clip = pybio.data.Bedgraph()
+        clip = None
 
     # r = repressed, e = enhanced, c = control
     stats = Counter()
@@ -511,7 +523,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
     pdata = {} # these are sums of vectors
     for pair_type in ["tandem", "composite", "skipped"]:
         for site in ["siteup", "sitedown"]:
-            for reg in ["r", "e"]:
+            for reg in ["r", "e", "c"]:
                 cdata["%s.%s.%s" % (reg, pair_type, site)] = [0] * 401
                 sdata["%s.%s.%s" % (reg, pair_type, site)] = [0] * 401
                 pdata["%s.%s.%s" % (reg, pair_type, site)] = [0] * 401
@@ -537,22 +549,39 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         pair_type = data["pair_type"]
 
         reg_siteup = None
+        if abs(siteup_pos-sitedown_pos)<pair_dist:
+            r = f.readline()
+            continue
         if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
             reg_siteup = "e"
         if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
             reg_siteup = "r"
-        if reg_siteup in [None, "c"]:
+        if abs(pc)<0.01 and fisher>0.5:
+            reg_siteup = "c"
+        if reg_siteup=="c":
+            # add clip data for controls
+            if clip!=None:
+                for (rtype, pos, site) in [("c", siteup_pos, "siteup"), ("c", sitedown_pos, "sitedown")]:
+                    z = []
+                    for index, x in enumerate(range(pos-200, pos+201)):
+                        # all CLIP data is in UCSC genomic format of chromosome names?
+                        z.append(clip.get_value("chr"+chr, strand, x, db="cpm"))
+                    if strand=="-":
+                        z.reverse()
+                    cdata["%s.%s.%s" % (rtype, pair_type, site)] = [x+y for x,y in zip(cdata["%s.%s.%s" % (rtype, pair_type, site)],z)]
+                    # [(gene_id, gene_name), 0, 0, 1, 1 ....]
+                    z_vector = [(gene_id, gene_name, sum(z))] + z
+                    cdata_vectors["%s.%s.%s" % (rtype, pair_type, site)].append(z_vector)
+                    assert(len(cdata["%s.%s.%s" % (rtype, pair_type, site)])==401)
             r = f.readline()
+            stats["%s.%s" % ("c", pair_type)] += 1
             continue
-        if abs(siteup_pos-sitedown_pos)<pair_dist:
+        if reg_siteup==None:
             r = f.readline()
             continue
 
         reg_sitedown = {"e":"r", "r":"e"}[reg_siteup]
         stats["%s.%s" % (reg_siteup, pair_type)] += 1
-
-        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos-200, siteup_pos+200)
-        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos-200, sitedown_pos+200)
 
         if comps.polya_db!=None:
             if map_type in ["pas", "cs"]:
@@ -596,20 +625,24 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
             assert(len(pdata["%s.%s.%s" % (rtype, pair_type, site)])==401)
 
         # CLIP
-        for (rtype, pos, site) in [(reg_siteup, siteup_pos, "siteup"), (reg_sitedown, sitedown_pos, "sitedown")]:
-            z = []
-            for index, x in enumerate(range(pos-200, pos+201)):
-                z.append(clip.get_value("chr"+chr, strand, x, db="cpm"))
-            if strand=="-":
-                z.reverse()
-            cdata["%s.%s.%s" % (rtype, pair_type, site)] = [x+y for x,y in zip(cdata["%s.%s.%s" % (rtype, pair_type, site)],z)]
-            # [(gene_id, gene_name), 0, 0, 1, 1 ....]
-            z_vector = [(gene_id, gene_name, sum(z))] + z
-            cdata_vectors["%s.%s.%s" % (rtype, pair_type, site)].append(z_vector)
-            assert(len(cdata["%s.%s.%s" % (rtype, pair_type, site)])==401)
+        if clip!=None:
+            for (rtype, pos, site) in [(reg_siteup, siteup_pos, "siteup"), (reg_sitedown, sitedown_pos, "sitedown")]:
+                z = []
+                for index, x in enumerate(range(pos-200, pos+201)):
+                    # all CLIP data is in UCSC genomic format of chromosome names?
+                    z.append(clip.get_value("chr"+chr, strand, x, db="cpm"))
+                if strand=="-":
+                    z.reverse()
+                cdata["%s.%s.%s" % (rtype, pair_type, site)] = [x+y for x,y in zip(cdata["%s.%s.%s" % (rtype, pair_type, site)],z)]
+                # [(gene_id, gene_name), 0, 0, 1, 1 ....]
+                z_vector = [(gene_id, gene_name, sum(z))] + z
+                cdata_vectors["%s.%s.%s" % (rtype, pair_type, site)].append(z_vector)
+                assert(len(cdata["%s.%s.%s" % (rtype, pair_type, site)])==401)
 
         r = f.readline()
     f.close() # end of reading gene data
+
+    print stats.items()
 
     for f in fasta_files.values():
         f.close()
@@ -630,6 +663,10 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         pdata["r.%s.siteup" % pair_type] = [e/float(n) for e in pdata["r.%s.siteup" % pair_type]]
         pdata["e.%s.sitedown" % pair_type] = [e/float(n) for e in pdata["e.%s.sitedown" % pair_type]]
 
+        n = max(1, stats["c.%s" % pair_type])
+        cdata["c.%s.siteup" % pair_type] = [e/float(n) for e in cdata["c.%s.siteup" % pair_type]]
+        cdata["c.%s.sitedown" % pair_type] = [e/float(n) for e in cdata["c.%s.sitedown" % pair_type]]
+
     cmax = {"tandem":0, "composite":0, "skipped":0}
     smax = {"tandem":0, "composite":0, "skipped":0}
     pmax = {"tandem":0, "composite":0, "skipped":0}
@@ -644,21 +681,21 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         for (site, site2) in [("siteup", "proximal"), ("sitedown", "distal")]:
 
             # clip
-            if comps.iCLIP_filename!=None:
-                rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type])
-                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+            if clip!=None:
+                rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type])
+                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id)
 
             # ug
             if "ug" in comps.rnamaps:
-                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type])
-                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type])
+                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
             # pas
             if "pas" in comps.rnamaps:
-                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type])
-                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type])
+                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
     # deep bind
@@ -669,8 +706,8 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
                 for reg in ["r", "e"]:
                     sname = "%s_%s_%s.fasta" % (site, pair_type, reg)
                     dname = "%s_%s_%s_deepbind.tab" % (site, pair_type, reg)
-                    sname = os.path.join(apa.path.comps_folder, comps_id, map_folder, sname)
-                    dname = os.path.join(apa.path.comps_folder, comps_id, map_folder, dname)
+                    sname = os.path.join(apa.path.comps_folder, comps_id, map_subfolder, sname)
+                    dname = os.path.join(apa.path.comps_folder, comps_id, map_subfolder, dname)
                     os.system("./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname))
                     print "./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname)
 
@@ -679,9 +716,9 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         for pair_type in ["tandem", "composite", "skipped"]:
             for site in ["proximal", "distal"]:
                 neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
-                neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
+                neg_name = os.path.join(apa.path.comps_folder, comps_id, map_subfolder, neg_name)
                 pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
-                pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
+                pos_name = os.path.join(apa.path.comps_folder, comps_id, map_subfolder, pos_name)
                 vneg, _ = read_deepbind(neg_name)
                 vpos, _ = read_deepbind(pos_name)
                 vneg = pybio.utils.smooth(vneg)
@@ -692,9 +729,9 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, rnamap_dest
         for pair_type in ["tandem", "composite", "skipped"]:
             for site in ["proximal", "distal"]:
                 neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
-                neg_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, neg_name)
+                neg_name = os.path.join(apa.path.comps_folder, comps_id, map_subfolder, neg_name)
                 pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
-                pos_name = os.path.join(apa.path.comps_folder, comps_id, map_folder, pos_name)
+                pos_name = os.path.join(apa.path.comps_folder, comps_id, map_subfolder, pos_name)
                 vneg, vneg_vectors = read_deepbind(neg_name)
                 vpos, vpos_vectors = read_deepbind(pos_name)
                 rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax_db[pair_type], site=site, title="%s %s %s (%s)" % (comps_id, site, pair_type, comps.deepbind))
@@ -757,8 +794,15 @@ a {
     <a href="#" class="show_hide">+ details</a>
     """
 
+    if comps_id==None:
+        comparison = tab_file
+        species = genome
+    else:
+        comparison = comps_id
+        species = comps.species
+
     body += """<div style="font-size: 12px; padding-left: 10px;" class="slidingDiv">
-    """ + comps_id + """ : """ + comps.species + """<br><br>
+    """ + comparison + """ : """ + species + """<br><br>
     Description
     <div style="font-size: 12px; padding-left: 10px;">
     <font color=red>red = pc>0</font>
@@ -778,7 +822,7 @@ a {
     <br>
     """
 
-    if comps.iCLIP_filename!=None:
+    if clip!=None:
         body += "iCLIP = %s<br>" % os.path.basename(clip_file)
 
     body += """
@@ -820,26 +864,26 @@ a {
     f.write(body+"\n")
     f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 12px;'>")
 
-    if comps.iCLIP_filename!=None:
+    if clip!=None:
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>e=%s<br>r=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=top>%s<br>iCLIP<br>enh=%s<br>rep=%s<br>con=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t], stats["c.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.siteup.png" % t, "clip.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.sitedown.png" % t, "clip.%s.sitedown.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>cont.</td>" % t)
+            f.write("<td align=right valign=top>%s<br>iCLIP<br>targets</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.siteup.png" % t, "clip_freq.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_freq.%s.sitedown.png" % t, "clip_freq.%s.sitedown.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>top enh</td>" % t)
+            f.write("<td align=right valign=top>%s<br>iCLIP<br>top enh</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_pos.png" % t, "clip_heat.%s.siteup_pos.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_pos.png" % t, "clip_heat.%s.sitedown_pos.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>top rep</td>" % t)
+            f.write("<td align=right valign=top>%s<br>iCLIP<br>top rep</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.siteup_neg.png" % t, "clip_heat.%s.siteup_neg.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip_heat.%s.sitedown_neg.png" % t, "clip_heat.%s.sitedown_neg.png" % t))
             f.write("</tr>")
@@ -850,17 +894,17 @@ a {
         f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_deepbind.png" % t, "%s_distal_deepbind.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_hdeepbind_neg.png" % t, "%s_proximal_hdeepbind_neg.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_hdeepbind_neg.png" % t, "%s_distal_hdeepbind_neg.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>e=%s<br>r=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_hdeepbind_pos.png" % t, "%s_proximal_hdeepbind_pos.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_hdeepbind_pos.png" % t, "%s_distal_hdeepbind_pos.png" % t))
             f.write("</tr>")
@@ -870,12 +914,12 @@ a {
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>UG<br>e=%s<br>r=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>UG<br>enh=%s<br>rep=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.siteup.png" % t, "seq.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.sitedown.png" % t, "seq.%s.sitedown.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>UG<br>cont.</td>" % t)
+            f.write("<td align=right valign=center>%s<br>UG<br>targets</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.siteup.png" % t, "seq_freq.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.sitedown.png" % t, "seq_freq.%s.sitedown.png" % t))
             f.write("</tr>")
@@ -896,12 +940,12 @@ a {
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>PAS<br>e=%s<br>r=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>PAS<br>enh=%s<br>rep=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.siteup.png" % t, "pas.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.sitedown.png" % t, "pas.%s.sitedown.png" % t))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>PAS<br>cont.</td>" % t)
+            f.write("<td align=right valign=center>%s<br>PAS<br>targets</td>" % t)
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.siteup.png" % t, "pas_freq.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.sitedown.png" % t, "pas_freq.%s.sitedown.png" % t))
             f.write("</tr>")
@@ -920,8 +964,6 @@ a {
 
     f.write("\n")
     f.write("</table>")
-
-
 
     f.write("</body>")
     f.write("</html>\n")
