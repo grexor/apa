@@ -69,7 +69,7 @@ def freq(data, all_genes):
     col_sums = []
     for i in range(1, 401+1):
         v = np.array(data[i]) # get column
-        s = sum(v)*0.9 # what vaue is 90% of the sum?
+        s = sum(v) #*0.9 # what vaue is 90% of the sum?
         col_sums.append(s)
     min_sum = 0.01 * max(col_sums) # don't show contribution for columns that have < 0.01 sum of the max
     temp = []
@@ -77,14 +77,22 @@ def freq(data, all_genes):
         v = np.array(data[i]) # get column
         v.sort() # sort
         v[:] = v[::-1] # reverse
-        s = sum(v)*0.9 # what vaue is 90% of the sum?
+        v = [x for x in v if x>0] # only consider >0 values otherwise cumsum will put cumulative values to 0 elements also
+        s = sum(v) # *0.9 # what vaue is 90% of the sum?
         cs = np.cumsum(v) # cumulative sum
         res = [x for x in cs if x<=s] # how many elements (high->low) do i need to sum to get to 90% of the overall sum?
         if s>=min_sum and s>0:
+            #print v
+            #print cs
+            #print res
+            #print s
+            #print len(res)
+            #print
             #temp.append(len(res)/float(all_genes)) # append to frequency results
             temp.append(len(res)) # append #genes that explain 90% of the data at this position
         else:
             temp.append(0)
+    temp = [e/float(all_genes)*100 for e in temp]
     return temp
 
 def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proximal"):
@@ -244,7 +252,7 @@ def rnamap_deepbind_heat(vpos, vneg, filename, title="test", site="proximal", st
         #plt.savefig(filename+"_%s.svg" % reg_type)
     return
 
-def rnamap_area(vpos, vneg, vcon, filename, title="test", ymax=None):
+def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", pair_type="tandem", ymax=None, stats=None):
     """
     Draw RNA maps
     """
@@ -261,26 +269,28 @@ def rnamap_area(vpos, vneg, vcon, filename, title="test", ymax=None):
     c = mcolors.ColorConverter().to_rgb
 
     # styling
-    matplotlib.rcParams['axes.labelsize'] = 17
-    matplotlib.rcParams['axes.titlesize'] = 17
-    matplotlib.rcParams['xtick.labelsize'] = 14
-    matplotlib.rcParams['ytick.labelsize'] = 14
-    matplotlib.rcParams['legend.fontsize'] = 14
+    matplotlib.rcParams['axes.labelsize'] = 11
+    matplotlib.rcParams['axes.titlesize'] = 11
+    matplotlib.rcParams['xtick.labelsize'] = 9
+    matplotlib.rcParams['ytick.labelsize'] = 9
+    matplotlib.rcParams['legend.fontsize'] = 9
     matplotlib.rc('axes',edgecolor='gray')
-    matplotlib.rcParams['axes.linewidth'] = 0.3
+    matplotlib.rcParams['axes.linewidth'] = 0.1
     matplotlib.rcParams['legend.frameon'] = 'False'
+    from matplotlib import ticker
 
     fig = plt.figure(figsize=(20, 4))
     a = plt.axes([0.05, 0.2, 0.9, 0.7])
     a.set_xlim(0, 400)
     if ymax!=None:
         a.set_ylim(-ymax, ymax)
-    plt.ylabel("cpm / #genes")
-    plt.xlabel("distance from CS (nt)")
+    plt.ylabel("counts per million (cpm)")
+    plt.xlabel("distance [nt]")
 
     vpos = pybio.utils.smooth(vpos)
     vneg = [-el for el in pybio.utils.smooth(vneg)]
-    vcon = pybio.utils.smooth(vcon)
+    vcon_up = pybio.utils.smooth(vcon_up)
+    vcon_down = [-el for el in pybio.utils.smooth(vcon_down)]
 
     plt.fill_between(range(0, len(vpos)), 0, vpos, facecolor='red', alpha=0.6, interpolate=True)
     plt.plot(range(0, len(vpos)), vpos, color='red', alpha=1)
@@ -288,13 +298,18 @@ def rnamap_area(vpos, vneg, vcon, filename, title="test", ymax=None):
     plt.fill_between(range(0, len(vneg)), 0, vneg, facecolor='blue', alpha=0.6, interpolate=True)
     plt.plot(range(0, len(vneg)), vneg, color='blue', alpha=1)
 
-    plt.plot(range(0, len(vcon)), vcon, color='grey', alpha=1, linewidth=1)
+    plt.plot(range(0, len(vcon_up)), vcon_up, color='black', alpha=1, linewidth=1.5) #, linestyle="dashed")
+    plt.plot(range(0, len(vcon_down)), vcon_down, color='black', alpha=1, linewidth=1.5) #, linestyle="dashed")
 
     p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
     plt.gca().add_patch(p)
     plt.xticks([0,25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400], [-200,-175,-150,-125,-100,-75,-50,-25,0,25,50,75,100,125,150,175,200])
 
     print "saving", filename
+    if site=="proximal":
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["e.%s" % pair_type], stats["r.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
+    if site=="distal":
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["r.%s" % pair_type], stats["e.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
     plt.title(title)
     plt.savefig(filename+".png", dpi=100)
     #plt.savefig(filename+".svg")
@@ -414,15 +429,15 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         #plt.savefig(filename+"_%s.svg" % reg_type)
     return
 
-def rnamap_freq(vpos, vneg, vcon, filename, title="test", site="proximal", stats=None, pair_type="tandem"):
-    c = mcolors.ColorConverter().to_rgb
-
+def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", stats=None, pair_type="tandem"):
     vpos = DataFrame(vpos)
     vneg = DataFrame(vneg)
-    vcon = DataFrame(vcon)
+    vcon_up = DataFrame(vcon_up)
+    vcon_down = DataFrame(vcon_down)
     freq_pos = freq(vpos, len(vpos))
     freq_neg = freq(vneg, len(vneg))
-    freq_con = freq(vcon, len(vcon))
+    freq_con_up = freq(vcon_up, len(vcon_up))
+    freq_con_down = freq(vcon_down, len(vcon_down))
 
     # styling
     matplotlib.rcParams['axes.labelsize'] = 11
@@ -436,19 +451,20 @@ def rnamap_freq(vpos, vneg, vcon, filename, title="test", site="proximal", stats
     from matplotlib import ticker
 
     fig = plt.figure(figsize=(20, 4))
-    a = plt.axes([0.05, 0.25, 0.9, 0.6])
+    a = plt.axes([0.05, 0.2, 0.9, 0.7])
     a.set_xlim(0, 400)
-    plt.ylabel("#genes (90% coverage)")
-    plt.xlabel("distance from poly-A site (nt)")
+    plt.ylabel("%genes")
+    plt.xlabel("distance [nt]")
 
     for axis in [a.xaxis, a.yaxis]:
         axis.set_major_locator(ticker.MaxNLocator(integer=True))
 
     vpos_graph = pybio.utils.smooth(freq_pos)
     vneg_graph = [-el for el in pybio.utils.smooth(freq_neg)]
-    vcon_graph = pybio.utils.smooth(freq_con)
+    vcon_up_graph = pybio.utils.smooth(freq_con_up)
+    vcon_down_graph = [-el for el in pybio.utils.smooth(freq_con_down)]
 
-    ymax = max(max(vpos_graph), max(vcon_graph), abs(min(vneg_graph)))
+    ymax = max(max(vpos_graph), abs(min(vneg_graph)), max(vcon_up_graph), abs(min(vcon_down_graph)))
     ymax = math.ceil(ymax)
 
     a.set_ylim(-ymax, ymax)
@@ -459,20 +475,19 @@ def rnamap_freq(vpos, vneg, vcon, filename, title="test", site="proximal", stats
     plt.fill_between(range(0, len(vneg_graph)), 0, vneg_graph, facecolor='blue', alpha=0.1, interpolate=True)
     plt.plot(range(0, len(vneg_graph)), vneg_graph, color='blue', alpha=1)
 
-    plt.plot(range(0, len(vcon_graph)), vcon_graph, color='grey', alpha=1, linewidth=1)
+    plt.plot(range(0, len(vcon_up_graph)), vcon_up_graph, color='black', alpha=1, linewidth=1.5) #, linestyle="dashed")
+    plt.plot(range(0, len(vcon_down_graph)), vcon_down_graph, color='black', alpha=1, linewidth=1.5) #, linestyle="dashed")
 
     plt.margins(0)
 
     p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
     plt.gca().add_patch(p)
     plt.xticks([0,25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400], [-200,-175,-150,-125,-100,-75,-50,-25,0,25,50,75,100,125,150,175,200])
-
     if site=="proximal":
-        title = "%s.%s, enh=%s genes, sil=%s genes " % (pair_type, site, stats["e.%s" % pair_type], stats["r.%s" % pair_type])
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["e.%s" % pair_type], stats["r.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
     if site=="distal":
-        title = "%s.%s, enh=%s genes, sil=%s genes " % (pair_type, site, stats["r.%s" % pair_type], stats["e.%s" % pair_type])
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["r.%s" % pair_type], stats["e.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
     plt.title(title)
-    #plt.tight_layout() # doesnt work for this type of graphs
     plt.savefig(filename+".png", dpi=100)
     #plt.savefig(filename+".svg")
     plt.close()
@@ -511,8 +526,8 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
                 fname = os.path.join(rnamap_dest, k+".fasta")
                 fasta_files[k] = open(fname, "wt")
 
-    pc_thr = 0.05
-    fisher_thr = 0.2
+    pc_thr = 0.1
+    fisher_thr = 0.1
     pair_dist = 450
 
     if clip_file!="":
@@ -530,7 +545,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
     pdata = {} # these are sums of vectors
     for pair_type in ["tandem", "composite", "skipped"]:
         for site in ["siteup", "sitedown"]:
-            for reg in ["r", "e", "c"]:
+            for reg in ["r", "e", "c_up", "c_down"]:
                 cdata["%s.%s.%s" % (reg, pair_type, site)] = [0] * 401
                 sdata["%s.%s.%s" % (reg, pair_type, site)] = [0] * 401
                 pdata["%s.%s.%s" % (reg, pair_type, site)] = [0] * 401
@@ -566,16 +581,20 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
         if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
             reg_siteup = "r"
         if abs(pc)<pc_thr and fisher>fisher_thr:
-            reg_siteup = "c"
+            reg_siteup = "c_up" if pc>0 else "c_down"
 
-        if reg_siteup=="c":
+        # also set reg_sitedown accordingly to reg_siteup
+        reg_sitedown = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}[reg_siteup]
+        stats["%s.%s" % (reg_siteup, pair_type)] += 1
+
+        if reg_siteup in ["c_up", "c_down"]:
             # add clip data for controls
             if clip!=None:
-                for (rtype, pos, site) in [("c", siteup_pos, "siteup"), ("c", sitedown_pos, "sitedown")]:
+                for (rtype, pos, site) in [(reg_siteup, siteup_pos, "siteup"), (reg_sitedown, sitedown_pos, "sitedown")]:
                     z = []
                     for index, x in enumerate(range(pos-200, pos+201)):
                         # all CLIP data is in UCSC genomic format of chromosome names?
-                        z.append(clip.get_value("chr"+chr, strand, x, db="cpm"))
+                        z.append(clip.get_value("chr"+chr, strand, x, db="raw"))
                     if strand=="-":
                         z.reverse()
                     cdata["%s.%s.%s" % (rtype, pair_type, site)] = [x+y for x,y in zip(cdata["%s.%s.%s" % (rtype, pair_type, site)],z)]
@@ -584,14 +603,11 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
                     cdata_vectors["%s.%s.%s" % (rtype, pair_type, site)].append(z_vector)
                     assert(len(cdata["%s.%s.%s" % (rtype, pair_type, site)])==401)
             r = f.readline()
-            stats["%s.%s" % ("c", pair_type)] += 1
             continue
+
         if reg_siteup==None:
             r = f.readline()
             continue
-
-        reg_sitedown = {"e":"r", "r":"e"}[reg_siteup]
-        stats["%s.%s" % (reg_siteup, pair_type)] += 1
 
         if comps.polya_db!=None:
             if map_type in ["pas", "cs"]:
@@ -640,7 +656,7 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
                 z = []
                 for index, x in enumerate(range(pos-200, pos+201)):
                     # all CLIP data is in UCSC genomic format of chromosome names?
-                    z.append(clip.get_value("chr"+chr, strand, x, db="cpm"))
+                    z.append(clip.get_value("chr"+chr, strand, x, db="raw"))
                 if strand=="-":
                     z.reverse()
                 cdata["%s.%s.%s" % (rtype, pair_type, site)] = [x+y for x,y in zip(cdata["%s.%s.%s" % (rtype, pair_type, site)],z)]
@@ -673,9 +689,12 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
         pdata["r.%s.siteup" % pair_type] = [e/float(n) for e in pdata["r.%s.siteup" % pair_type]]
         pdata["e.%s.sitedown" % pair_type] = [e/float(n) for e in pdata["e.%s.sitedown" % pair_type]]
 
-        n = max(1, stats["c.%s" % pair_type])
-        cdata["c.%s.siteup" % pair_type] = [e/float(n) for e in cdata["c.%s.siteup" % pair_type]]
-        cdata["c.%s.sitedown" % pair_type] = [e/float(n) for e in cdata["c.%s.sitedown" % pair_type]]
+        n = max(1, stats["c_up.%s" % pair_type])
+        cdata["c_up.%s.siteup" % pair_type] = [e/float(n) for e in cdata["c_up.%s.siteup" % pair_type]]
+        cdata["c_down.%s.sitedown" % pair_type] = [e/float(n) for e in cdata["c_down.%s.sitedown" % pair_type]]
+        n = max(1, stats["c_down.%s" % pair_type])
+        cdata["c_down.%s.siteup" % pair_type] = [e/float(n) for e in cdata["c_down.%s.siteup" % pair_type]]
+        cdata["c_up.%s.sitedown" % pair_type] = [e/float(n) for e in cdata["c_up.%s.sitedown" % pair_type]]
 
     cmax = {"tandem":0, "composite":0, "skipped":0}
     smax = {"tandem":0, "composite":0, "skipped":0}
@@ -692,19 +711,19 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
 
             # clip
             if clip!=None:
-                rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type])
-                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_area(cdata["e.%s.%s" % (pair_type, site)], cdata["r.%s.%s" % (pair_type, site)], cdata["c_up.%s.%s" % (pair_type, site)], cdata["c_down.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=cmax[pair_type], site=site2, pair_type=pair_type, stats=stats)
+                rnamap_freq(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c_up.%s.%s" % (pair_type, site)], cdata_vectors["c_down.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(cdata_vectors["e.%s.%s" % (pair_type, site)], cdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "clip_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id)
 
             # ug
             if "ug" in comps.rnamaps:
-                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type])
+                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type], site=site2, pair_type=pair_type, stats=stats)
                 rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
             # pas
             if "pas" in comps.rnamaps:
-                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type])
+                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type], site=site2, pair_type=pair_type, stats=stats)
                 rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
@@ -876,7 +895,7 @@ a {
 
     if clip!=None:
         for t in ["tandem", "composite", "skipped"]:
-            f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
             f.write("<tr>")
             f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s<br>rep=%s<br>con=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t], stats["c.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.siteup.png" % t, "clip.%s.siteup.png" % t))
@@ -901,7 +920,7 @@ a {
             f.write("\n")
 
     if comps.deepbind!=None:
-        f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+        f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr>")
             f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
@@ -922,7 +941,7 @@ a {
 
     if "ug" in comps.rnamaps:
         for t in ["tandem", "composite", "skipped"]:
-            f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
             f.write("<tr>")
             f.write("<td align=right valign=center>%s<br>UG<br>enh=%s<br>rep=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.siteup.png" % t, "seq.%s.siteup.png" % t))
@@ -948,7 +967,7 @@ a {
 
     if "pas" in comps.rnamaps:
         for t in ["tandem", "composite", "skipped"]:
-            f.write("<tr><td align=center></td><td align=center>proximal</td><td align=center>distal</td></tr>\n")
+            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
             f.write("<tr>")
             f.write("<td align=right valign=center>%s<br>PAS<br>enh=%s<br>rep=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.siteup.png" % t, "pas.%s.siteup.png" % t))
