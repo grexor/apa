@@ -587,27 +587,12 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
         reg_sitedown = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}[reg_siteup]
         stats["%s.%s" % (reg_siteup, pair_type)] += 1
 
-        if reg_siteup in ["c_up", "c_down"]:
-            # add clip data for controls
-            if clip!=None:
-                for (rtype, pos, site) in [(reg_siteup, siteup_pos, "siteup"), (reg_sitedown, sitedown_pos, "sitedown")]:
-                    z = []
-                    for index, x in enumerate(range(pos-200, pos+201)):
-                        # all CLIP data is in UCSC genomic format of chromosome names?
-                        z.append(clip.get_value("chr"+chr, strand, x, db="raw"))
-                    if strand=="-":
-                        z.reverse()
-                    cdata["%s.%s.%s" % (rtype, pair_type, site)] = [x+y for x,y in zip(cdata["%s.%s.%s" % (rtype, pair_type, site)],z)]
-                    # [(gene_id, gene_name), 0, 0, 1, 1 ....]
-                    z_vector = [(gene_id, gene_name, sum(z))] + z
-                    cdata_vectors["%s.%s.%s" % (rtype, pair_type, site)].append(z_vector)
-                    assert(len(cdata["%s.%s.%s" % (rtype, pair_type, site)])==401)
-            r = f.readline()
-            continue
-
         if reg_siteup==None:
             r = f.readline()
             continue
+
+        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos-200, siteup_pos+200)
+        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos-200, sitedown_pos+200)
 
         if comps.polya_db!=None:
             if map_type in ["pas", "cs"]:
@@ -621,14 +606,9 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
                 if trim_seq_down!=-1:
                     sitedown_pos += {"-":1, "+":-1}[strand] * (200-trim_seq_down)
 
-        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos-200, siteup_pos+200)
-        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos-200, sitedown_pos+200)
-
-        #fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up[100:300]))
-        #fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down[100:300]))
-
-        fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up))
-        fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down))
+        if reg_siteup in ["e", "r"]:
+            fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up))
+            fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down))
 
         # stringent: hw=25, hwt=10
         # TGTG
@@ -717,14 +697,14 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
 
             # ug
             if "ug" in comps.rnamaps:
-                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type], site=site2, pair_type=pair_type, stats=stats)
-                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_area(sdata["e.%s.%s" % (pair_type, site)], sdata["r.%s.%s" % (pair_type, site)], sdata["c_up.%s.%s" % (pair_type, site)], sdata["c_down.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=smax[pair_type], site=site2, pair_type=pair_type, stats=stats)
+                rnamap_freq(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], sdata_vectors["c_up.%s.%s" % (pair_type, site)], sdata_vectors["c_down.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(sdata_vectors["e.%s.%s" % (pair_type, site)], sdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
             # pas
             if "pas" in comps.rnamaps:
-                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], cdata["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type], site=site2, pair_type=pair_type, stats=stats)
-                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], cdata_vectors["c.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
+                rnamap_area(pdata["e.%s.%s" % (pair_type, site)], pdata["r.%s.%s" % (pair_type, site)], pdata["c_up.%s.%s" % (pair_type, site)], pdata["c_down.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site2), ymax=pmax[pair_type], site=site2, pair_type=pair_type, stats=stats)
+                rnamap_freq(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], pdata_vectors["c_up.%s.%s" % (pair_type, site)], pdata_vectors["c_down.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2)
                 rnamap_heat(pdata_vectors["e.%s.%s" % (pair_type, site)], pdata_vectors["r.%s.%s" % (pair_type, site)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site2, title=comps_id, alpha=0.3)
 
     # deep bind
@@ -920,8 +900,8 @@ a {
             f.write("\n")
 
     if comps.deepbind!=None:
-        f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
         for t in ["tandem", "composite", "skipped"]:
+            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
             f.write("<tr>")
             f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats["e.%s" % t], stats["r.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
