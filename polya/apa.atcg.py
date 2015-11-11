@@ -68,7 +68,7 @@ for species in ["hg19.tian", "hg19", "mm10", "dm5"]:
         for strand, pos_data in strand_data.items():
             for pos, cDNA in pos_data.items():
                 sites += 1
-                seq = pybio.genomes.seq(species.rstrip(".tian"), chr, strand, pos-50, pos+50)
+                seq = pybio.genomes.seq(species.rstrip(".tian"), chr, strand, pos, start=-50, stop=50)
                 assert(len(seq)==101)
                 a,t,c,g = update_vectors(a,t,c,g,seq)
     print "%s, sites=%s" % (species, sites)

@@ -16,6 +16,8 @@ import glob
 import fisher
 import sys
 import operator
+import itertools
+from collections import Counter
 
 class Comps:
     def __init__(self, comps_id=None, iCLIP_filename=None):
@@ -277,21 +279,21 @@ def process_comps(comps_id):
                 sites = gsites.get(gid, {})
                 cDNA_sum = 0
                 expression_vector = []
-                es = {"pos":pos} # store position also in ES
+                site_data = {"pos":pos} # store position also in ES
                 for (rshort, _) in replicates:
                     bg = expression[rshort]
                     cDNA = bg.get_value(chr, strand, pos)
                     cDNA_sum += cDNA
                     expression_vector.append(cDNA)
-                    es[rshort] = cDNA
+                    site_data[rshort] = cDNA
 
                 # filter lowly expressed sites
                 expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
                 if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
                     continue
 
-                es["cDNA_sum"] = int(cDNA_sum)
-                sites[pos] = es
+                site_data["cDNA_sum"] = int(cDNA_sum)
+                sites[pos] = site_data
                 gsites[gid] = sites
 
     # expression gene level
@@ -384,49 +386,6 @@ def process_comps(comps_id):
     print command
     pybio.utils.Cmd(command).run()
 
-    """
-    genes = {}
-    # read in voom results if present: in case of no replicates this fails
-    input_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.expression.voom.exons.tab" % comps_id)
-    if os.path.exists(input_file):
-        f = open(input_file, "rt")
-        header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-        r = f.readline()
-        while r:
-            r = r.replace("\r", "").replace("\n", "").split("\t")
-            data = dict(zip(header, r))
-            gene_id = data["GeneID"]
-            sites = voom_genes.get(gene_id, {})
-            sites[int(data["ExonID"])] = {"pos": int(data["ExonID"]), "fc": float(data["logFC"]), "fdr": float(data["P.Value"])}
-            voom_genes[gene_id] = sites
-            r = f.readline()
-        f.close()
-    """
-
-    """
-    # add expression of individual sites to the data
-    input_file = os.path.join(apa.path.comps_folder, comps_id, "%s.expression.voom.tab" % comps_id)
-    f = open(input_file, "rt")
-    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        data = dict(zip(header, r))
-        # make counts integer
-        for (rshort, _) in replicates:
-            data[rshort] = int(round(float(data[rshort])))
-        gene_id = data["gene_id"]
-        site_pos = int(data["site_pos"])
-        sites = voom_genes.get(gene_id, {})
-        # this can happen since not all genes are reported in the voom exons results (the genes with only 1 site are not there) or we have no replicates and voom didn't return results
-        if sites.get(site_pos, None)==None:
-            sites[site_pos] = {"pos": site_pos, "fc": 0, "fdr": 1}
-        sites[site_pos]["expression"] = data
-        voom_genes[gene_id] = sites
-        r = f.readline()
-    f.close()
-    """
-
     # pairs_de file
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
@@ -466,13 +425,33 @@ def process_comps(comps_id):
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         if len(sites)>=2:
             L = [(sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
-            L.sort(reverse=True) # sort by expression
+            L.sort(reverse=True) # sort by control+test expression
+            # todo1: here implement site selection
+            site_pairs = []
+            site_pairs_stats = Counter()
+            for (_, site1), (_, site2) in list(itertools.combinations(L, 2)): # skip the cDNA sum used to sort the list
+                #print site1["pos"], site2["pos"]
+                pair_type = apa.polya.annotate_pair(comps.species, chr, strand, site1["pos"], site2["pos"])
+                pair_cDNA_sum = site1["cDNA_sum"] + site2["cDNA_sum"]
+                site_pairs.append((pair_cDNA_sum, pair_type, site1, site2))
+                site_pairs_stats[pair_type]+=1
+
             site1 = L[0][1]
             site2 = L[1][1]
+            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, site1["pos"], site2["pos"])
+
+            # how many tandem sites are we loosing?
+            #if len(site_pairs)>1:
+            #    if "tandem" in site_pairs_stats and pair_type!="tandem":
+            #        print site_pairs_stats, pair_type # all sites types vs. major pair type
+
             major = max(site1["cDNA_sum"], site2["cDNA_sum"])
             minor = min(site1["cDNA_sum"], site2["cDNA_sum"])
-            if minor < major*0.1:
-                continue
+
+            # todo: check if this makes sense?
+            #if minor < major*0.1:
+            #    continue
+
             if (site1["pos"]<site2["pos"] and strand=="+") or (site1["pos"]>site2["pos"] and strand=="-"):
                 up_site = site1
                 down_site = site2
@@ -496,14 +475,8 @@ def process_comps(comps_id):
                 else:
                     down_test.append(down_site[rshort])
 
-            up_seq = down_seq = ""
-
-            if strand=="-":
-                up_seq = pybio.genomes.seq(comps.species, chr, strand, site1["pos"]-60, site1["pos"]+100)
-                down_seq = pybio.genomes.seq(comps.species, chr, strand, site2["pos"]-60, site2["pos"]+100)
-            else:
-                up_seq = pybio.genomes.seq(comps.species, chr, strand, site1["pos"]-100, site1["pos"]+60)
-                down_seq = pybio.genomes.seq(comps.species, chr, strand, site2["pos"]-60, site2["pos"]+100)
+            up_seq = pybio.genomes.seq(comps.species, chr, strand, site1["pos"], start=-60, stop=100)
+            down_seq = pybio.genomes.seq(comps.species, chr, strand, site2["pos"], start=-60, stop=100)
 
             _, up_vector = pybio.sequence.search(up_seq, ["TGT", "GTG"])
             up_vector = pybio.sequence.filter(up_vector, hw=25, hwt=17)
@@ -547,119 +520,6 @@ def process_comps(comps_id):
         f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
 
-    #make_fasta(comps_id)
-    return
-
-    # differential analysis on individual up/down site in side genes
-    #R_file = os.path.join(apa.path.root_folder, "study", "comps.de.single.R")
-    #input_file = expression_genes_pair_tandem_filename
-    #diff_siteup_filename = expression_genes_pair_tandem_filename+".results.siteup.tab"
-    #diff_sitedown_filename = expression_genes_pair_tandem_filename+".results.sitedown.tab"
-    #edgeR_pair_tandem_filename = expression_genes_sites_filename+".results.tab"
-
-    # site_up
-    #command = "R --vanilla --args %s %s %s %s up < %s" % (input_file, diff_siteup_filename, len(comps.control), len(comps.test), R_file)
-    #print command
-    #pybio.utils.Cmd(command).run()
-
-    # site_down
-    #command = "R --vanilla --args %s %s %s %s down < %s" % (input_file, diff_sitedown_filename, len(comps.control), len(comps.test), R_file)
-    #print command
-    #pybio.utils.Cmd(command).run()
-
-    # edgeR spliceVariants on polya site pairs
-    #R_file = os.path.join(apa.path.root_folder, "study", "comps.de.pair.R")
-    #command = "R --vanilla --args %s %s %s %s < %s" % (expression_genes_sites_filename, edgeR_pair_tandem_filename, len(comps.control), len(comps.test), R_file)
-    #print command
-    #pybio.utils.Cmd(command).run()
-
-    # edgeR spliceVariants on polya site pairs
-    #R_file = os.path.join(apa.path.root_folder, "study", "comps.voom.R")
-    #output_filename = apa.path.comps_filename(study_id, comps_id, "expression.genes.pair.tandem.voom")
-    #command = "R --vanilla --args %s %s %s %s < %s" % (expression_genes_sites_filename, output_filename, len(comps.control), len(comps.test), R_file)
-    #print command
-    #pybio.utils.Cmd(command).run()
-
-    # read back voom results and apply to expression.gene.tandem
-    #edgeR_siteup_tandem = {}
-    #edgeR_sitedown_tandem = {}
-    #edgeR_pair_tandem = {}
-
-    # read site_up edgeR results
-    #f = open(diff_siteup_filename, "rt")
-    #header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    #header[0] = "gene_id"
-    #r = f.readline()
-    #while r:
-    #    r = r.replace("\r", "").replace("\n", "").split("\t")
-    #    data = dict(zip(header, r))
-    #    edgeR_siteup_tandem[data["gene_id"]] = (float(data["logFC"]), float(data["FDR"]))
-    #    r = f.readline()
-    #f.close()
-
-    # read site_down edgeR results
-    #f = open(diff_sitedown_filename, "rt")
-    #header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    #header[0] = "gene_id"
-    #r = f.readline()
-    #while r:
-    #    r = r.replace("\r", "").replace("\n", "").split("\t")
-    #    data = dict(zip(header, r))
-    #    val = float(data["PValue"])
-    #    if float(data["logFC"])<0:
-    #        val = -val
-    #    edgeR_sitedown_tandem[data["gene_id"]] = (float(data["logFC"]), float(data["FDR"]))
-    #    r = f.readline()
-    #f.close()
-
-    # read pair edgeR results (spliceVariants)
-    #f = open(edgeR_pair_tandem_filename, "rt")
-    #header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    #r = f.readline()
-    #while r:
-    #    r = r.replace("\r", "").replace("\n", "").split("\t")
-    #    data = dict(zip(header, r))
-    #    edgeR_pair_tandem[data["GeneID"]] = float(data["FDR"])
-    #    r = f.readline()
-    #f.close()
-
-    # write results back to genes.pair.tandem file
-    f = open(expression_genes_pair_tandem_filename, "rt")
-    f_out = open(expression_genes_pair_tandem_filename+".temp", "wt")
-    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    header.append("voom_fc")
-    header.append("voom_fdr")
-    f_out.write("\t".join(header)+"\n")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        data = dict(zip(header, r))
-        voom_fc = voom_exon[data["gene_id"]]["fc"]
-        voom_fdr = voom_exon[data["gene_id"]]["fdr"]
-        #if voom_fc>=0:
-        #    p_combine = "%.5f" % max(siteup_de, sitedown_de)
-        #    if study_id=="dicer_ko":
-        #        p_combine = "%.5f" % 1 # we are more restrictive for the dicer study when sites expression change in the same direction
-        #    p_dir = 1
-        #else:
-        #    p_combine, _ = pybio.utils.Cmd("pcombine %s %s" % (siteup_de, sitedown_de)).run()
-        #    #p_dir = "%.5f" % max(siteup_de, sitedown_de)
-        #    p_dir = p_combine
-        #de_pc = abs(siteup_fc-sitedown_fc) # distance of change
-        #if siteup_fc<sitedown_fc: # direction of change
-        #    de_pc = de_pc * -1
-        #de_pc = "%.5f" % de_pc
-        #de_up = "%.5f" % siteup_de
-        #de_down = "%.5f" % sitedown_de
-        #de_pair = "%.5f" % sitepair_de
-        r.append("%.5f" % voom_fc)
-        r.append("%.5f" % voom_fdr)
-        f_out.write("\t".join([str(x) for x in r])+"\n")
-        r = f.readline()
-    f.close()
-    f_out.close()
-
-    shutil.move(expression_genes_pair_tandem_filename+".temp", expression_genes_pair_tandem_filename)
 
 def distance_hist(comps_id):
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
@@ -894,9 +754,7 @@ def make_fasta(comps_id):
         for (site_reg, site_type, site_pos) in [(siteup_reg, "siteup", siteup_pos), (sitedown_reg, "sitedown", sitedown_pos)]:
             reg_key = "%s.%s" % (site_type, site_reg)
             stats_reg[reg_key] = stats_reg[reg_key]+1
-            seq_from = -50
-            seq_to = 50
-            seq = pybio.genomes.seq(comps.species, chr, strand, site_pos+seq_from, site_pos+seq_to)
+            seq = pybio.genomes.seq(comps.species, chr, strand, site_pos, start=-50, stop=50)
             fasta_filename = os.path.join(apa.path.comps_folder, comps_id, "fasta", "%s.fasta" % (reg_key))
             if not os.path.exists(fasta_filename):
                 f = open(fasta_filename, "wt")

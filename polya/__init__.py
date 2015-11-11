@@ -176,7 +176,7 @@ def annotate(poly_id):
         cDNA = float(r[-1])
         strand = "+" if cDNA>=0 else "-"
         # get upstream sequence
-        seq = pybio.genomes.seq(species, chr, strand, pos-100, pos+100)
+        seq = pybio.genomes.seq(species, chr, strand, pos, start=-100, stop=100)
         gid_up, gid, gid_down, gid_interval = annotate_position(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
         if accepted.get(key, None)!=None:
@@ -447,8 +447,7 @@ def pas_db(poly_id):
         for chr, chr_data in b.raw.items():
             for strand, pos_data in chr_data.items():
                 for pos, val in pos_data.items():
-                    pos_start, pos_stop = pos-100, pos+100
-                    s = pybio.genomes.seq("hg19", chr, strand, pos_start, pos_stop)
+                    s = pybio.genomes.seq("hg19", chr, strand, pos, start=-100, stop=100)
                     f.write("\t".join(str(el) for el in [chr, strand, pos, val, s])+"\n")
         f.close()
 
@@ -476,12 +475,7 @@ def pas_db(poly_id):
         for pas in pas_signals:
             index = seq.find(pas)
             if index!=-1:
-                if strand=="+":
-                    pas_pos = pos - (100-(63+index))
-                    pas_check = pybio.genomes.seq("hg19", chr, strand, pas_pos, pas_pos+5)
-                else:
-                    pas_pos = pos + (100-(63+index))
-                    pas_check = pybio.genomes.seq("hg19", chr, strand, pas_pos-5, pas_pos)
+                pas_check = pybio.genomes.seq("hg19", chr, strand, pas_pos, start=-(100-(63+index)))
                 assert(pas==pas_check)
                 db.set_value(chr, strand, pas_pos, db.get_value(chr, strand, pas_pos)+cDNA) # increase the value by cDNA at this position
                 db_pas.setdefault((chr, strand, pas_pos), set()).add(pas)

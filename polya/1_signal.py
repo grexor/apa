@@ -26,7 +26,7 @@ def search_m(poly_id, up=50, down=50, motif_list = None):
         for strand, pos_data in strand_data.items():
             for pos, cDNA in pos_data.items():
                 sites += 1
-                seq = pybio.genomes.seq(genome, chr, strand, pos-up, pos+down)
+                seq = pybio.genomes.seq(genome, chr, strand, pos, start=-up, stop=down)
                 f.write(">%s\n%s\n" % (sites, seq))
                 _, motif_vector = pybio.sequence.search(seq, motif_list)
                 if len(motif_vector)==(down+up+1):

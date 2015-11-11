@@ -82,8 +82,8 @@ def process(comps_id):
         reg_sitedown = {"e":"r", "r":"e", "c":"c"}[reg_siteup]
         stats["%s.%s" % (reg_siteup, pair_type)] += 1
 
-        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos-200, siteup_pos+200)
-        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos-200, sitedown_pos+200)
+        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos, start=-200, stop=200)
+        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos, start=-200, stop=200)
 
         fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up))
         fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down))

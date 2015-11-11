@@ -22,6 +22,8 @@ import matplotlib.patches as mpatches
 import pickle
 import shutil
 
+save_pdf = True
+
 def read_deepbind(fname):
     rall = []
     rscaled = []
@@ -143,6 +145,8 @@ def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proxima
     print "saving", filename
     plt.title(title)
     plt.savefig(filename+".png", dpi=100)
+    if save_pdf:
+        plt.savefig(filename+".pdf")
     plt.close()
 
 def rnamap_deepbind_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
@@ -249,7 +253,8 @@ def rnamap_deepbind_heat(vpos, vneg, filename, title="test", site="proximal", st
         cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
         print "saving %s" % (filename+"_%s.png" % reg_type)
         plt.savefig(filename+"_%s.png" % reg_type, dpi=150)
-        #plt.savefig(filename+"_%s.svg" % reg_type)
+        if save_pdf:
+            plt.savefig(filename+"_%s.pdf" % reg_type)
     return
 
 def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", pair_type="tandem", ymax=None, stats=None):
@@ -269,18 +274,18 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     c = mcolors.ColorConverter().to_rgb
 
     # styling
-    matplotlib.rcParams['axes.labelsize'] = 11
-    matplotlib.rcParams['axes.titlesize'] = 11
-    matplotlib.rcParams['xtick.labelsize'] = 9
-    matplotlib.rcParams['ytick.labelsize'] = 9
-    matplotlib.rcParams['legend.fontsize'] = 9
+    matplotlib.rcParams['axes.labelsize'] = 15
+    matplotlib.rcParams['axes.titlesize'] = 15
+    matplotlib.rcParams['xtick.labelsize'] = 13
+    matplotlib.rcParams['ytick.labelsize'] = 13
+    matplotlib.rcParams['legend.fontsize'] = 13
     matplotlib.rc('axes',edgecolor='gray')
     matplotlib.rcParams['axes.linewidth'] = 0.1
     matplotlib.rcParams['legend.frameon'] = 'False'
     from matplotlib import ticker
 
     fig = plt.figure(figsize=(20, 4))
-    a = plt.axes([0.05, 0.2, 0.9, 0.7])
+    a = plt.axes([0.1, 0.2, 0.85, 0.7])
     a.set_xlim(0, 400)
     if ymax!=None:
         a.set_ylim(-ymax, ymax)
@@ -301,10 +306,10 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     plt.plot(range(0, len(vcon_up)), vcon_up, color='black', alpha=1, linewidth=1.5) #, linestyle="dashed")
     plt.plot(range(0, len(vcon_down)), vcon_down, color='black', alpha=1, linewidth=1.5) #, linestyle="dashed")
 
-    p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
+    p = mpatches.Rectangle([200, -ymax], 0.01, ymax*2, facecolor='none', edgecolor=(0.8, 0, 0))
     plt.gca().add_patch(p)
     plt.xticks([0,25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400], [-200,-175,-150,-125,-100,-75,-50,-25,0,25,50,75,100,125,150,175,200])
-
+    plt.grid(alpha=0.2)
     print "saving", filename
     if site=="proximal":
         title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["e.%s" % pair_type], stats["r.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
@@ -312,7 +317,8 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
         title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["r.%s" % pair_type], stats["e.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
     plt.title(title)
     plt.savefig(filename+".png", dpi=100)
-    #plt.savefig(filename+".svg")
+    if save_pdf:
+        plt.savefig(filename+".pdf")
     plt.close()
 
 def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
@@ -326,11 +332,11 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
             return x
 
     # styling
-    matplotlib.rcParams['axes.labelsize'] = 13
-    matplotlib.rcParams['axes.titlesize'] = 13
-    matplotlib.rcParams['xtick.labelsize'] = 11
-    matplotlib.rcParams['ytick.labelsize'] = 11
-    matplotlib.rcParams['legend.fontsize'] = 11
+    matplotlib.rcParams['axes.labelsize'] = 17
+    matplotlib.rcParams['axes.titlesize'] = 17
+    matplotlib.rcParams['xtick.labelsize'] = 15
+    matplotlib.rcParams['ytick.labelsize'] = 15
+    matplotlib.rcParams['legend.fontsize'] = 15
     matplotlib.rc('axes',edgecolor='gray')
     matplotlib.rcParams['axes.linewidth'] = 0.2
     matplotlib.rcParams['legend.frameon'] = 'False'
@@ -404,7 +410,7 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
 
         ax.set_yticks(np.arange(d.ix[indices, 1:].shape[0]) + 0.5, minor=False)
         #ax.set_frame_on(False)
-        labels = ["%s : %.2f" % (x[1], x[2]) for x in d.ix[indices, 0]]
+        labels = ["%s:%.2f" % (x[1], x[2]) for x in d.ix[indices, 0]]
         ax.set_yticklabels(labels, minor=False)
         ax.set_xticklabels([-200,-150,-100,-50,0,50,100,150,200], minor=False)
 
@@ -422,11 +428,13 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
         plt.gca().add_patch(p)
         plt.title("%s (top 20)" % title)
-        plt.subplots_adjust(left=0.05, right=0.97, top=0.90, bottom=0.05)
+        #plt.subplots_adjust(left=0.05, right=0.97, top=0.90, bottom=0.05) # nicely aligned version
+        plt.subplots_adjust(left=0.1, right=0.97, top=0.90, bottom=0.05)
         cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
         print "saving %s" % (filename+"_%s.png" % reg_type)
         plt.savefig(filename+"_%s.png" % reg_type, dpi=150)
-        #plt.savefig(filename+"_%s.svg" % reg_type)
+        if save_pdf:
+            plt.savefig(filename+"_%s.pdf" % reg_type)
     return
 
 def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", stats=None, pair_type="tandem"):
@@ -451,7 +459,7 @@ def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     from matplotlib import ticker
 
     fig = plt.figure(figsize=(20, 4))
-    a = plt.axes([0.05, 0.2, 0.9, 0.7])
+    a = plt.axes([0.1, 0.2, 0.9, 0.7])
     a.set_xlim(0, 400)
     plt.ylabel("%genes")
     plt.xlabel("distance [nt]")
@@ -489,7 +497,8 @@ def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
         title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats["r.%s" % pair_type], stats["e.%s" % pair_type], stats["c_up.%s" % pair_type]+stats["c_down.%s" % pair_type])
     plt.title(title)
     plt.savefig(filename+".png", dpi=100)
-    #plt.savefig(filename+".svg")
+    if save_pdf:
+        plt.savefig(filename+".pdf")
     plt.close()
 
 def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="original", map_subfolder="rnamap", map_main_folder=None):
@@ -591,8 +600,8 @@ def process(comps_id=None, tab_file=None, clip_file="", genome=None, map_type="o
             r = f.readline()
             continue
 
-        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos-200, siteup_pos+200)
-        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos-200, sitedown_pos+200)
+        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos, start=-200, stop=200)
+        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos, start=-200, stop=200)
 
         if comps.polya_db!=None:
             if map_type in ["pas", "cs"]:

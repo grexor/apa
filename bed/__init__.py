@@ -144,14 +144,8 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
         # update T file
         if aremoved>=6:
             true_site = True
-            if strand=="+":
-                downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+15)
-                upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-36, pos_end-1)
-                #aligned_seq = a.query
-            else:
-                downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-15, pos_end-1) # if strand=-, already returns RC
-                upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+36) # if strand=-, already returns RC
-                #aligned_seq = pybio.sequence.reverse_complement(a.query)
+            downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=1, stop=15)
+            upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
 
             if downstream_seq.startswith("AAAA") or downstream_seq[:10].count("A")>=5 or upstream_seq.endswith("AAAA") \
                 or upstream_seq[-10:].count("A")>=5:
@@ -243,13 +237,8 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
 
         # update T file
         true_site = True
-        if strand=="+":
-            downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+15)
-            upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-36, pos_end-1)
-        else:
-            # if strand=-, already returns RC
-            downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end-15, pos_end-1)
-            upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end+1, pos_end+36)
+        downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=1, stop=15)
+        upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
 
         if downstream_seq.startswith("AAAAA") or downstream_seq[:10].count("A")>=6:   #or upstream_seq.endswith("AAAA") or upstream_seq[-10:].count("A")>=5:
             true_site = False
@@ -382,11 +371,7 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
 
         # search for 15A and update T files
         read_seq = a.seq # sequence of read
-
-        if strand=="+":
-            sur_seq = pybio.genomes.seq(genome, chr, strand, pos_end-18, pos_end)
-        else:
-            sur_seq = pybio.genomes.seq(genome, chr, strand, pos_end, pos_end+18)
+        sur_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-18)
 
         #hit_read = regex.search(r'A(?:AAAAAAAAAAAAAAA){s<=4}', read_seq)
         internal = internal_priming(sur_seq)

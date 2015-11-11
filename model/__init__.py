@@ -214,7 +214,7 @@ def make_fasta(comps_id):
         for (site_reg, site_type, site_pos) in [(reg_siteup, "siteup", siteup_pos), (reg_sitedown, "sitedown", sitedown_pos)]:
             reg_key = "%s_%s" % (site_type, site_reg)
             stats[reg_key] += 1
-            seq = pybio.genomes.seq(comps.species, chr, strand, site_pos+seq_from, site_pos+seq_to)
+            seq = pybio.genomes.seq(comps.species, chr, strand, site_pos, start=seq_from, stop=seq_to)
             for index, n in enumerate(seq):
                 ntdist[reg_key][index][ntmap[n]] += 1
             fasta_filename = os.path.join(apa.path.comps_folder, comps_id, "fasta", "%s.fasta" % (reg_key))
@@ -250,7 +250,6 @@ def make_fasta(comps_id):
             ymax = max(ymax, max(y), min(y))
             plot_data["%s:%s" % (sitetype, nuc)] = y
     for sitetype in ["siteup_e", "siteup_r", "sitedown_e", "sitedown_r", "siteup_c", "sitedown_c"]:
-        nt_filename = os.path.join(model_folder, "%s_ntdist.png" % sitetype)
         pl.clf()
         a = pl.axes([0.1, 0.1, 0.85, 0.8])
         a.yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
@@ -266,7 +265,8 @@ def make_fasta(comps_id):
         pl.ylabel('freq')
         pl.title('%s nucleotide distribution' % sitetype)
         pl.legend(loc="upper right")
-        pl.savefig(nt_filename)
+        pl.savefig(os.path.join(model_folder, "%s_ntdist.png" % sitetype))
+        pl.savefig(os.path.join(model_folder, "%s_ntdist.pdf" % sitetype))
 
     print stats.items()
 
@@ -534,6 +534,7 @@ def predict_randomf(comps_id):
         pl.title('Feature importances')
         model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
         pl.savefig(os.path.join(model_folder, "%s_randomf_features.png" % fn))
+        pl.savefig(os.path.join(model_folder, "%s_randomf_features.pdf" % fn))
 
 def predict_tree(comps_id):
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
@@ -628,8 +629,8 @@ def plot_pca(comps_id):
         control, case = len(x[y==0]), len(x[y==1])
         pl.title('PCA %s : %s (#%s vs #%s)' % (fn, comps_id, case, control))
         pl.legend(loc="lower right")
-        fn = os.path.join(model_folder, "pca.%s.png" % fn)
-        pl.savefig(fn)
+        pl.savefig(os.path.join(model_folder, "pca.%s.png" % fn))
+        pl.savefig(os.path.join(model_folder, "pca.%s.pdf" % fn))
 
 def plot_lda(comps_id):
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
@@ -669,8 +670,8 @@ def plot_lda(comps_id):
         control, case = len(x[y==0]), len(x[y==1])
         pl.title('LDA %s : %s (#%s vs #%s)' % (fn, comps_id, case, control))
         pl.legend(loc="lower right")
-        fn = os.path.join(model_folder, "lda.%s.png" % fn)
-        pl.savefig(fn)
+        pl.savefig(os.path.join(model_folder, "lda.%s.png" % fn))
+        pl.savefig(os.path.join(model_folder, "lda.%s.pdf" % fn))
 
 def plot_roc(comps_id):
     print "%s:model:plot_roc" % comps_id
@@ -689,7 +690,6 @@ def plot_roc(comps_id):
     matplotlib.rcParams['legend.frameon'] = 'False'
 
     for fn, _, _ in types:
-        roc_filename = os.path.join(model_folder, "roc.%s.png" % fn)
         pl.clf()
         a = pl.axes([0.1, 0.1, 0.85, 0.8])
         a.yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
@@ -719,7 +719,8 @@ def plot_roc(comps_id):
         pl.ylabel('True Positive Rate')
         pl.title('ROC: %s : %s (#%s vs #%s)' % (fn, comps_id, case, control))
         pl.legend(loc="lower right")
-        pl.savefig(roc_filename)
+        pl.savefig(os.path.join(model_folder, "roc.%s.png" % fn))
+        pl.savefig(os.path.join(model_folder, "roc.%s.pdf" % fn))
 
 def save_roc(comps_id, version, tpr, fpr, auc_val, ncontrol, ncase):
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
@@ -781,8 +782,8 @@ def plot_hist(comps_id):
     # hide axis ticks
     a.tick_params(axis="both", which="both", bottom="off", top="off",
             labelbottom="on", left="off", right="off", labelleft="on")
-    fn = os.path.join(model_folder, "hist.%s.png" % fn)
-    pl.savefig(fn)
+    pl.savefig(os.path.join(model_folder, "hist.%s.png" % fn))
+    pl.savefig(os.path.join(model_folder, "hist.%s.pdf" % fn))
 
 def write_index(comps_id):
     print "%s:model:write_index" % comps_id
