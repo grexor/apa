@@ -886,7 +886,7 @@ a {
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s<br>rep=%s<br>con=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t], stats["c.%s" % t]))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s<br>rep=%s<br>con=%s</td>" % (t, stats["e.%s" % t], stats["r.%s" % t], stats["c_up.%s" % t]+stats["c_down.%s" % t]))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.siteup.png" % t, "clip.%s.siteup.png" % t))
             f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("clip.%s.sitedown.png" % t, "clip.%s.sitedown.png" % t))
             f.write("</tr>")
