@@ -71,30 +71,23 @@ def freq(data, all_genes):
     col_sums = []
     for i in range(1, 401+1):
         v = np.array(data[i]) # get column
-        s = sum(v) #*0.9 # what vaue is 90% of the sum?
+        s = sum(v) * 1 # what vaue is x% (x = 100% or 90% etc.) of the sum?
         col_sums.append(s)
     min_sum = 0.01 * max(col_sums) # don't show contribution for columns that have < 0.01 sum of the max
     temp = []
     for i in range(1, 401+1):
         v = np.array(data[i]) # get column
-        v.sort() # sort
+        v.sort()
         v[:] = v[::-1] # reverse
         v = [x for x in v if x>0] # only consider >0 values otherwise cumsum will put cumulative values to 0 elements also
         s = sum(v) # *0.9 # what vaue is 90% of the sum?
-        cs = np.cumsum(v) # cumulative sum
+        cs = np.cumsum(v)
         res = [x for x in cs if x<=s] # how many elements (high->low) do i need to sum to get to 90% of the overall sum?
         if s>=min_sum and s>0:
-            #print v
-            #print cs
-            #print res
-            #print s
-            #print len(res)
-            #print
-            #temp.append(len(res)/float(all_genes)) # append to frequency results
-            temp.append(len(res)) # append #genes that explain 90% of the data at this position
+            temp.append(len(res)) # append number of genes that explain x% of the data at this position
         else:
             temp.append(0)
-    temp = [e/float(all_genes)*100 for e in temp]
+    temp = [e/float(all_genes)*100 for e in temp] # show percentage of genes (/all_genes, * 100)
     return temp
 
 def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proximal"):
