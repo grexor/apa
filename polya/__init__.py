@@ -111,7 +111,7 @@ def read(poly_id):
     return db
 
 def get_gene(species, gid):
-    # only used by apa.annotate_position
+    # only used by apa.sition
     # return only one number of gene_start and gene_stop
     # if no gene, return {}
     pybio.genomes.load(species) # make sure the annotation is loaded
@@ -338,7 +338,8 @@ def annotate_pair(species, chr, strand, pos1, pos2):
     itypes = "".join(itypes) # e.g.: "5oioioi3", in this case site1 would be in 5, site2 in 3 (at extremes of itypes)
     if strand=="-":
         itypes = itypes[::-1] # reverse string
-    if itypes.find("io")==-1:
+    #if itypes.find("io")==-1 and itypes.find("oi")==-1:
+    if itypes=="o": # tandem sites need to be in the same exon
         return "tandem"
     if itypes.count("io")!=-1:
         # check upstream interval of upstream site

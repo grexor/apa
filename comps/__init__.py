@@ -18,8 +18,10 @@ import sys
 import operator
 import itertools
 from collections import Counter
+import copy
 
 minor_major_thr = 0.05 # all sites in assigned to gene need to have expression >= 5% of major site
+clip_interval = (-30, 30) # interval around sites for binding data
 
 class Comps:
     def __init__(self, comps_id=None, iCLIP_filename=None):
@@ -192,6 +194,11 @@ def process_comps(comps_id):
     comps = read_comps(comps_id) # study data
     pybio.genomes.load(comps.species)
 
+    # load CLIP data if available
+    clip = None
+    if comps.iCLIP_filename!=None:
+        clip = pybio.data.Bedgraph(os.path.join(apa.path.iCLIP_folder, comps.iCLIP_filename))
+
     # if there is a polya-db specified in the comparison, load the positions into the filter
     # (strong, weak, less)
     poly_filter = {}
@@ -269,13 +276,19 @@ def process_comps(comps_id):
         for strand, pos_set in strand_data.items():
             pos_set = list(pos_set)
             for pos in pos_set:
-                gid_up, gid, gid_down, gid_interval = apa.polya.annotate_position(comps.species, chr, strand, pos)
-                if gid==None:
-                    continue # only consider polya sites inside genes
-                sites = gsites.get(gid, {})
+                gene_up, gene_id, gene_down, gene_interval = apa.polya.annotate_position(comps.species, chr, strand, pos)
+                if gene_id==None: # only consider polya sites inside genes
+                    continue
+                sites = gsites.get(gene_id, {})
                 cDNA_sum = 0
                 expression_vector = []
-                site_data = {"pos":pos} # store position also in ES
+                # get clip data
+                clip_binding = 0
+                if clip!=None:
+                    clip_binding = clip.get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
+                # store site data
+                site_data = {"pos":pos, "gene_feature":gene_interval, "clip_binding":clip_binding} # store position and gene_interval (start, stop, exon/intron), clip binding
+
                 for (rshort, _) in replicates:
                     bg = expression[rshort]
                     cDNA = bg.get_value(chr, strand, pos)
@@ -290,7 +303,7 @@ def process_comps(comps_id):
 
                 site_data["cDNA_sum"] = int(cDNA_sum)
                 sites[pos] = site_data
-                gsites[gid] = sites
+                gsites[gene_id] = sites
 
     # filter out sites that have expression < minor_major_thr of maximally expressed site
     for gene_id, sites in gsites.items():
@@ -337,7 +350,7 @@ def process_comps(comps_id):
     gene_sites = {}
     fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
     f_sites = open(fname, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "cDNA_sum"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_feature", "clip_binding", "cDNA_sum"]
     for (rshort, rlong) in replicates:
         header.append(rlong)
     f_sites.write("\t".join(header)+"\n")
@@ -348,12 +361,12 @@ def process_comps(comps_id):
         gene_start = gene["gene_start"]
         gene_stop = gene["gene_stop"]
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
-        for site_pos, es in sites.items():
-            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos]
+        for site_pos, site_data in sites.items():
+            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_feature"], site_data["clip_binding"]]
             row_2 = []
             cDNA_sum = 0
             for (rshort, rlong) in replicates:
-                val = es.get(rshort, 0)
+                val = site_data.get(rshort, 0)
                 row_2.append(val)
                 cDNA_sum += val
             row = row_1 + [cDNA_sum] + row_2
@@ -434,97 +447,122 @@ def process_comps(comps_id):
 
         already_considered_types = set()
 
-        if len(sites)<1:
+        if len(sites)<2:
             continue
 
-        L = [(sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
-        L.sort(reverse=True) # sort by control+test expression
+        L = [(sites[pos]["clip_binding"], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
 
-        site_pairs = []
-        site_pairs_stats = Counter()
-        for (_, site1), (_, site2) in list(itertools.combinations(L, 2)): # skip the cDNA sum used to sort the list
-            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, site1["pos"], site2["pos"])
-            pair_cDNA_sum = site1["cDNA_sum"] + site2["cDNA_sum"]
-            site_pairs.append((pair_cDNA_sum, pair_type, site1, site2))
-            site_pairs_stats[pair_type]+=1
+        # determine major / minor sites
+        S_clip = copy.deepcopy(L)
+        S_clip.sort(key=lambda x: x[0], reverse=True) # sort by clip_binding
+        S_exp = copy.deepcopy(L)
+        S_exp.sort(key=lambda x: x[1], reverse=True) # sort by expression
 
-        site_pairs.sort(reverse=True)
+        if S_clip[0][0]>0:
+            major = S_clip[0][-1]
+            minor = S_exp[0][-1]
+            if major["pos"]==minor["pos"]:
+                minor = S_exp[1][-1]
+        else:
+            major = S_exp[0][-1]
+            minor = S_exp[1][-1]
 
-        for (cDNA_pair, pair_type, site1, site2) in site_pairs:
+        # what kind of pair is it?
+        pair_type = apa.polya.annotate_pair(comps.species, chr, strand, major["pos"], minor["pos"])
 
-            if pair_type in already_considered_types:
-                continue
-            already_considered_types.add(pair_type)
+        minor_sites = []
+        if pair_type=="tandem":
+            for site_pos, site_data in sites.items():
+                if site_data["gene_feature"]==major["gene_feature"] and major["pos"]!=site_data["pos"]:
+                    minor_sites.append(site_data)
+            assert(len(minor_sites)>0) # tandem? at least 1 other site in same exon
+        else:
+            for site_pos, site_data in sites.items():
+                if major["pos"]!=site_data["pos"]:
+                    minor_sites.append(site_data)
+            assert(len(minor_sites)>0) # skipped or composite? at least 1 other site in gene
 
-            major_cDNA = max(site1["cDNA_sum"], site2["cDNA_sum"])
-            minor_cDNA = min(site1["cDNA_sum"], site2["cDNA_sum"])
+        # sum up counts at minor sites
+        # first clear the minor site values
+        minor["cDNA_sum"] = 0
+        for (rshort, rlong) in replicates:
+            minor[rshort] = 0
+        # then add the values from minor_sites list
+        for (rshort, rlong) in replicates:
+            for site_data in minor_sites:
+                minor[rshort] += site_data[rshort]
+        # finally sum up cDNA
+        cDNA_sum = 0
+        for (rshort, rlong) in replicates:
+            cDNA_sum += minor[rshort]
+        minor["cDNA_sum"] = cDNA_sum
 
-            if (site1["pos"]<site2["pos"] and strand=="+") or (site1["pos"]>site2["pos"] and strand=="-"):
-                up_site = site1
-                down_site = site2
+        if (major["pos"]<minor["pos"] and strand=="+") or (major["pos"]>minor["pos"] and strand=="-"):
+            proximal_site = major
+            distal_site = minor
+        else:
+            proximal_site = minor
+            distal_site = major
+
+        proximal_control = []
+        proximal_test = []
+        for (rshort, _) in replicates:
+            if rshort.startswith("c"):
+                proximal_control.append(proximal_site[rshort])
             else:
-                up_site = site2
-                down_site = site1
+                proximal_test.append(proximal_site[rshort])
 
-            up_control = []
-            up_test = []
-            for (rshort, _) in replicates:
-                if rshort.startswith("c"):
-                    up_control.append(up_site[rshort])
-                else:
-                    up_test.append(up_site[rshort])
+        distal_control = []
+        distal_test = []
+        for (rshort, _) in replicates:
+            if rshort.startswith("c"):
+                distal_control.append(distal_site[rshort])
+            else:
+                distal_test.append(distal_site[rshort])
 
-            down_control = []
-            down_test = []
-            for (rshort, _) in replicates:
-                if rshort.startswith("c"):
-                    down_control.append(down_site[rshort])
-                else:
-                    down_test.append(down_site[rshort])
+        # update bedGraph for selected sites
+        bg_selected_sites_control.set_value("chr"+chr, strand, proximal_site["pos"], sum(proximal_control))
+        bg_selected_sites_test.set_value("chr"+chr, strand, proximal_site["pos"], sum(proximal_test))
+        bg_selected_sites_control.set_value("chr"+chr, strand, distal_site["pos"], sum(distal_control))
+        bg_selected_sites_test.set_value("chr"+chr, strand, distal_site["pos"], sum(distal_test))
 
-            # update bedGraph for selected sites
-            bg_selected_sites_control.set_value(chr, strand, up_site["pos"], sum(up_control))
-            bg_selected_sites_test.set_value(chr, strand, up_site["pos"], sum(up_test))
-            bg_selected_sites_control.set_value(chr, strand, down_site["pos"], sum(down_control))
-            bg_selected_sites_test.set_value(chr, strand, down_site["pos"], sum(down_test))
+        proximal_seq = pybio.genomes.seq(comps.species, chr, strand, proximal_site["pos"], start=-60, stop=100)
+        distal_seq = pybio.genomes.seq(comps.species, chr, strand, distal_site["pos"], start=-60, stop=100)
 
-            up_seq = pybio.genomes.seq(comps.species, chr, strand, site1["pos"], start=-60, stop=100)
-            down_seq = pybio.genomes.seq(comps.species, chr, strand, site2["pos"], start=-60, stop=100)
+        _, proximal_vector = pybio.sequence.search(proximal_seq, ["TGT", "GTG"])
+        proximal_vector = pybio.sequence.filter(proximal_vector, hw=25, hwt=17)
+        _, distal_vector = pybio.sequence.search(distal_seq, ["TGT", "GTG"])
+        distal_vector = pybio.sequence.filter(distal_vector, hw=25, hwt=17)
 
-            _, up_vector = pybio.sequence.search(up_seq, ["TGT", "GTG"])
-            up_vector = pybio.sequence.filter(up_vector, hw=25, hwt=17)
-            _, down_vector = pybio.sequence.search(down_seq, ["TGT", "GTG"])
-            down_vector = pybio.sequence.filter(down_vector, hw=25, hwt=17)
+        row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
+        row.append(proximal_site["pos"])
+        row.append(sum(proximal_test+proximal_control))
+        row.append(sum(proximal_vector))
+        row.append(distal_site["pos"])
+        row.append(sum(distal_test+distal_control))
+        row.append(sum(distal_vector))
 
-            row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
-            row.append(up_site["pos"])
-            row.append(sum(up_test+up_control))
-            row.append(sum(up_vector))
-            row.append(down_site["pos"])
-            row.append(sum(down_test+down_control))
-            row.append(sum(down_vector))
+        row.append(";".join(str(x) for x in proximal_control))
+        row.append(sum(proximal_control))
+        row.append(";".join(str(x) for x in distal_control))
+        row.append(sum(distal_control))
+        row.append(";".join(str(x) for x in proximal_test))
+        row.append(sum(proximal_test))
+        row.append(";".join(str(x) for x in distal_test))
+        row.append(sum(distal_test))
 
-            row.append(";".join(str(x) for x in up_control))
-            row.append(sum(up_control))
-            row.append(";".join(str(x) for x in down_control))
-            row.append(sum(down_control))
-            row.append(";".join(str(x) for x in up_test))
-            row.append(sum(up_test))
-            row.append(";".join(str(x) for x in down_test))
-            row.append(sum(down_test))
+        try:
+            pc = float(sum(proximal_control))/sum(proximal_control + distal_control) - float(sum(proximal_test))/sum(proximal_test + distal_test)
+        except:
+            pc = 0
+        row.append("%.5f" % pc)
 
-            try:
-                pc = float(sum(up_control))/sum(up_control + down_control) - float(sum(up_test))/sum(up_test + down_test)
-            except:
-                pc = 0
-            row.append("%.5f" % pc)
-
-            f = fisher.pvalue(sum(up_control), sum(up_test), sum(down_control), sum(down_test))
-            pvalue = f.two_tail
-            row.append("%.5f" % pvalue)
-            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, up_site["pos"], down_site["pos"])
-            row.append(pair_type)
-            results.append(row)
+        f = fisher.pvalue(sum(proximal_control), sum(proximal_test), sum(distal_control), sum(distal_test))
+        pvalue = f.two_tail
+        row.append("%.5f" % pvalue)
+        pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_site["pos"], distal_site["pos"])
+        row.append(pair_type)
+        results.append(row)
 
     results = sorted(results, key=lambda x: abs(float(x[-3])), reverse=True)
     results = sorted(results, key=lambda x: float(x[-2]))
