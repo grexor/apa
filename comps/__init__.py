@@ -19,6 +19,8 @@ import operator
 import itertools
 from collections import Counter
 
+minor_major_thr = 0.05 # all sites in assigned to gene need to have expression >= 5% of major site
+
 class Comps:
     def __init__(self, comps_id=None, iCLIP_filename=None):
         self.comps_id = comps_id
@@ -290,6 +292,15 @@ def process_comps(comps_id):
                 sites[pos] = site_data
                 gsites[gid] = sites
 
+    # filter out sites that have expression < minor_major_thr of maximally expressed site
+    for gene_id, sites in gsites.items():
+        max_exp = 0
+        for pos, site_data in sites.items():
+            max_exp = max(max_exp, site_data["cDNA_sum"])
+        for pos, site_data in list(sites.items()): # python3 safe
+            if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
+                del sites[pos]
+
     # expression gene level
     fname = apa.path.comps_expression_filename(comps_id)
     f_genes = open(fname, "wt")
@@ -408,6 +419,9 @@ def process_comps(comps_id):
 
     header += ["pc", "fisher", "pair_type"]
 
+    bg_selected_sites_control = pybio.data.Bedgraph()
+    bg_selected_sites_test = pybio.data.Bedgraph()
+
     f_pairs.write("\t".join(header)+"\n")
     results = []
     for gene_id, sites in gsites.items():
@@ -418,106 +432,99 @@ def process_comps(comps_id):
         gene_stop = gene["gene_stop"]
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
 
-        considered_types = set()
+        already_considered_types = set()
 
-        if len(sites)>=2:
-            L = [(sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
-            L.sort(reverse=True) # sort by control+test expression
-            # todo1: here implement site selection
-            site_pairs = []
-            site_pairs_stats = Counter()
-            for (_, site1), (_, site2) in list(itertools.combinations(L, 2)): # skip the cDNA sum used to sort the list
-                #print site1["pos"], site2["pos"]
-                pair_type = apa.polya.annotate_pair(comps.species, chr, strand, site1["pos"], site2["pos"])
-                pair_cDNA_sum = site1["cDNA_sum"] + site2["cDNA_sum"]
-                site_pairs.append((pair_cDNA_sum, pair_type, site1, site2))
-                site_pairs_stats[pair_type]+=1
+        if len(sites)<1:
+            continue
 
-            site_pairs.sort(reverse=True)
+        L = [(sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
+        L.sort(reverse=True) # sort by control+test expression
 
-            for (cDNA_pair, pair_type, site1, site2) in site_pairs:
+        site_pairs = []
+        site_pairs_stats = Counter()
+        for (_, site1), (_, site2) in list(itertools.combinations(L, 2)): # skip the cDNA sum used to sort the list
+            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, site1["pos"], site2["pos"])
+            pair_cDNA_sum = site1["cDNA_sum"] + site2["cDNA_sum"]
+            site_pairs.append((pair_cDNA_sum, pair_type, site1, site2))
+            site_pairs_stats[pair_type]+=1
 
-                if pair_type in considered_types:
-                    continue
+        site_pairs.sort(reverse=True)
 
-                # todo: check if this makes sense?
-                major = max(site1["cDNA_sum"], site2["cDNA_sum"])
-                minor = min(site1["cDNA_sum"], site2["cDNA_sum"])
-                if minor < major*0.1:
-                    continue
+        for (cDNA_pair, pair_type, site1, site2) in site_pairs:
 
-                considered_types.add(pair_type)
+            if pair_type in already_considered_types:
+                continue
+            already_considered_types.add(pair_type)
 
-                #site1 = L[0][1]
-                #site2 = L[1][1]
-                #pair_type = apa.polya.annotate_pair(comps.species, chr, strand, site1["pos"], site2["pos"])
+            major_cDNA = max(site1["cDNA_sum"], site2["cDNA_sum"])
+            minor_cDNA = min(site1["cDNA_sum"], site2["cDNA_sum"])
 
-                # how many tandem sites are we loosing?
-                #if len(site_pairs)>1:
-                #    if "tandem" in site_pairs_stats and pair_type!="tandem":
-                #        print site_pairs_stats, pair_type # all sites types vs. major pair type
+            if (site1["pos"]<site2["pos"] and strand=="+") or (site1["pos"]>site2["pos"] and strand=="-"):
+                up_site = site1
+                down_site = site2
+            else:
+                up_site = site2
+                down_site = site1
 
-
-                if (site1["pos"]<site2["pos"] and strand=="+") or (site1["pos"]>site2["pos"] and strand=="-"):
-                    up_site = site1
-                    down_site = site2
+            up_control = []
+            up_test = []
+            for (rshort, _) in replicates:
+                if rshort.startswith("c"):
+                    up_control.append(up_site[rshort])
                 else:
-                    up_site = site2
-                    down_site = site1
+                    up_test.append(up_site[rshort])
 
-                up_control = []
-                up_test = []
-                for (rshort, _) in replicates:
-                    if rshort.startswith("c"):
-                        up_control.append(up_site[rshort])
-                    else:
-                        up_test.append(up_site[rshort])
+            down_control = []
+            down_test = []
+            for (rshort, _) in replicates:
+                if rshort.startswith("c"):
+                    down_control.append(down_site[rshort])
+                else:
+                    down_test.append(down_site[rshort])
 
-                down_control = []
-                down_test = []
-                for (rshort, _) in replicates:
-                    if rshort.startswith("c"):
-                        down_control.append(down_site[rshort])
-                    else:
-                        down_test.append(down_site[rshort])
+            # update bedGraph for selected sites
+            bg_selected_sites_control.set_value(chr, strand, up_site["pos"], sum(up_control))
+            bg_selected_sites_test.set_value(chr, strand, up_site["pos"], sum(up_test))
+            bg_selected_sites_control.set_value(chr, strand, down_site["pos"], sum(down_control))
+            bg_selected_sites_test.set_value(chr, strand, down_site["pos"], sum(down_test))
 
-                up_seq = pybio.genomes.seq(comps.species, chr, strand, site1["pos"], start=-60, stop=100)
-                down_seq = pybio.genomes.seq(comps.species, chr, strand, site2["pos"], start=-60, stop=100)
+            up_seq = pybio.genomes.seq(comps.species, chr, strand, site1["pos"], start=-60, stop=100)
+            down_seq = pybio.genomes.seq(comps.species, chr, strand, site2["pos"], start=-60, stop=100)
 
-                _, up_vector = pybio.sequence.search(up_seq, ["TGT", "GTG"])
-                up_vector = pybio.sequence.filter(up_vector, hw=25, hwt=17)
-                _, down_vector = pybio.sequence.search(down_seq, ["TGT", "GTG"])
-                down_vector = pybio.sequence.filter(down_vector, hw=25, hwt=17)
+            _, up_vector = pybio.sequence.search(up_seq, ["TGT", "GTG"])
+            up_vector = pybio.sequence.filter(up_vector, hw=25, hwt=17)
+            _, down_vector = pybio.sequence.search(down_seq, ["TGT", "GTG"])
+            down_vector = pybio.sequence.filter(down_vector, hw=25, hwt=17)
 
-                row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
-                row.append(up_site["pos"])
-                row.append(sum(up_test+up_control))
-                row.append(sum(up_vector))
-                row.append(down_site["pos"])
-                row.append(sum(down_test+down_control))
-                row.append(sum(down_vector))
+            row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
+            row.append(up_site["pos"])
+            row.append(sum(up_test+up_control))
+            row.append(sum(up_vector))
+            row.append(down_site["pos"])
+            row.append(sum(down_test+down_control))
+            row.append(sum(down_vector))
 
-                row.append(";".join(str(x) for x in up_control))
-                row.append(sum(up_control))
-                row.append(";".join(str(x) for x in down_control))
-                row.append(sum(down_control))
-                row.append(";".join(str(x) for x in up_test))
-                row.append(sum(up_test))
-                row.append(";".join(str(x) for x in down_test))
-                row.append(sum(down_test))
+            row.append(";".join(str(x) for x in up_control))
+            row.append(sum(up_control))
+            row.append(";".join(str(x) for x in down_control))
+            row.append(sum(down_control))
+            row.append(";".join(str(x) for x in up_test))
+            row.append(sum(up_test))
+            row.append(";".join(str(x) for x in down_test))
+            row.append(sum(down_test))
 
-                try:
-                    pc = float(sum(up_control))/sum(up_control + down_control) - float(sum(up_test))/sum(up_test + down_test)
-                except:
-                    pc = 0
-                row.append("%.5f" % pc)
+            try:
+                pc = float(sum(up_control))/sum(up_control + down_control) - float(sum(up_test))/sum(up_test + down_test)
+            except:
+                pc = 0
+            row.append("%.5f" % pc)
 
-                f = fisher.pvalue(sum(up_control), sum(up_test), sum(down_control), sum(down_test))
-                pvalue = f.two_tail
-                row.append("%.5f" % pvalue)
-                pair_type = apa.polya.annotate_pair(comps.species, chr, strand, up_site["pos"], down_site["pos"])
-                row.append(pair_type)
-                results.append(row)
+            f = fisher.pvalue(sum(up_control), sum(up_test), sum(down_control), sum(down_test))
+            pvalue = f.two_tail
+            row.append("%.5f" % pvalue)
+            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, up_site["pos"], down_site["pos"])
+            row.append(pair_type)
+            results.append(row)
 
     results = sorted(results, key=lambda x: abs(float(x[-3])), reverse=True)
     results = sorted(results, key=lambda x: float(x[-2]))
@@ -526,6 +533,12 @@ def process_comps(comps_id):
         f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
 
+    # save selected sited bedGraphs
+    bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed" % lib_id)
+    bg_selected_sites_test_fname = os.path.join(beds_folder, "%s_test_selected.bed" % lib_id)
+
+    bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % lib_id)
+    bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % lib_id)
 
 def distance_hist(comps_id):
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)

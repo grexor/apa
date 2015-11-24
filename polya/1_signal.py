@@ -32,7 +32,7 @@ def search_m(poly_id, up=50, down=50, motif_list = None):
                 if len(motif_vector)==(down+up+1):
                     vector = [x+y for x,y in zip(vector, motif_vector)]
     f.close()
-    os.system("~/software/weblogo/seqlogo -f %s -o %s -F PNG -k 1 -e -c -w 70 -h 5 -Y -S -a -n -s -50" % ("temp/%s.fasta" % poly_id, poly_id))
+    os.system("~/software/weblogo/seqlogo -f %s -o %s -F PNG -k 1 -e -c -w 70 -h 5 -Y -S -a -n -s -50" % ("temp/%s.fasta" % poly_id, "temp/%s" % poly_id))
     print "%s, sites=%s" % (poly_id, sites)
     return [x/float(sites) for x in vector], sites
 

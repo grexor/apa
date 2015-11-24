@@ -7,7 +7,6 @@ import time
 import glob
 import numpy as np
 import shutil
-
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -18,7 +17,7 @@ mpl.rcParams['xtick.labelsize'] = 10
 mpl.rcParams['ytick.labelsize'] = 10
 mpl.rcParams['legend.fontsize'] = 9
 
-# all coordinates 0-based
+# coordinates are 0-based
 
 def get_species(poly_id):
     if poly_id in ["hg19_tian", "hg19_derti"]:
@@ -350,6 +349,7 @@ def annotate_pair(species, chr, strand, pos1, pos2):
         return "skipped"
     return "other"
 
+# distinct function from pybio: assign intergenic positions within downstream extenstion to upstream gene
 def annotate_position(species, chr, strand, pos, extension=5000):
     strand_os = "-" if strand=="+" else "+" # opposite strand
     gid_up, gid, gid_down, gid_interval = pybio.genomes.annotate(species, chr, strand, pos)
@@ -421,7 +421,6 @@ def pas_db(poly_id):
             r = f.readline()
         f.close()
 
-    #"""
     # debug reasons
     #experiments = experiments[:2]
 
@@ -484,11 +483,8 @@ def pas_db(poly_id):
         if all_seqs%1000==0:
             print "read %sM seqs" % (all_seqs/1e6)
     f.close()
-    #"""
 
     name_db = os.path.join(apa.path.polya_folder, "%s_pas" % poly_id)
-
-    #"""
     db.save(name_db+"_temp.bed")
 
     f = open(name_db+"_temp.bed")
@@ -512,7 +508,6 @@ def pas_db(poly_id):
         previous = (chr, strand, pos)
     f.close()
     fout.close()
-    #"""
 
     thr = 60
     pas_signals = ["AATAAA", "ATTAAA", "AAATAA", "CAATAA", "AGTAAA", "TTAATA", "TATAAA", "TGAATA", "CATAAA", "GTAATA", "CTAATA", "GATAAA"]

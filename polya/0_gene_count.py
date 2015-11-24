@@ -33,8 +33,8 @@ def save_figure(x, y, legend):
     plt.xticks([1,2,3,4,5,6,7,8,9,10], [1,2,3,4,5,6,7,8,9,">10"])
 
     ax.legend(legend, loc='upper right')
-    fig.savefig("polya_gene_count.png", dpi=300)
-    fig.savefig("polya_gene_count.pdf")
+    fig.savefig("figures/polya_gene_count.png", dpi=300)
+    fig.savefig("figures/polya_gene_count.pdf")
 
 x = range(1, 11)
 y = []
