@@ -407,7 +407,7 @@ def process_comps(comps_id):
     # pairs_de file
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "siteup_pos", "siteup_exp", "siteup_UG", "sitedown_pos", "sitedown_exp", "sitedown_UG"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp", "proximal_UG", "distal_pos", "distal_exp", "distal_UG"]
     if comps.control_name!="":
         header.append("up_control [%s]" % comps.control_name)
         header.append("up_control_sum [%s]" % comps.control_name)
@@ -587,8 +587,8 @@ def distance_hist(comps_id):
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
         data = dict(zip(header, r))
-        proximal = int(data["siteup_pos"])
-        distal = int(data["sitedown_pos"])
+        proximal = int(data["proximal_pos"])
+        distal = int(data["distal_pos"])
         d = abs(proximal-distal)
         if d<10000:
             hist.append(d)
@@ -671,10 +671,9 @@ def utr_boxplot(study_id, comps_id):
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         row2 = []
         cDNA_total = 0
-        if gene_data.get("siteup_pos", None)==None:
-            # no data for this gene
+        if gene_data.get("proximal_pos", None)==None: # no data for this gene
             continue
-        site_positions = [int(gene_data["siteup_pos"]), int(gene_data["sitedown_pos"])]
+        site_positions = [int(gene_data["proximal_pos"]), int(gene_data["distal_pos"])]
 
         if gene_data["pair_type"]!="tandem":
             continue
@@ -754,7 +753,7 @@ def make_fasta(comps_id):
     comps = apa.comps.read_comps(comps_id)
 
     stats_reg = {}
-    for reg in ["siteup.c", "siteup.e", "siteup.r", "sitedown.c", "sitedown.e", "sitedown.r"]:
+    for reg in ["proximal.c", "proximal.e", "proximal.r", "distal.c", "distal.e", "distal.r"]:
         stats_reg[reg] = 0
 
     # fasta
@@ -777,14 +776,14 @@ def make_fasta(comps_id):
     f.close()
 
     for gene_id, data in genes.items():
-        siteup_pos = int(data["siteup_pos"])
-        sitedown_pos = int(data["sitedown_pos"])
+        proximal_pos = int(data["proximal_pos"])
+        distal_pos = int(data["distal_pos"])
         pc = float(data["pc"])
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
         if par[3]!=pair_type:
             continue
-        site_distance = abs(siteup_pos-sitedown_pos)+1
+        site_distance = abs(proximal_pos-distal_pos)+1
         if par[2]==0 and site_distance>200:
             continue
         if par[2]==1 and (site_distance<200 or site_distance>450):
@@ -805,10 +804,10 @@ def make_fasta(comps_id):
         if reg==None:
             continue
 
-        siteup_reg = reg
-        sitedown_reg = {"e":"r", "r":"e", "c":"c"}[reg]
+        proximal_reg = reg
+        distal_reg = {"e":"r", "r":"e", "c":"c"}[reg]
 
-        for (site_reg, site_type, site_pos) in [(siteup_reg, "siteup", siteup_pos), (sitedown_reg, "sitedown", sitedown_pos)]:
+        for (site_reg, site_type, site_pos) in [(proximal_reg, "proximal", proximal_pos), (distal_reg, "distal", distal_pos)]:
             reg_key = "%s.%s" % (site_type, site_reg)
             stats_reg[reg_key] = stats_reg[reg_key]+1
             seq = pybio.genomes.seq(comps.species, chr, strand, site_pos, start=-50, stop=50)
