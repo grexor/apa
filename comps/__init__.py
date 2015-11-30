@@ -287,7 +287,7 @@ def process_comps(comps_id):
                 if clip!=None:
                     clip_binding = clip.get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
                 # store site data
-                site_data = {"pos":pos, "gene_feature":gene_interval, "clip_binding":clip_binding} # store position and gene_interval (start, stop, exon/intron), clip binding
+                site_data = {"pos":pos, "gene_interval":list(gene_interval), "clip_binding":clip_binding} # store position and gene_interval (start, stop, exon/intron), clip binding
 
                 for (rshort, _) in replicates:
                     bg = expression[rshort]
@@ -350,7 +350,7 @@ def process_comps(comps_id):
     gene_sites = {}
     fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
     f_sites = open(fname, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_feature", "clip_binding", "cDNA_sum"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_interval", "clip_binding", "cDNA_sum"]
     for (rshort, rlong) in replicates:
         header.append(rlong)
     f_sites.write("\t".join(header)+"\n")
@@ -362,7 +362,7 @@ def process_comps(comps_id):
         gene_stop = gene["gene_stop"]
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         for site_pos, site_data in sites.items():
-            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_feature"], site_data["clip_binding"]]
+            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_interval"], site_data["clip_binding"]]
             row_2 = []
             cDNA_sum = 0
             for (rshort, rlong) in replicates:
@@ -407,7 +407,7 @@ def process_comps(comps_id):
     # pairs_de file
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp", "proximal_UG", "distal_pos", "distal_exp", "distal_UG"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp", "proximal_UG", "distal_pos", "distal_exp", "distal_UG", "s1", "s2"]
     if comps.control_name!="":
         header.append("up_control [%s]" % comps.control_name)
         header.append("up_control_sum [%s]" % comps.control_name)
@@ -473,7 +473,7 @@ def process_comps(comps_id):
         minor_sites = []
         if pair_type=="tandem":
             for site_pos, site_data in sites.items():
-                if site_data["gene_feature"]==major["gene_feature"] and major["pos"]!=site_data["pos"]:
+                if site_data["gene_interval"]==major["gene_interval"] and major["pos"]!=site_data["pos"]:
                     minor_sites.append(site_data)
             assert(len(minor_sites)>0) # tandem? at least 1 other site in same exon
         else:
@@ -503,6 +503,51 @@ def process_comps(comps_id):
         else:
             proximal_site = minor
             distal_site = major
+
+        # also determine splice sites
+        s1 = None
+        s2 = None
+        # https://docs.google.com/drawings/d/1_m4iZ1c9YwKI-NOWMSCSdg2IzEGedj-NaMTIlHqirc0/edit
+        if pair_type=="tandem":
+            interval = proximal_site["gene_interval"]
+            intervals = gene["gene_intervals"]
+            interval_index = intervals.index(interval)
+            interval_upstream_index = (interval_index - 1) if strand=="+" else (interval_index + 1)
+            if interval_upstream_index==-1 or interval_upstream_index>=len(intervals):
+                interval_upstream = None
+            else:
+                interval_upstream = intervals[interval_upstream_index]
+                # some genes are split, e.g. ENSG00000163684 (because of shorter gene priority when encountering overlapping genes)
+                # this causes the gene not to have a structure of oioioi; a situation like oioo can happen
+                # do not consider those cases
+                if interval_upstream[-1]!="i":
+                    interval_upstream = None
+
+            if interval_upstream!=None:
+                if strand=="+":
+                    s1 = interval_upstream[0]
+                    s2 = interval_upstream[1]
+                else:
+                    s1 = interval_upstream[1]
+                    s2 = interval_upstream[0]
+
+        if pair_type=="composite":
+            interval = proximal_site["gene_interval"]
+            assert(interval[-1]=="i")
+            if strand=="+":
+                s1 = interval[0]
+                s2 = interval[1]
+            else:
+                s1 = interval[1]
+                s2 = interval[0]
+
+        if pair_type=="skipped":
+            if strand=="+":
+                s1 = proximal_site["gene_interval"][0]
+                s2 = distal_site["gene_interval"][0]
+            else:
+                s1 = proximal_site["gene_interval"][1]
+                s2 = distal_site["gene_interval"][1]
 
         proximal_control = []
         proximal_test = []
@@ -541,6 +586,9 @@ def process_comps(comps_id):
         row.append(distal_site["pos"])
         row.append(sum(distal_test+distal_control))
         row.append(sum(distal_vector))
+
+        row.append(s1)
+        row.append(s2)
 
         row.append(";".join(str(x) for x in proximal_control))
         row.append(sum(proximal_control))
