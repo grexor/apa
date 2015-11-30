@@ -33,11 +33,11 @@ def search_m(poly_id, motif_list = None):
                 seq = pybio.genomes.seq(genome, chr, strand, pos, start=up, stop=down)
                 f.write(">%s\n%s\n" % (sites, seq))
                 _, motif_vector = pybio.sequence.search(seq, motif_list)
-                if len(motif_vector)==(down+up+1):
+                if len(motif_vector)==(down-up+1):
                     vector = [x+y for x,y in zip(vector, motif_vector)]
     f.close()
     os.system("~/software/weblogo/seqlogo -f %s -o %s -F PNG -k 1 -e -c -w 70 -h 5 -Y -S -a -n -s -50" % ("temp/%s.fasta" % poly_id, "temp/%s" % poly_id))
-    print "%s, sites=%s" % (poly_id, sites)
+    print motif_list
     return [x/float(sites) for x in vector], sites
 
 def save_figure(y, legend):
