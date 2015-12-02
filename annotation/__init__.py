@@ -53,6 +53,20 @@ def read(lib_id):
     2      lex_fwd 2   HeLa   control Hs      hg19
     ...
     ====== ======= === ====== ======= ======= ======
+
+    The description of TAB columns:
+
+    ============= ===========
+    Column        Description
+    ============= ===========
+    exp_id        starts with 1 for each library
+    method        3' end sequencing protocol
+    rep           replicate number
+    tissue        description of tissue the sample was taken from
+    cond          description of the experimental conditions
+    species       sample species
+    map_to        genome assembly for mapping experiment's sequences
+    ============= ===========
     """
     lib = Library(lib_id)
     data = {}

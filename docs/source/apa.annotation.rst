@@ -7,12 +7,9 @@
   }
   </style>
 
-.. index:: Bedgraph files
+.. index:: annotation of libraries
 **********************************
-bed module (``apa.bed``)
+annotation module (``apa.annotation``)
 **********************************
 
-Quick use:
-
-.. autofunction:: apa.bed.bed_raw
-.. autofunction:: apa.bed.bed_expression
+.. autofunction:: apa.annotation.read
