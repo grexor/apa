@@ -2,7 +2,7 @@
 apa
 ====
 
-A research platform for bioinformatics analysis of NGS alternative polyadenylation data.
+Research platform for bioinformatics analysis of NGS alternative polyadenylation data.
 """
 import sys
 import os

@@ -66,6 +66,15 @@ def write_bed(data, filename):
 #            apa.bed.bed_raw_paseqx(lib_id, exp_id=exp_id, map_id=1, force=force)
 
 def bed_raw(lib_id, exp_id, map_id=1, force=False):
+    """
+    :param force: overwrite existing bedGraph files if True
+    :param map_id: which mapping to take; default 1
+    Generates raw bedGraph files for lib_id and exp_id.
+
+    | The bedGraph files are stored in:
+    |   :green:`data_folder` / :green:`lib_id` / :green:`e[exp_id]` / :green:`m[map_id]` / :green:`[lib_id]_e[exp_id]_m[map_id].R.bed` (R=raw, unfiltered bedGraph files)
+    |   :green:`data_folder` / :green:`lib_id` / :green:`e[exp_id]` / :green:`m[map_id]` / :green:`[lib_id]_e[exp_id]_m[map_id].T.bed` (T=tail, filtered bedGraph files)
+    """
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
     # skip species we don't process (see apa.config)
@@ -415,6 +424,16 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
     return
 
 def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
+    """
+    :param force: overwrite existing bedGraph files if True
+    :param map_id: which mapping to take; default 1
+    :param polyid: which poly-A atlas to use; if omitted the experiment species global atlas is used
+    Generates expression bedGraph files for lib_id and exp_id.
+
+    | The bedGraph files are stored in:
+    |   :green:`data_folder` / :green:`lib_id` / :green:`e[exp_id]` / :green:`m[map_id]` / :green:`[lib_id]_e[exp_id]_m[map_id].E.bed` (E=expression, poly-A sites expression files)
+    """
+
     exp_id = int(exp_id)
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
     map_to = exp_data["map_to"]

@@ -8,11 +8,11 @@ def init():
     apa.annotation.libs = {}
     files = glob.glob(os.path.join(apa.path.data_folder, "*"))
     for filename in files:
-        library_id = filename.split("/")[-1]
-        apa.annotation.libs[library_id] = apa.annotation.read(filename)
+        lib_id = filename.split("/")[-1]
+        apa.annotation.libs[lib_id] = apa.annotation.read(filename)
 
-def aremoved(library_id, read_id):
-    filename = os.path.join(apa.path.data_folder, library_id, "%s.aremoved.bin" % (library_id))
+def aremoved(lib_id, read_id):
+    filename = os.path.join(apa.path.data_folder, lib_id, "%s.aremoved.bin" % (lib_if))
     if not os.path.exists(filename):
         return None
     aremoved_file = open(filename, "rb")
@@ -22,30 +22,46 @@ def aremoved(library_id, read_id):
         return 0
     return struct.unpack("B", data)[0]
 
-def rndcode(library_id, read_id):
-    rndcode_file = open(os.path.join(apa.path.data_folder, library_id, "%s.rnd.bin" % (library_id)), "rb")
+def rndcode(lib_id, read_id):
+    rndcode_file = open(os.path.join(apa.path.data_folder, lib_id, "%s.rnd.bin" % (lib_id)), "rb")
     rndcode_file.seek(read_id*4)
     data = rndcode_file.read(4)
     if len(data)==0:
         return 0
     return struct.unpack("I", data)[0]
 
-class Library:  
-    def __init__(self, library_id):
-        self.library_id = library_id
+class Library:
+    def __init__(self, lib_id):
+        self.lib_id = lib_id
         self.experiments = {}
         self.fastq_files = {}
         self.dcode_len = 0 # demultiplex barcode length (first_5), the rest of the read is random barcode
 
-def read(library_id):
-    lib = Library(library_id)
+def read(lib_id):
+    """
+    | Read library annotation, including experiments.
+
+    | This is read from the following tab delimited file:
+    |   :green:`data_folder/lib_id/annotation.tab`
+
+    The structure of the annotation.tab file is the same for all libraries:
+
+    ====== ======= === ====== ======= ======= ======
+    exp_id method  rep tissue cond    species map_to
+    ====== ======= === ====== ======= ======= ======
+    1      lex_fwd 1   HeLa   control Hs      hg19
+    2      lex_fwd 2   HeLa   control Hs      hg19
+    ...
+    ====== ======= === ====== ======= ======= ======
+    """
+    lib = Library(lib_id)
     data = {}
-    filename = os.path.join(apa.path.data_folder, library_id, "annotation.tab")
+    filename = os.path.join(apa.path.data_folder, lib_id, "annotation.tab")
     f = open(filename, "rt")
     lib.fastq_files = f.readline().replace("\r", "").replace("\n", "").replace("\t", "").split("&")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
-    
+
     dcode_len = None
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
@@ -64,7 +80,7 @@ def read(library_id):
             rcode = data["first_5"].split(",")[1] # take exact random code
         except:
             rcode = None
-        
+
         data["dcode"] = dcode
         lib.experiments[int(data["exp_id"])] = data
         r = f.readline()
