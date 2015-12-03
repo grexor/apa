@@ -3,6 +3,9 @@
 .. toctree::
    :maxdepth: 3
 
-   apa.workflow
+   workflow
+   analytics
+   fileformats
    apa.annotation
    apa.bed
+   apa.path

@@ -7,12 +7,10 @@
   }
   </style>
 
-.. index:: Bedgraph files
 **********************************
-bed module (``apa.bed``)
+Bed module (``apa.bed``)
 **********************************
 
-Quick use:
-
+.. autofunction:: apa.bed.write_bed
 .. autofunction:: apa.bed.bed_raw
 .. autofunction:: apa.bed.bed_expression

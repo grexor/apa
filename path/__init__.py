@@ -2,18 +2,37 @@ import apa
 import os
 import glob
 
+data_folder = "data.apa"
+polya_folder = "data.polya"
+comps_folder = "data.comps"
+iCLIP_folder = "data.iCLIP"
+
 def init():
     apa.path.root_folder = os.path.abspath(os.path.join(os.path.abspath(__file__), "..", ".."))
-    apa.path.data_folder = os.path.join(root_folder, apa.config.data_folder)
-    apa.path.comps_folder = os.path.join(root_folder, apa.config.comps_folder)
-    apa.path.iCLIP_folder = os.path.join(root_folder, apa.config.iCLIP_folder)
-    apa.path.polya_folder = os.path.join(root_folder, apa.config.polya_folder)
-
-def t_filename(lib_id, exp_id, map_id=1):
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.T.bed" % (lib_id, exp_id, map_id))
+    apa.path.data_folder = os.path.join(root_folder, apa.path.data_folder)
+    apa.path.comps_folder = os.path.join(root_folder, apa.path.comps_folder)
+    apa.path.iCLIP_folder = os.path.join(root_folder, apa.path.iCLIP_folder)
+    apa.path.polya_folder = os.path.join(root_folder, apa.path.polya_folder)
 
 def r_filename(lib_id, exp_id, map_id=1):
+    """
+    Returns constructed path to :ref:`R bedGraph file <r_bedgraph_method>` from lib_id, exp_id and map_id:
+
+    .. code-block:: bash
+
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.R.bg
+    """
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.R.bed" % (lib_id, exp_id, map_id))
+
+def t_filename(lib_id, exp_id, map_id=1):
+    """
+    Returns constructed path to :ref:`T bedGraph file <t_bedgraph_method>` from lib_id, exp_id and map_id:
+
+    .. code-block:: bash
+
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.T.bg
+    """
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.T.bed" % (lib_id, exp_id, map_id))
 
 def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s.lock" % lock)

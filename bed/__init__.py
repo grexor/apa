@@ -7,31 +7,16 @@ import glob
 import sys
 import regex
 
-PAS_hexamers = [
-    'AATAAA',
-    'ATTAAA',
-    'AGTAAA',
-    'TATAAA',
-    'CATAAA',
-    'GATAAA',
-    'AATATA',
-    'AATACA',
-    'AATAGA',
-    'ACTAAA',
-    'AAGAAA',
-    'AATGAA'
-]
+# http://www.cgat.org/~andreas/documentation/pysam/api.html
+# Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
+
+PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
 
 def internal_priming(seq):
     if seq.count("A")<10:
         return False
     else:
         return True
-    #i = regex.search(r'(?:AAAAAAAAAA){s<=3}', seq)
-    #if i!=None:
-    #    return True
-    #else:
-    #    return False
 
 def match_pas(seq):
     for hexamer in PAS_hexamers:
@@ -39,10 +24,10 @@ def match_pas(seq):
             return True
     return False
 
-def write_bed(data, filename):
-    # write bed file from dictionary data {chr:strand}{position:value}
-    # http://www.cgat.org/~andreas/documentation/pysam/api.html
-    # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
+def write_bed(d, filename):
+    """
+    Save bedGraph file from dictionary d (chr->strand->position->value) to filename.
+    """
     f = open(filename, "wt")
     for chr_strand, pos_data in data.items():
         chr, strand = chr_strand.split(":")
@@ -55,31 +40,22 @@ def write_bed(data, filename):
                 f.write("%s\t%s\t%s\t-%s\n" % (chr, pos, pos+1, cDNA))
     f.close()
 
-#def bed_raw(lib_id, map_id=1, force=False):
-#    lib = apa.annotation.libs[lib_id]
-#    for exp_id, exp_data in lib.experiments.items():
-#        if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
-#            continue
-#        if exp_data["method"]=="pAseq":
-#            apa.bed.bed_raw_paseq(lib_id, exp_id=exp_id, map_id=1, force=force)
-#        if exp_data["method"]=="paseqx":
-#            apa.bed.bed_raw_paseqx(lib_id, exp_id=exp_id, map_id=1, force=force)
-
 def bed_raw(lib_id, exp_id, map_id=1, force=False):
     """
     :param force: overwrite existing bedGraph files if True
     :param map_id: which mapping to take; default 1
     Generates raw bedGraph files for lib_id and exp_id.
 
-    | The bedGraph files are stored in:
-    |   :green:`data_folder` / :green:`lib_id` / :green:`e[exp_id]` / :green:`m[map_id]` / :green:`[lib_id]_e[exp_id]_m[map_id].R.bed` (R=raw, unfiltered bedGraph files)
-    |   :green:`data_folder` / :green:`lib_id` / :green:`e[exp_id]` / :green:`m[map_id]` / :green:`[lib_id]_e[exp_id]_m[map_id].T.bed` (T=tail, filtered bedGraph files)
+    The bedGraph files are stored in:
+
+    .. code-block:: bash
+
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/${lib_id}_e${exp_id}_m${map_id}.R.bed # R=raw, unfiltered bedGraph files
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/${lib_id}_e${exp_id}_m${map_id}.T.bed # T=tail, filtered bedGraph files
+
     """
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
-    # skip species we don't process (see apa.config)
-    if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
-        return
     if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_raw_paseq(lib_id, exp_id, map_id=1, force=force)
     if exp_data["method"]=="paseqx":
@@ -102,8 +78,6 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
 
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
-    if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
-        return
 
     open(r_filename, "wt").close()
     open(t_filename, "wt").close()
@@ -114,12 +88,12 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
     bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     bam_file = pysam.Samfile(bam_filename)
     a_number = 0
-    pas_count = 0
     for a in bam_file.fetch():
         a_number += 1
 
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sK reads processed : %s (pas count = %s)" % (lib_id, exp_id, map_id, a_number/1000, bam_filename, pas_count)
+            sys.stdout.write("\r%s_e%s_m%s : %sK reads processed : %s (pas count = %s)" % (lib_id, exp_id, map_id, a_number/1000, bam_filename))
+            sys.stdout.flush()
 
         # do not process spliced reads
         cigar = a.cigar
@@ -162,7 +136,6 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
 
             if match_pas(upstream_seq):
                 true_site = True
-                pas_count += 1
 
             if true_site:
                 temp = dataT.get(key, {})
@@ -178,15 +151,11 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
         temp[pos_end] = temp2
         dataR[key] = temp
 
-    # write R file
     write_bed(dataR, r_filename)
-    # write T file
     write_bed(dataT, t_filename)
 
 def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="paseqx")
-    # http://www.cgat.org/~andreas/documentation/pysam/api.html
-    # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
     r_filename = apa.path.r_filename(lib_id, exp_id)
     t_filename = apa.path.t_filename(lib_id, exp_id)
@@ -198,8 +167,6 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
 
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
-    if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
-        return
 
     open(r_filename, "wt").close()
     open(t_filename, "wt").close()
@@ -289,8 +256,6 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
 
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
-    if type(apa.config.process)==list and exp_data["map_to"] not in apa.config.process:
-        return
 
     open(r_filename, "wt").close()
     open(t_filename, "wt").close()
@@ -398,14 +363,9 @@ def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
         temp2.add(read_id)
         temp[pos_end] = temp2
         dataR[key] = temp
-
-        # len_dist
-        #mapped_len = len(a.query)
         len_dist[aremoved_key(aremoved)] = len_dist.get(aremoved_key(aremoved), 0) + 1
 
-    # write R file
     write_bed(dataR, r_filename)
-    # write T file
     write_bed(dataT, t_filename)
 
     f = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_clipped_dist.tab" % lib_id), "wt")
@@ -428,10 +388,15 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
     :param force: overwrite existing bedGraph files if True
     :param map_id: which mapping to take; default 1
     :param polyid: which poly-A atlas to use; if omitted the experiment species global atlas is used
+
     Generates expression bedGraph files for lib_id and exp_id.
 
-    | The bedGraph files are stored in:
-    |   :green:`data_folder` / :green:`lib_id` / :green:`e[exp_id]` / :green:`m[map_id]` / :green:`[lib_id]_e[exp_id]_m[map_id].E.bed` (E=expression, poly-A sites expression files)
+    The bedGraph files are stored in:
+
+    .. code-block:: bash
+
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/${lib_id}_e${exp_id}_m${map_id}.E.bed # E=expression
+
     """
 
     exp_id = int(exp_id)
@@ -453,8 +418,6 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
     e_filename_ucsc = apa.path.e_filename(lib_id, exp_id, filetype="ucsc")
     polyadb_filename = apa.path.polyadb_filename(genome)
 
-    if type(apa.config.process)==list and map_to not in apa.config.process:
-        return
 
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
@@ -482,9 +445,6 @@ def bed_expression_paseqx(lib_id, exp_id, map_id, map_to, polyid, force=False):
         polyid = map_to
     polyadb_filename = apa.path.polyadb_filename(polyid)
 
-    if type(apa.config.process)==list and map_to not in apa.config.process:
-        return
-
     e_filename = apa.path.e_filename(lib_id, exp_id)
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
@@ -501,9 +461,6 @@ def bed_expression_lexogen_fwd(lib_id, exp_id, map_id, map_to, polyid, force=Fal
     if polyid==None:
         polyid = map_to
     polyadb_filename = apa.path.polyadb_filename(polyid)
-
-    if type(apa.config.process)==list and map_to not in apa.config.process:
-        return
 
     e_filename = apa.path.e_filename(lib_id, exp_id)
     if os.path.exists(e_filename) and not force:
@@ -525,9 +482,6 @@ def bed_expression_lexogen_pas(lib_id, exp_id, map_id, map_to, polyid, force=Fal
     if polyid==None:
         polyid = map_to
     polyadb_filename = apa.path.polyadb_filename(polyid, filetype="pas")
-
-    if type(apa.config.process)==list and map_to not in apa.config.process:
-        return
 
     e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas")
     if os.path.exists(e_filename) and not force:

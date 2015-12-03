@@ -9,7 +9,6 @@ import os
 import pybio
 
 import apa
-import config
 import path
 import annotation
 import extract

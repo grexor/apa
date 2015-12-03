@@ -7,9 +7,8 @@
   }
   </style>
 
-.. index:: annotation of libraries
 **********************************
-annotation module (``apa.annotation``)
+Annotation module (``apa.annotation``)
 **********************************
 
 .. autofunction:: apa.annotation.read
