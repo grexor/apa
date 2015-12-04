@@ -29,7 +29,7 @@ def write_bed(d, filename):
     Save bedGraph file from dictionary d (chr->strand->position->value) to filename.
     """
     f = open(filename, "wt")
-    for chr_strand, pos_data in data.items():
+    for chr_strand, pos_data in d.items():
         chr, strand = chr_strand.split(":")
         positions = [(pos, len(rnd_set)) for pos, rnd_set in pos_data.items()]
         positions.sort()
@@ -60,8 +60,8 @@ def bed_raw(lib_id, exp_id, map_id=1, force=False):
         apa.bed.bed_raw_paseq(lib_id, exp_id, map_id=1, force=force)
     if exp_data["method"]=="paseqx":
         apa.bed.bed_raw_paseqx(lib_id, exp_id, map_id=1, force=force)
-    if exp_data["method"]=="lexogen_fwd":
-        apa.bed.bed_raw_lexogen_fwd(lib_id, exp_id, map_id=1, force=force)
+    if exp_data["method"]=="lexfwd":
+        apa.bed.bed_raw_lexfwd(lib_id, exp_id, map_id=1, force=force)
 
 def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"] in ["pAseq", "paseq"])
@@ -241,8 +241,8 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
     # write T file
     write_bed(dataT, t_filename)
 
-def bed_raw_lexogen_fwd(lib_id, exp_id, map_id, force=False):
-    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexogen_fwd")
+def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
+    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexfwd")
     # http://www.cgat.org/~andreas/documentation/pysam/api.html
     # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
@@ -407,8 +407,8 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
     if exp_data["method"]=="paseqx":
         apa.bed.bed_expression_paseqx(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
         #apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
-    if exp_data["method"]=="lexogen_fwd":
-        apa.bed.bed_expression_lexogen_fwd(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
+    if exp_data["method"]=="lexfwd":
+        apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
         #apa.bed.bed_expression_lexogen_pas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
@@ -455,7 +455,7 @@ def bed_expression_paseqx(lib_id, exp_id, map_id, map_to, polyid, force=False):
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
-def bed_expression_lexogen_fwd(lib_id, exp_id, map_id, map_to, polyid, force=False):
+def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, polyid, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id)
     if polyid==None:

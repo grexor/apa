@@ -29,12 +29,6 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False):
 
 def stats(lib_id):
     fname = os.path.join(apa.path.lib_folder(lib_id), "%s_stats.tab" % lib_id)
-
-    #if os.path.exists(fname):
-    #    statinfo = os.stat(fname)
-    #    if statinfo.st_size>0:
-    #        return
-
     print "writting to: %s" % fname
     f = open(fname, "wt")
     header = ["exp_id", "tissue", "condition", "replicate", "#reads [M]", "#mapped [M]" , "mapped [%]"]

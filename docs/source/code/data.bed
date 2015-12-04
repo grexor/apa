@@ -1,8 +1,0 @@
-track type=bedGraph name="example track data" db=hg19 maxHeightPixels="100:50:0" visibility="full"
-chr1    20153   20154   -1
-chr1    20158   20159   -10
-chr1    20159   20160   -15
-chr1    139461  139462  12
-chr1    160739  160740  11
-chr1    540673  540674  2
-...

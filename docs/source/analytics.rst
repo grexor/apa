@@ -1,12 +1,3 @@
-.. role:: green
-.. raw:: html
-
-  <style>
-  .green {
-    color:green;
-  }
-  </style>
-
 **********************************
 Analytics (methodology of data analysis)
 **********************************
@@ -20,11 +11,11 @@ apa-db.org supports several 3' end sequencing protocols. After read pre-processi
 these protocols is in determining the cleavage site loci and in further filtering steps (see below).
 
 ======== ============================= =============
-protocol description                   cleavage loci
+protocol description                   site loci
 ======== ============================= =============
 pA-seq   Wang et al., unpublished      last nucleotide of alignment
-lex_fwd  Lexogen forward strand 3' end last nucleotide of alignment
-lex_rev  Lexogen reverse strand 3' end first nucleotide of alignment
+lex_fwd  Lexogen 3' forward            last nucleotide of alignment
+lex_rev  Lexogen 3' reverse            first nucleotide of alignment
 ======== ============================= =============
 
 .. _r_bedgraph_method:
@@ -37,7 +28,7 @@ No special preprocessing other than quality control is performed. `STAR <https:/
 the potential poly-A tail (poly-T in some protocols) is soft-clipped from the read, allowing a more accurate identification of cleavage sites compared
 to pre-processing and removing A/T rich 3'/5' ends of reads prior to mapping.
 
-.. figure:: bamclip.png
+.. figure:: figures/clipping_analysis.png
   :width: 900px
   :figwidth: 900px
   :align: center
@@ -48,8 +39,8 @@ to pre-processing and removing A/T rich 3'/5' ends of reads prior to mapping.
 R (raw, unfiltered) bedGraph
 ============================
 
-The raw :ref:`bedGraph <r_bedgraph_format>` cleavage site files. Not filtered. One sincle nucleotide per read alignment extracted from the bam files.
-The cleavage site position is determined based on the :ref:`protocol <3protocols>` (5' or 3' end of alignment). Files are stored in:
+The raw :ref:`bedGraph <r_bedgraph_format>` sites file, constructed by providing one site loci per alignment. This information is extracted from the bam file.
+The sites loci are determined based on :ref:`protocol <3protocols>` (5' or 3' end of alignment). Files are stored in:
 
 .. code-block:: bash
 
@@ -57,17 +48,54 @@ The cleavage site position is determined based on the :ref:`protocol <3protocols
 
 T (tail, filtered) bedGraph
 ===========================
-The tail :ref:`bedGraph <r_bedgraph_format>` cleavage site files. The filtering depends on the protocol.
+The tail :ref:`bedGraph <r_bedgraph_format>` sites file. The filtering depends on the protocol (see below).
 
 pA-seq (Wang et al.)
 #################################
 
-Lexogen forward 3' end
+Lexogen 3' forward
 ######################
 
-some info
+The assignment of the cleavage site follows this procedure:
 
-Lexogen reverse 3' end
+#. set the site loci (cs_loci) as the last (3' end) nucleotide of the alignment
+#. check 18nt upstream of cs_loci: IF #A>10, skip alignment
+
+Since we allow soft clipping and do not pre-process the reads, we need to check the ending of the alignment for internal priming.
+
+Lexogen 3' reverse
 ######################
 
-Some other info
+To-do docs
+
+Local poly-A atlas (database)
+===========================
+
+Before computing expression files, we define local groups of experiments (usually every library has it's own poly-A atlas). The atlas definition file is stored in:
+
+.. code-block:: bash
+
+  ${polya_folder}/${lib_id}.config
+
+This config file contains the experiment identifiers, e.g.:
+
+.. code-block:: bash
+
+  elib_e1
+  elib_e2
+  elib_e3
+  elib_e4
+
+We group together T bedGraph files from the defined experiments (in this example e1, e2, e3 and e4) and:
+
+#. create sorted loci list (reverse order = most expressed loci at the top)
+#. select first loci in the list and remove all surrounding loci in region [-125, 125]
+#. store selected loci in the atlas and remove it from the list
+#. repeat previous two steps until loci list is empty
+
+E (expression) bedGraph
+===========================
+
+For a given poly-A atlas and experiment R file, compute:
+
+#. sum up experiment R file in region [-100, 25] for each poly-A atlas loci

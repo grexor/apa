@@ -30,9 +30,9 @@ eids = apa.annotation.libs[args.lib].experiments.keys()
 tasks = []
 for eid in eids:
     if args.type=="expression" and args.poly!=None:
-        tasks.append("apa.bed -type %s -lib_id %s -exp_id %s -force -poly %s" % (args.type, args.lib, eid, args.poly))
+        tasks.append("apa.bed -type %s -lib %s -exp %s -force -poly %s" % (args.type, args.lib, eid, args.poly))
     else:
-        tasks.append("apa.bed -type %s -lib_id %s -exp_id %s -force" % (args.type, args.lib, eid))
+        tasks.append("apa.bed -type %s -lib %s -exp %s -force" % (args.type, args.lib, eid))
     print tasks[-1]
 
 for i in range(num_worker_threads):
