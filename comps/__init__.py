@@ -146,10 +146,12 @@ def read_comps(comps_id):
     # determine comps species
     species = set()
     all_exp = set()
-    for (_, exp, _) in comps.test:
-        all_exp.update(exp)
-    for (_, exp, _) in comps.control:
-        all_exp.update(exp)
+    for (_, exp, _) in comps.test+comps.control:
+        if type(exp)==list:
+            for exp_id in exp:
+                all_exp.update(exp)
+        else:
+            all_exp.update(exp)
     for exp in all_exp:
         lib_id = exp[:exp.rfind("_")]
         exp_id = int(exp.split("_")[-1][1:])

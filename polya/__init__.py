@@ -434,7 +434,7 @@ def pas_db(poly_id):
 
     b = pybio.data.Bedgraph()
     for (lib_id, exp_id) in experiments:
-        fname = apa.path.r_filename("20150803_jan", exp_id)
+        fname = apa.path.r_filename(lib_id, exp_id)
         b.load(fname)
     name_r = os.path.join(apa.path.polya_folder, "%s.data_r" % poly_id)
     b.save(name_r+".bed")
@@ -475,10 +475,11 @@ def pas_db(poly_id):
         for pas in pas_signals:
             index = seq.find(pas)
             if index!=-1:
-                pas_check = pybio.genomes.seq("hg19", chr, strand, pas_pos, start=-(100-(63+index)))
+                start = -(100-(63+index))
+                pas_check = pybio.genomes.seq("hg19", chr, strand, pos, start=start, stop=start+5)
                 assert(pas==pas_check)
-                db.set_value(chr, strand, pas_pos, db.get_value(chr, strand, pas_pos)+cDNA) # increase the value by cDNA at this position
-                db_pas.setdefault((chr, strand, pas_pos), set()).add(pas)
+                db.set_value(chr, strand, pos, db.get_value(chr, strand, pos)+cDNA) # increase the value by cDNA at this position
+                db_pas.setdefault((chr, strand, pos), set()).add(pas)
                 break
         r = f.readline()
         if all_seqs%1000==0:
@@ -511,7 +512,6 @@ def pas_db(poly_id):
     fout.close()
 
     thr = 60
-    pas_signals = ["AATAAA", "ATTAAA", "AAATAA", "CAATAA", "AGTAAA", "TTAATA", "TATAAA", "TGAATA", "CATAAA", "GTAATA", "CTAATA", "GATAAA"]
 
     print "filtering PAS database %s" % poly_id
     print "\tmin_distance = %snt" % thr
@@ -533,7 +533,7 @@ def pas_db(poly_id):
         elif dist>thr:
             # write pool?
             if len(pool)>1:
-                pool.sort()
+                pool = sorted(pool, key = lambda x : (x[0], -x[3])) # sort by pas rank (inc) + cDNA (dec)
                 row = pool[0][1:-1]
                 write_row(fout, row)
                 pool = [(pas_signals.index(pas), chr, pos, cDNA, pas, dist)]
