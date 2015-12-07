@@ -58,8 +58,8 @@ def bed_raw(lib_id, exp_id, map_id=1, force=False):
     exp_data = lib.experiments[exp_id]
     if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_raw_paseq(lib_id, exp_id, map_id=1, force=force)
-    if exp_data["method"]=="paseqx":
-        apa.bed.bed_raw_paseqx(lib_id, exp_id, map_id=1, force=force)
+    if exp_data["method"]=="lexrev":
+        apa.bed.bed_raw_lexrev(lib_id, exp_id, map_id=1, force=force)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_raw_lexfwd(lib_id, exp_id, map_id=1, force=force)
 
@@ -154,8 +154,8 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
     write_bed(dataR, r_filename)
     write_bed(dataT, t_filename)
 
-def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
-    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="paseqx")
+def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
+    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexrev")
 
     r_filename = apa.path.r_filename(lib_id, exp_id)
     t_filename = apa.path.t_filename(lib_id, exp_id)
@@ -206,7 +206,7 @@ def bed_raw_paseqx(lib_id, exp_id, map_id, force=False):
             pos_end = a.positions[0]
         else:
             pos_end = a.positions[-1]
-        # for paseqx, we turn strand
+        # for lexrev, we turn strand
         strand = {"+":"-", "-":"+"}[strand]
 
         key = "%s:%s" % (chr, strand)
@@ -404,8 +404,8 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
     map_to = exp_data["map_to"]
     if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, force=force)
-    if exp_data["method"]=="paseqx":
-        apa.bed.bed_expression_paseqx(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
+    if exp_data["method"]=="lexrev":
+        apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
         #apa.bed.bed_expression_lexpas(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=1, map_to=map_to, polyid=polyid, force=force)
@@ -437,7 +437,7 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename_ucsc, genome=map_to, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
-def bed_expression_paseqx(lib_id, exp_id, map_id, map_to, polyid, force=False):
+def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, polyid, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id)
 
