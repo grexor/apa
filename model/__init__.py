@@ -52,9 +52,9 @@ def make_motifs(size):
         motifs.append("".join(el))
     return motifs
 
-types = [("siteup_e", ["siteup_e", "sitedown_r"], ["siteup_c", "sitedown_c"]), ("siteup_r", ["siteup_r", "sitedown_e"], ["siteup_c", "sitedown_c"])]
-types = [("siteup_e", ["siteup_e"], ["siteup_c"]), ("siteup_r", ["siteup_r"], ["siteup_c"]), ("sitedown_e", ["sitedown_e"], ["sitedown_c"]), ("sitedown_r", ["sitedown_r"], ["sitedown_c"])]
-types = [("siteup", ["siteup_e"], ["siteup_r"]), ("sitedown", ["sitedown_e"], ["sitedown_r"])]
+types = [("proximal_e", ["proximal_e", "distal_r"], ["proximal_c", "distal_c"]), ("proximal_r", ["proximal_r", "distal_e"], ["proximal_c", "distal_c"])]
+types = [("proximal_e", ["proximal_e"], ["proximal_c"]), ("proximal_r", ["proximal_r"], ["proximal_c"]), ("distal_e", ["distal_e"], ["distal_c"]), ("distal_r", ["distal_r"], ["distal_c"])]
+types = [("proximal", ["proximal_e"], ["proximal_r"]), ("distal", ["distal_e"], ["distal_r"])]
 models = ["randomf", "svm"]
 ftypes = ["A", "B", "C"]
 ftypes = ["A", "D"]
@@ -130,7 +130,7 @@ def make_fasta(comps_id):
     os.makedirs(rnamotifs_folder)
 
     # rnamotifs init
-    for site in ["siteup", "sitedown"]:
+    for site in ["proximal", "distal"]:
         rnamotifs_filename = os.path.join(apa.path.comps_folder, comps_id, "rnamotifs", "%s_%s.tab" % (comps_id, site))
         rnamotifs_file = open(rnamotifs_filename, "wt")
         rnamotifs_file.write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
@@ -152,7 +152,7 @@ def make_fasta(comps_id):
     # r = repressed, e = enhanced, c = control
     stats = Counter()
     ntdist = {}
-    for sitetype in ["siteup_e", "siteup_r", "sitedown_e", "sitedown_r", "siteup_c", "sitedown_c"]:
+    for sitetype in ["proximal_e", "proximal_r", "distal_e", "distal_r", "proximal_c", "distal_c"]:
         ntdist[sitetype] = {}
         for index in range(0, len_seq):
             ntdist[sitetype][index] = {0:0, 1:0, 2:0, 3:0}
@@ -167,15 +167,15 @@ def make_fasta(comps_id):
         chr = data["chr"]
         strand = data["strand"]
         gene_id = data["gene_id"]
-        siteup_pos = int(data["siteup_pos"])
-        sitedown_pos = int(data["sitedown_pos"])
+        proximal_pos = int(data["proximal_pos"])
+        distal_pos = int(data["distal_pos"])
         pc = float(data["pc"])
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
-        fdr_voom_up = voom.get("%s:%s" % (gene_id, siteup_pos), 1)
-        fdr_voom_down = voom.get("%s:%s" % (gene_id, sitedown_pos), 1)
+        fdr_voom_up = voom.get("%s:%s" % (gene_id, proximal_pos), 1)
+        fdr_voom_down = voom.get("%s:%s" % (gene_id, distal_pos), 1)
 
-        if abs(siteup_pos-sitedown_pos)<comps.pair_dist:
+        if abs(proximal_pos-distal_pos)<comps.pair_dist:
             r = f.readline()
             continue
 
@@ -185,33 +185,33 @@ def make_fasta(comps_id):
 
         """
         # filtering by Fisher
-        reg_siteup = None
+        reg_proximal = None
         if pc>0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
-            reg_siteup = "e"
+            reg_proximal = "e"
         if pc<0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
-            reg_siteup = "r"
+            reg_proximal = "r"
         if abs(pc)<comps.control_thr:
-            reg_siteup = "c"
-        if reg_siteup==None:
+            reg_proximal = "c"
+        if reg_proximal==None:
             r = f.readline()
             continue
         """
 
         # filtering by voom
-        reg_siteup = None
+        reg_proximal = None
         if pc>0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
-            reg_siteup = "e"
+            reg_proximal = "e"
         if pc<0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
-            reg_siteup = "r"
+            reg_proximal = "r"
         if abs(pc)<comps.control_thr:
-            reg_siteup = "c"
-        if reg_siteup==None:
+            reg_proximal = "c"
+        if reg_proximal==None:
             r = f.readline()
             continue
 
-        reg_sitedown = {"e":"r", "r":"e", "c":"c"}[reg_siteup]
+        reg_distal = {"e":"r", "r":"e", "c":"c"}[reg_proximal]
         row_id += 1
-        for (site_reg, site_type, site_pos) in [(reg_siteup, "siteup", siteup_pos), (reg_sitedown, "sitedown", sitedown_pos)]:
+        for (site_reg, site_type, site_pos) in [(reg_proximal, "proximal", proximal_pos), (reg_distal, "distal", distal_pos)]:
             reg_key = "%s_%s" % (site_type, site_reg)
             stats[reg_key] += 1
             seq = pybio.genomes.seq(comps.species, chr, strand, site_pos, start=seq_from, stop=seq_to)
@@ -236,8 +236,8 @@ def make_fasta(comps_id):
     # plot nt-dist log ratio
     plot_data = {}
     ymax = 0
-    for sitetype in ["siteup_e", "siteup_r", "sitedown_e", "sitedown_r", "siteup_c", "sitedown_c"]:
-        sitecontrol = "siteup_c" if sitetype.startswith("siteup") else "sitedown_c"
+    for sitetype in ["proximal_e", "proximal_r", "distal_e", "distal_r", "proximal_c", "distal_c"]:
+        sitecontrol = "proximal_c" if sitetype.startswith("proximal") else "distal_c"
         for nuc in [0, 1, 2, 3]:
             yt = [float(ntdist[sitetype][index][nuc])/(ntdist[sitetype][index][0]+ntdist[sitetype][index][1]+ntdist[sitetype][index][2]+ntdist[sitetype][index][3]) for index in range(0, len_seq)]
             yc = [float(ntdist[sitecontrol][index][nuc])/(ntdist[sitecontrol][index][0]+ntdist[sitecontrol][index][1]+ntdist[sitecontrol][index][2]+ntdist[sitecontrol][index][3]) for index in range(0, len_seq)]
@@ -249,7 +249,7 @@ def make_fasta(comps_id):
             y = [e/3.0 for e in y] # average
             ymax = max(ymax, max(y), min(y))
             plot_data["%s:%s" % (sitetype, nuc)] = y
-    for sitetype in ["siteup_e", "siteup_r", "sitedown_e", "sitedown_r", "siteup_c", "sitedown_c"]:
+    for sitetype in ["proximal_e", "proximal_r", "distal_e", "distal_r", "proximal_c", "distal_c"]:
         pl.clf()
         a = pl.axes([0.1, 0.1, 0.85, 0.8])
         a.yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
@@ -346,7 +346,7 @@ def prepare(comps_id):
         os.makedirs(model_folder)
 
     # types: (name, class_0, class_1)
-    #types = [("siteup_e", ["siteup_e"], ["siteup_c", "sitedown_c"]), ("siteup_r", ["siteup_r"], ["siteup_c", "sitedown_c"])]
+    #types = [("proximal_e", ["proximal_e"], ["proximal_c", "distal_c"]), ("proximal_r", ["proximal_r"], ["proximal_c", "distal_c"])]
 
     for (name, class_0, class_1) in types:
         # name features
@@ -538,7 +538,7 @@ def predict_randomf(comps_id):
 
 def predict_tree(comps_id):
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
-    for fn in ["siteup_e", "siteup_r", "sitedown_e", "sitedown_r"]:
+    for fn in ["proximal_e", "proximal_r", "distal_e", "distal_r"]:
         print "%s:model:tree.%s" % (comps_id, fn)
         data_file = open(os.path.join(model_folder, "%s.tab" % fn), "rt")
         header = data_file.readline().replace("\r", "").replace("\n", "").split("\t")
@@ -572,7 +572,7 @@ def predict_linreg(comps_id, version="randomf"):
     print "%s:model:linreg" % comps_id
     from sklearn import datasets, linear_model
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
-    data_file = open(os.path.join(model_folder, "siteup.r.tab"), "rt")
+    data_file = open(os.path.join(model_folder, "proximal.r.tab"), "rt")
     header = data_file.readline().replace("\r", "").replace("\n", "").split("\t")
     r = data_file.readline()
     y = []
@@ -634,7 +634,7 @@ def plot_pca(comps_id):
 
 def plot_lda(comps_id):
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
-    for fn in ["siteup_e", "siteup_r", "sitedown_e", "sitedown_r"]:
+    for fn in ["proximal_e", "proximal_r", "distal_e", "distal_r"]:
         print "%s:model:lda.%s" % (comps_id, fn)
         data_file = open(os.path.join(model_folder, "%s.tab" % fn), "rt")
         header = data_file.readline().replace("\r", "").replace("\n", "").split("\t")
@@ -735,7 +735,7 @@ def save_roc(comps_id, version, tpr, fpr, auc_val, ncontrol, ncase):
 # http://sebastianraschka.com/Articles/2014_python_lda.html
 def plot_hist(comps_id):
     model_folder = os.path.join(apa.path.comps_folder, comps_id, "model")
-    for fn in ["siteup.r"]: #, "siteup.e", "sitedown.r", "sitedown.e"]:
+    for fn in ["proximal.r"]: #, "proximal.e", "distal.r", "distal.e"]:
         data_file = open(os.path.join(model_folder, "%s.tab" % fn), "rt")
         header = data_file.readline().replace("\r", "").replace("\n", "").split("\t")
         r = data_file.readline()
@@ -807,7 +807,7 @@ def write_index(comps_id):
     for fn, _, _ in types:
         f.write("<td align=center>PCA %s</td>" % fn)
     f.write("</tr>\n")
-    #for fn in ["siteup.r", "siteup.e", "sitedown.r", "sitedown.e"]:
+    #for fn in ["proximal.r", "proximal.e", "distal.r", "distal.e"]:
     for fn, _, _ in types:
         f.write("<td align=right valign=center width=30px>")
         f.write("<a href=%s><img src=%s width=400px></a>" % ("pca.%s.png" % fn, "pca.%s.png" % fn))
@@ -847,9 +847,9 @@ def write_index(comps_id):
     f.write("</table>")
 
     f.write("<br>")
-    f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 16px;'><tr><td align=center>siteup e vs c</td><td align=center width=15px>siteup r vs c</td></tr>\n")
+    f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 16px;'><tr><td align=center>proximal e vs c</td><td align=center width=15px>proximal r vs c</td></tr>\n")
     f.write("<tr>")
-    for fn in ["siteup_e", "siteup_r"]:
+    for fn in ["proximal_e", "proximal_r"]:
         f.write("<td align=right valign=center width=30px>")
         f.write("<a href=%s><img src=%s width=400px></a>" % ("%s_ntdist.png" % fn, "%s_ntdist.png" % fn))
         f.write("</td>")
@@ -858,9 +858,9 @@ def write_index(comps_id):
     f.write("</table>")
 
     f.write("<br>")
-    f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 16px;'><tr><td align=center>sitedown e vs c</td><td align=center width=15px>sitedown r vs c</td></tr>\n")
+    f.write("<table style='border-collapse: collapse; border-spacing: 0px; font-size: 16px;'><tr><td align=center>distal e vs c</td><td align=center width=15px>distal r vs c</td></tr>\n")
     f.write("<tr>")
-    for fn in ["sitedown_e", "sitedown_r"]:
+    for fn in ["distal_e", "distal_r"]:
         f.write("<td align=right valign=center width=30px>")
         f.write("<a href=%s><img src=%s width=400px></a>" % ("%s_ntdist.png" % fn, "%s_ntdist.png" % fn))
         f.write("</td>")
