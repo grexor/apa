@@ -183,7 +183,6 @@ def make_fasta(comps_id):
             r = f.readline()
             continue
 
-        """
         # filtering by Fisher
         reg_proximal = None
         if pc>0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
@@ -195,8 +194,8 @@ def make_fasta(comps_id):
         if reg_proximal==None:
             r = f.readline()
             continue
-        """
 
+        """
         # filtering by voom
         reg_proximal = None
         if pc>0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
@@ -208,6 +207,7 @@ def make_fasta(comps_id):
         if reg_proximal==None:
             r = f.readline()
             continue
+        """
 
         reg_distal = {"e":"r", "r":"e", "c":"c"}[reg_proximal]
         row_id += 1
@@ -239,8 +239,8 @@ def make_fasta(comps_id):
     for sitetype in ["proximal_e", "proximal_r", "distal_e", "distal_r", "proximal_c", "distal_c"]:
         sitecontrol = "proximal_c" if sitetype.startswith("proximal") else "distal_c"
         for nuc in [0, 1, 2, 3]:
-            yt = [float(ntdist[sitetype][index][nuc])/(ntdist[sitetype][index][0]+ntdist[sitetype][index][1]+ntdist[sitetype][index][2]+ntdist[sitetype][index][3]) for index in range(0, len_seq)]
-            yc = [float(ntdist[sitecontrol][index][nuc])/(ntdist[sitecontrol][index][0]+ntdist[sitecontrol][index][1]+ntdist[sitecontrol][index][2]+ntdist[sitecontrol][index][3]) for index in range(0, len_seq)]
+            yt = [float(ntdist[sitetype][index][nuc])/max(1, (ntdist[sitetype][index][0]+ntdist[sitetype][index][1]+ntdist[sitetype][index][2]+ntdist[sitetype][index][3])) for index in range(0, len_seq)]
+            yc = [float(ntdist[sitecontrol][index][nuc])/max(1, (ntdist[sitecontrol][index][0]+ntdist[sitecontrol][index][1]+ntdist[sitecontrol][index][2]+ntdist[sitecontrol][index][3])) for index in range(0, len_seq)]
             yt = [x*100 for x in yt]
             yc = [x*100 for x in yc]
             #y = [math.log((float(x+1)/(y+1)), 2) for x,y in zip(yt, yc)]
