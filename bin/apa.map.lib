@@ -10,11 +10,13 @@ import os
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-lib_id', action="store", dest="lib_id")
+parser.add_argument('-map_id', action="store", dest="map_id", type=int)
 parser.add_argument('-mapper', action="store", dest="mapper", default="star")
-parser.add_argument('-cpu', action="store", dest="cpu", default=1)
+parser.add_argument('-cpu', action="store", dest="cpu", default=1, type=int)
+parser.add_argument('-workers', action="store", dest="workers", default=2, type=int)
 args = parser.parse_args()
 
-num_worker_threads = 20
+num_worker_threads = args.workers
 q = Queue()
 
 def worker():
@@ -25,8 +27,8 @@ def worker():
 
 # STEP1: process all study data
 tasks = []
-for exp_id in apa.annotation.libs[lib_id].experiments.keys():
-    tasks.append("apa.map -lib_id %s -exp_id %s -force -mapper %s -cpu %s" % (lib_id, exp_id, mapper, cpu))
+for exp_id in apa.annotation.libs[args.lib_id].experiments.keys():
+    tasks.append("apa.map -lib_id %s -exp_id %s -force -mapper %s -cpu %s -map_id %s" % (args.lib_id, exp_id, args.mapper, args.cpu, args.map_id))
 
 for i in range(num_worker_threads):
      t = Thread(target=worker)
@@ -38,5 +40,5 @@ for task in tasks:
 
 q.join()
 
-# conclude with mapping stats
-apa.map.stats(lib_id)
+# finish with mapping stats
+apa.map.stats(lib_id, map_id=args.map_id)
