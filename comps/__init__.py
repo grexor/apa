@@ -411,26 +411,26 @@ def process_comps(comps_id):
     f_pairs = open(pairs_filename, "wt")
     header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp", "proximal_UG", "distal_pos", "distal_exp", "distal_UG", "s1", "s2"]
     if comps.control_name!="":
-        header.append("up_control [%s]" % comps.control_name)
-        header.append("up_control_sum [%s]" % comps.control_name)
-        header.append("down_control [%s]" % comps.control_name)
-        header.append("down_control_sum [%s]" % comps.control_name)
+        header.append("proximal_control [%s]" % comps.control_name)
+        header.append("proximal_control_sum [%s]" % comps.control_name)
+        header.append("distal_control [%s]" % comps.control_name)
+        header.append("distal_control_sum [%s]" % comps.control_name)
     else:
-        header.append("up_control")
-        header.append("up_control_sum")
-        header.append("down_control")
-        header.append("down_control_sum")
+        header.append("proximal_control")
+        header.append("proximal_control_sum")
+        header.append("distal_control")
+        header.append("distal_control_sum")
 
     if comps.test_name!="":
-        header.append("up_test [%s]" % comps.test_name)
-        header.append("up_test_sum [%s]" % comps.test_name)
-        header.append("down_test [%s]" % comps.test_name)
-        header.append("down_test_sum [%s]" % comps.test_name)
+        header.append("proximal_test [%s]" % comps.test_name)
+        header.append("proximal_test_sum [%s]" % comps.test_name)
+        header.append("distal_test [%s]" % comps.test_name)
+        header.append("distal_test_sum [%s]" % comps.test_name)
     else:
-        header.append("up.test")
-        header.append("up_test_sum")
-        header.append("down.test")
-        header.append("down_test_sum")
+        header.append("proximal.test")
+        header.append("proximal_test_sum")
+        header.append("distal.test")
+        header.append("distal_test_sum")
 
     header += ["pc", "fisher", "pair_type"]
 
