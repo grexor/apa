@@ -10,7 +10,7 @@ import os
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-lib_id', action="store", dest="lib_id")
-parser.add_argument('-map_id', action="store", dest="map_id", type=int)
+parser.add_argument('-map_id', action="store", dest="map_id", type=int, default=1)
 parser.add_argument('-mapper', action="store", dest="mapper", default="star")
 parser.add_argument('-cpu', action="store", dest="cpu", default=1, type=int)
 parser.add_argument('-workers', action="store", dest="workers", default=2, type=int)
@@ -41,4 +41,4 @@ for task in tasks:
 q.join()
 
 # finish with mapping stats
-apa.map.stats(lib_id, map_id=args.map_id)
+apa.map.stats(args.lib_id, map_id=args.map_id)

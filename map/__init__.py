@@ -26,6 +26,8 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
         pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
     if mapper=="sege":
         pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
+    if mapper=="bowtie":
+        pybio.map.bowtie(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
 
 def stats(lib_id, map_id=1):
     fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s.stats.tab" % (lib_id, map_id))
@@ -37,7 +39,7 @@ def stats(lib_id, map_id=1):
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id)
-        bam_file = os.path.join(map_folder, "%s_e%s_m%s.bam" % (lib_id, exp_id, 1))
+        bam_file = os.path.join(map_folder, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
         # not fastq or bam perhaps? (bedgraph data)
         if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
             continue

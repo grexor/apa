@@ -5,12 +5,13 @@ import sys
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('-poly', action="store", dest="poly", default=None)
+parser.add_argument('-poly_id', action="store", dest="poly_id", default=None)
+parser.add_argument('-map_id', type=int, action="store", dest="map_id", default=None)
 args = parser.parse_args()
 
-if args.poly==None:
-    print "provide -poly"
+if args.poly_id==None:
+    print "please provide -poly_id"
     sys.exit(1)
 
-apa.polya.process(args.poly)
-apa.polya.pas_db(args.poly)
+apa.polya.process(args.poly_id, map_id=args.map_id)
+apa.polya.pas_db(args.poly_id, map_id=args.map_id)

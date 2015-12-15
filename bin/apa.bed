@@ -5,6 +5,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-lib', action="store", dest="lib_id", default=None)
 parser.add_argument('-exp', type=int, action="store", dest="exp_id", default=None)
+parser.add_argument('-map_id', type=int, action="store", dest="map_id", default=1)
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
 parser.add_argument('-poly', action="store", dest="poly", default=None)
 parser.add_argument('-force', action="store_true", default=False)
@@ -24,6 +25,6 @@ else:
 
 for exp_id in eids:
     if args.type=="raw":
-        apa.bed.bed_raw(args.lib_id, exp_id, force=args.force)
+        apa.bed.bed_raw(args.lib_id, exp_id, force=args.force, map_id=args.map_id)
     if args.type=="expression":
-        apa.bed.bed_expression(args.lib_id, exp_id, polyid=args.poly, force=args.force)
+        apa.bed.bed_expression(args.lib_id, exp_id, polyid=args.poly, force=args.force, map_id=args.map_id)

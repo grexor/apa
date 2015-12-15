@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
 parser.add_argument('-lib', action="store", dest="lib", default=None)
 parser.add_argument('-poly', action="store", dest="poly", default=None)
+parser.add_argument('-map_id', action="store", dest="map_id", type=int, default=1)
 args = parser.parse_args()
 
 num_worker_threads = 40
@@ -30,9 +31,9 @@ eids = apa.annotation.libs[args.lib].experiments.keys()
 tasks = []
 for eid in eids:
     if args.type=="expression" and args.poly!=None:
-        tasks.append("apa.bed -type %s -lib %s -exp %s -force -poly %s" % (args.type, args.lib, eid, args.poly))
+        tasks.append("apa.bed -type %s -lib %s -exp %s -force -poly %s -map_id %s" % (args.type, args.lib, eid, args.poly, args.map_id))
     else:
-        tasks.append("apa.bed -type %s -lib %s -exp %s -force" % (args.type, args.lib, eid))
+        tasks.append("apa.bed -type %s -lib %s -exp %s -force -map_id %s" % (args.type, args.lib, eid, args.map_id))
     print tasks[-1]
 
 for i in range(num_worker_threads):

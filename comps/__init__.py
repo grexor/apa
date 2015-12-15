@@ -24,14 +24,14 @@ minor_major_thr = 0.05 # all sites in assigned to gene need to have expression >
 clip_interval = (-30, 30) # interval around sites for binding data
 
 class Comps:
-    def __init__(self, comps_id=None, iCLIP_filename=None):
+    def __init__(self, comps_id=None):
         self.comps_id = comps_id
         self.test = []
         self.control = []
         self.test_name = ""
         self.control_name = ""
         self.species = ""
-        self.iCLIP_filename = iCLIP_filename
+        self.CLIP = []
         self.cDNA_thr = 5 # at least cDNA
         self.presence_thr = 2.0 # for at least half of experiments
         self.pc_thr = 0.1
@@ -51,7 +51,7 @@ class Comps:
             print "%s %s" % (test_id, test_data)
         for control_id, control_data in self.control.items():
             print "%s %s" % (control_id, control_data)
-        print "iCLIP = %s" % self.iCLIP_filename
+        print "CLIP = %s" % self.CLIP
         return ""
 
 def read_comps(comps_id):
@@ -94,7 +94,8 @@ def read_comps(comps_id):
             r = f.readline()
             continue
         if r[0].startswith("iCLIP"):
-            comps.iCLIP_filename = r[0].split("iCLIP:")[1]
+            fname = r[0].split("iCLIP:")[1]
+            comps.CLIP.append(fname)
             r = f.readline()
             continue
         if r[0].startswith("cDNA_thr"):
@@ -175,12 +176,12 @@ def save(comps):
         f.write("\t".join(str(x) for x in [id, ",".join(exp_list), name]) + "\n")
     for (id, exp_list, name) in comps.test:
         f.write("\t".join(str(x) for x in [id, ",".join(exp_list), name]) + "\n")
-    if comps.iCLIP_filename!="":
-        f.write("iCLIP:%s" % str(comps.iCLIP_filename))
+    if len(comps.CLIP)>0:
+        f.write("CLIP:%s" % str(comps.CLIP))
     f.close()
     return True
 
-def process_comps(comps_id):
+def process_comps(comps_id, map_id=1):
 
     # clean
     assert(len(apa.path.comps_folder)>0)
@@ -197,9 +198,9 @@ def process_comps(comps_id):
     pybio.genomes.load(comps.species)
 
     # load CLIP data if available
-    clip = None
-    if comps.iCLIP_filename!=None:
-        clip = pybio.data.Bedgraph(os.path.join(apa.path.iCLIP_folder, comps.iCLIP_filename))
+    clip = {}
+    for clip_name in comps.CLIP:
+        clip[clip_name] = pybio.data.Bedgraph(os.path.join(apa.path.iCLIP_folder, clip_name))
 
     # if there is a polya-db specified in the comparison, load the positions into the filter
     # (strong, weak, less)
@@ -219,9 +220,9 @@ def process_comps(comps_id):
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
             if comps.db_type=="cs":
-                e_filename = apa.path.e_filename(lib_id, exp_id)
+                e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
             elif comps.db_type=="pas":
-                e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas")
+                e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id)
             expression[comp_id].load(e_filename)
             print "adding: %s to %s" % (id, comp_id)
         print
@@ -247,9 +248,9 @@ def process_comps(comps_id):
                 lib_id = id[:id.rfind("_")]
                 exp_id = int(id.split("_")[-1][1:])
                 if comps.db_type=="cs":
-                    e_filename = apa.path.e_filename(lib_id, exp_id)
+                    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
                 elif comps.db_type=="pas":
-                    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas")
+                    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id)
                 b.load(e_filename)
         bed_filename = os.path.join(beds_folder, "%s.%s_all.bed" % (comps_id, sample_name))
         b.save(bed_filename, track_id="%s.%s_all" % (comps_id, sample_name), genome=comps.species)
@@ -284,12 +285,10 @@ def process_comps(comps_id):
                 sites = gsites.get(gene_id, {})
                 cDNA_sum = 0
                 expression_vector = []
+                site_data = {"pos":pos, "gene_interval":list(gene_interval)} # store position and gene_interval (start, stop, exon/intron), clip binding
                 # get clip data
-                clip_binding = 0
-                if clip!=None:
-                    clip_binding = clip.get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
-                # store site data
-                site_data = {"pos":pos, "gene_interval":list(gene_interval), "clip_binding":clip_binding} # store position and gene_interval (start, stop, exon/intron), clip binding
+                for clip_name in comps.CLIP:
+                    site_data[clip_name] = clip[clip_name].get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
 
                 for (rshort, _) in replicates:
                     bg = expression[rshort]
@@ -321,6 +320,9 @@ def process_comps(comps_id):
     f_genes = open(fname, "wt")
     header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype"]
     header += ["sites_position_cDNA", "sites_num", "cDNA_sum"]
+    # would be nice to have entire gene clip binding, but takes some time
+    #for clip_name in comps.CLIP:
+    #    header.append("clip:%s" % clip_name)
     for (rshort, rlong) in replicates:
         header.append(rlong)
     f_genes.write("\t".join(header)+"\n")
@@ -330,6 +332,8 @@ def process_comps(comps_id):
         strand = gene["gene_strand"]
         gene_start = gene["gene_start"]
         gene_stop = gene["gene_stop"]
+        gene_len = gene_stop-gene_start+1
+        assert(gene_len>0)
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"]]
         row.append(sites)
@@ -344,6 +348,9 @@ def process_comps(comps_id):
             cDNA_gtotal += cDNA_rtotal
             row_comp.append(cDNA_rtotal)
         row.append(cDNA_gtotal)
+        # would be nice to have entire gene clip binding, but takes some time
+        #for clip_name in comps.CLIP:
+        #    row.append(clip[clip_name].get_region("chr"+chr, strand, gene_start, stop=gene_len))
         row += row_comp
         f_genes.write("\t".join([str(x) for x in row]) + "\n")
     f_genes.close()
@@ -352,7 +359,10 @@ def process_comps(comps_id):
     gene_sites = {}
     fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
     f_sites = open(fname, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_interval", "clip_binding", "cDNA_sum"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_interval"]
+    for clip_name in comps.CLIP:
+        header.append("clip:%s" % clip_name)
+    header.append("cDNA_sum")
     for (rshort, rlong) in replicates:
         header.append(rlong)
     f_sites.write("\t".join(header)+"\n")
@@ -364,7 +374,9 @@ def process_comps(comps_id):
         gene_stop = gene["gene_stop"]
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         for site_pos, site_data in sites.items():
-            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_interval"], site_data["clip_binding"]]
+            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_interval"]]
+            for clip_name in comps.CLIP:
+                row_1.append(site_data[clip_name])
             row_2 = []
             cDNA_sum = 0
             for (rshort, rlong) in replicates:
@@ -452,8 +464,7 @@ def process_comps(comps_id):
         if len(sites)<2:
             continue
 
-        L = [(sites[pos]["clip_binding"], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
-
+        L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
         # determine major / minor sites
         S_clip = copy.deepcopy(L)
         S_clip.sort(key=lambda x: x[0], reverse=True) # sort by clip_binding
@@ -575,7 +586,6 @@ def process_comps(comps_id):
 
         proximal_seq = pybio.genomes.seq(comps.species, chr, strand, proximal_site["pos"], start=-60, stop=100)
         distal_seq = pybio.genomes.seq(comps.species, chr, strand, distal_site["pos"], start=-60, stop=100)
-
         _, proximal_vector = pybio.sequence.search(proximal_seq, ["TGT", "GTG"])
         proximal_vector = pybio.sequence.filter(proximal_vector, hw=25, hwt=17)
         _, distal_vector = pybio.sequence.search(distal_seq, ["TGT", "GTG"])
@@ -689,7 +699,7 @@ def utr_boxplot(study_id, comps_id):
         for id in experiments:
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
-            e_filename = apa.path.e_filename(lib_id, exp_id)
+            e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
             expression[comp_id].load(e_filename)
         print
 

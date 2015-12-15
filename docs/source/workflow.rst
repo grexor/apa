@@ -19,7 +19,7 @@ This list of software needs to be installed and in your path to run the analysis
   git clone https://github.com/grexor/pybio.git pybio   # clone pybio repository
   export PATH=$PATH:pybio/bin                           # add pybio/bin to PATH
 
-Download library and annotation
+Download example library and annotation
 -------------------------------
 Experiments are organized in libraries. For this example we will call our library example_lib, containing 4 experiments (with id 1, 2, 3 and 4).
 

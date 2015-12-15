@@ -40,7 +40,7 @@ def get_species(poly_id):
         species = species.pop()
     return species
 
-def process(poly_id):
+def process(poly_id, map_id=1):
     """
     Creates polyA database.
     It loads multiple experiments (T files). Scales each experiment individually and adds up the raw counts and the scaled values.
@@ -81,9 +81,8 @@ def process(poly_id):
     for lib_id, exp_id in experiments:
         num_read += 1
         meta = ["%s_e%s" % (lib_id, exp_id)] # list of metadata
-        t_filename = apa.path.t_filename(lib_id, exp_id)
+        t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
         if os.path.exists(t_filename):
-            #bed.load(t_filename, meta=meta, min_cpm=min_cpm/float(10))
             bed.load(t_filename, meta=meta)
             print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
 
@@ -91,8 +90,6 @@ def process(poly_id):
     bed.filter(min_distance=125)
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
     annotate(poly_id)
-    #bed.save(apa.path.polyadb_filename(poly_id, filetype="bed"), db_save="raw", min_support=min_support)
-    #bed.save(apa.path.polyadb_filename(poly_id, filetype="complete"), db_save="raw", min_support=min_support, filetype="complete")
 
 def read(poly_id):
     db = {}
@@ -395,11 +392,12 @@ def annotate_position(species, chr, strand, pos, extension=5000):
         gid_up, gid, gid_down, gid_interval = pybio.genomes.annotate(species, chr, strand, new_pos)
     return gid_up, gid, gid_down, gid_interval
 
-def pas_db(poly_id):
+def pas_db(poly_id, map_id=1):
     """
     Creates PAS database.
     """
     species = get_species(poly_id)
+    min_distance = 60
 
     experiments = []
     if poly_id in pybio.genomes.genomes_list():
@@ -427,14 +425,14 @@ def pas_db(poly_id):
 
     b = pybio.data.Bedgraph()
     for (lib_id, exp_id) in experiments:
-        fname = apa.path.t_filename(lib_id, exp_id)
+        fname = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
         b.load(fname)
     name_t = os.path.join(apa.path.polya_folder, "%s.data_t" % poly_id)
     b.save(name_t+".bed")
 
     b = pybio.data.Bedgraph()
     for (lib_id, exp_id) in experiments:
-        fname = apa.path.r_filename(lib_id, exp_id)
+        fname = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
         b.load(fname)
     name_r = os.path.join(apa.path.polya_folder, "%s.data_r" % poly_id)
     b.save(name_r+".bed")
@@ -511,10 +509,8 @@ def pas_db(poly_id):
     f.close()
     fout.close()
 
-    thr = 60
-
     print "filtering PAS database %s" % poly_id
-    print "\tmin_distance = %snt" % thr
+    print "\tmin_distance = %snt" % min_distance
     print "\tPAS ranks = %s" % pas_signals
 
     def write_row(f, row):
@@ -530,7 +526,7 @@ def pas_db(poly_id):
         if dist==None:
             pool = []
             write_row(fout, [chr, pos, cDNA, pas])
-        elif dist>thr:
+        elif dist>min_distance:
             # write pool?
             if len(pool)>1:
                 pool = sorted(pool, key = lambda x : (x[0], -x[3])) # sort by pas rank (inc) + cDNA (dec)
@@ -543,7 +539,7 @@ def pas_db(poly_id):
                 row = pool[0][1:-1]
                 write_row(fout, row)
                 pool = [(pas_signals.index(pas), chr, pos, cDNA, pas, dist)]
-        elif dist<thr:
+        elif dist<min_distance:
             pool.append((pas_signals.index(pas), chr, pos, cDNA, pas, dist))
         r = f.readline()
     # write final record(s) from pool
