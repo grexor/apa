@@ -906,7 +906,8 @@ a:visited {
     f.write(head+"\n")
     f.write("<body>\n")
 
-    body = """
+    body = comps_id + "<br>"
+    body += """
     <a href="#" class="show_hide">+ details</a> &nbsp;&nbsp; |  &nbsp;&nbsp;
     <a href="https://docs.google.com/drawings/d/1_m4iZ1c9YwKI-NOWMSCSdg2IzEGedj-NaMTIlHqirc0/edit?usp=sharing" target="_dgs">+ definition of genomic sites</a>
 
