@@ -4,7 +4,7 @@ Quick start
 
 A quick start example to show you how to use the platform to process your data.
 
-Pre-requisites
+Dependencies
 -------------------------------
 
 This list of software needs to be installed and in your path to run the analysis:

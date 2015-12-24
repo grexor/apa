@@ -43,6 +43,7 @@ class Comps:
         self.polya_db_filter = ["strong"] # default
         self.deepbind = None
         self.rnamaps = []
+        self.ignore_genes = []
         self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
 
     def __str__(self):
@@ -128,6 +129,10 @@ def read_comps(comps_id):
             continue
         if r[0].startswith("rnamaps:"):
             comps.rnamaps = r[0].split("rnamaps:")[1].split(",")
+            r = f.readline()
+            continue
+        if r[0].startswith("ignore_genes:"):
+            comps.ignore_genes = r[0].split("ignore_genes:")[1].split(",")
             r = f.readline()
             continue
         if r[0].startswith("db_type:"):

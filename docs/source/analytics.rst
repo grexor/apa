@@ -1,5 +1,5 @@
 **********************************
-Analytics (methodology of data analysis)
+Methods
 **********************************
 
 .. _3protocols:

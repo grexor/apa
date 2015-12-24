@@ -617,6 +617,9 @@ def process(comps_id, surr=200):
         chr = data["chr"]
         strand = data["strand"]
         gene_id = data["gene_id"]
+        if gene_id in comps.ignore_genes:
+            r = f.readline()
+            continue
         gene_name = data["gene_name"]
         proximal_pos = int(data["proximal_pos"])
         distal_pos = int(data["distal_pos"])
