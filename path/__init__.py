@@ -37,12 +37,12 @@ def t_filename(lib_id, exp_id, map_id=1):
 def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s.lock" % lock)
 
-def e_filename(lib_id, exp_id, map_id=1, polyid=None, filetype=None):
+def e_filename(lib_id, exp_id, map_id=1, poly_id="", filetype=None):
     if polyid==None:
         polyid = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     if filetype!=None:
-        return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.%s.E.bed" % (lib_id, exp_id, map_id, polyid, filetype))
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_%s.E.bed" % (lib_id, exp_id, map_id, polyid))
+        return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db%s.%s.E.bed" % (lib_id, exp_id, map_id, poly_id, filetype))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db%s.E.bed" % (lib_id, exp_id, map_id, poly_id))
 
 def polyadb_filename(poly_id, filetype="bed"):
     if filetype=="bed":

@@ -383,11 +383,11 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
         write_bed(data, fname)
     return
 
-def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
+def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
     """
     :param force: overwrite existing bedGraph files if True
     :param map_id: which mapping to take; default 1
-    :param polyid: which poly-A atlas to use; if omitted the experiment species global atlas is used
+    :param poly_id: which poly-A atlas to use; if omitted the experiment species global atlas is used
 
     Generates expression bedGraph files for lib_id and exp_id.
 
@@ -405,16 +405,16 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, polyid=None):
     if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, force=force)
     if exp_data["method"]=="lexrev":
-        apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, polyid=polyid, force=force)
+        apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexfwd":
-        apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, polyid=polyid, force=force)
-    apa.bed.bed_expression_lexpas(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, polyid=polyid, force=force)
+        apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
+    apa.bed.bed_expression_lexpas(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
 
-def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
+def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
-    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
-    e_filename_ucsc = apa.path.e_filename(lib_id, exp_id, filetype="ucsc", map_id=map_id)
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    e_filename_ucsc = apa.path.e_filename(lib_id, exp_id, filetype="ucsc", map_id=map_id, poly_id=poly_id)
     polyadb_filename = apa.path.polyadb_filename(genome)
 
 
@@ -436,15 +436,15 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, force=False):
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename_ucsc, genome=map_to, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
-def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, polyid, force=False):
+def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
 
-    if polyid==None:
-        polyid = map_to
-    polyadb_filename = apa.path.polyadb_filename(polyid)
+    if poly_id==None:
+        poly_id = map_to
+    polyadb_filename = apa.path.polyadb_filename(poly_id)
 
-    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
@@ -454,14 +454,14 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, polyid, force=False):
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
-def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, polyid, force=False):
+def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
-    if polyid==None:
-        polyid = map_to
-    polyadb_filename = apa.path.polyadb_filename(polyid)
+    if poly_id==None:
+        poly_id = map_to
+    polyadb_filename = apa.path.polyadb_filename(poly_id)
 
-    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
@@ -471,16 +471,16 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, polyid, force=False):
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
-def bed_expression_lexpas(lib_id, exp_id, map_id, map_to, polyid, force=False):
+def bed_expression_lexpas(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     region_start = 10
     region_stop = 60
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
-    if polyid==None:
-        polyid = map_to
-    polyadb_filename = apa.path.polyadb_filename(polyid, filetype="pas")
+    if poly_id==None:
+        poly_id = map_to
+    polyadb_filename = apa.path.polyadb_filename(poly_id, filetype="pas")
 
-    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id)
+    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
