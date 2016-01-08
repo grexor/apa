@@ -19,11 +19,11 @@ if args.lib_id==None:
 # determine experiments to process
 if args.exp_id==None:
     lib = apa.annotation.libs[args.lib_id]
-    eids = lib.experiments.keys()
+    e_ids = lib.experiments.keys()
 else:
-    eids = [args.exp_id] # only one experiment
+    e_ids = [args.exp_id] # only one experiment
 
-for exp_id in eids:
+for exp_id in e_ids:
     if args.type=="raw":
         apa.bed.bed_raw(args.lib_id, exp_id, force=args.force, map_id=args.map_id)
     if args.type=="expression":

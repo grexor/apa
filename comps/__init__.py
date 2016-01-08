@@ -40,7 +40,7 @@ class Comps:
         self.pair_dist = 450
         self.exp_data = {}
         self.polya_db = None
-        self.polya_db_filter = ["strong"] # default
+        self.polya_db_filter = ["strong"] # strong, weak, less
         self.deepbind = None
         self.rnamaps = []
         self.ignore_genes = []
@@ -192,7 +192,7 @@ def process_comps(comps_id, map_id=1):
     assert(len(apa.path.comps_folder)>0)
     files = glob.glob(os.path.join(apa.path.comps_folder, comps_id, "*"))
     for f in files:
-        if not f.endswith(".config"):
+        if not f.endswith(".config") and not f.startswith("docs"):
             print "removing: %s" % f
             if os.path.isdir(f):
                 shutil.rmtree(f)
@@ -270,6 +270,7 @@ def process_comps(comps_id, map_id=1):
                 positions.setdefault(chr, {}).setdefault(strand, set())
                 valid_positions = set()
                 for pos in pos_set:
+                    # filter poly-A positions by type (strong, weak, etc)
                     if comps.polya_db!=None and comps.db_type=="cs":
                         polya_db_item = polydb.get((chr, strand, pos), None)
                         if polya_db_item.get("pas_type", None) in comps.polya_db_filter:
@@ -469,7 +470,10 @@ def process_comps(comps_id, map_id=1):
         if len(sites)<2:
             continue
 
-        L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+        if len(comps.CLIP)>0:
+            L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+        else:
+            L = [(0, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
         # determine major / minor sites
         S_clip = copy.deepcopy(L)
         S_clip.sort(key=lambda x: x[0], reverse=True) # sort by clip_binding
@@ -477,13 +481,13 @@ def process_comps(comps_id, map_id=1):
         S_exp.sort(key=lambda x: x[1], reverse=True) # sort by expression
 
         if S_clip[0][0]>0:
-            major = S_clip[0][-1]
-            minor = S_exp[0][-1]
+            major = S_clip[0][-1] # take position of most bound site
+            minor = S_exp[0][-1] # take position of most expressed site
             if major["pos"]==minor["pos"]:
                 minor = S_exp[1][-1]
         else:
-            major = S_exp[0][-1]
-            minor = S_exp[1][-1]
+            major = S_exp[0][-1] # most expressed
+            minor = S_exp[1][-1] # second most expressed
 
         # what kind of pair is it?
         pair_type = apa.polya.annotate_pair(comps.species, chr, strand, major["pos"], minor["pos"])

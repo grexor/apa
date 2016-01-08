@@ -25,16 +25,13 @@ def worker():
         q.task_done()
 
 # get experiments
-e_ids = apa.annotation.libs[args.lib].experiments.keys()
+e_ids = apa.annotation.libs[args.lib_id].experiments.keys()
 
 # raw
 tasks = []
 for e_id in e_ids:
-    if args.type=="expression" and args.poly!=None:
-        tasks.append("apa.bed -type %s -lib_id %s -exp %s -force -poly_id %s -map_id %s" % (args.type, args.lib_id, e_id, args.poly_id, args.map_id))
-    else:
-        tasks.append("apa.bed -type %s -lib_id %s -exp %s -force -map_id %s" % (args.type, args.lib_id, e_id, args.map_id))
-    print tasks[-1]
+    tasks.append("apa.bed -type %s -lib_id %s -exp %s -force -poly_id %s -map_id %s" % (args.type, args.lib_id, e_id, args.poly_id, args.map_id))
+    print tasks[-1] # print the last added task
 
 for i in range(num_worker_threads):
      t = Thread(target=worker)

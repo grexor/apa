@@ -408,13 +408,14 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
         apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
-    apa.bed.bed_expression_lexpas(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
+
+    # process PAS database
+    #apa.bed.bed_expression_lexpas(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
-    e_filename_ucsc = apa.path.e_filename(lib_id, exp_id, filetype="ucsc", map_id=map_id, poly_id=poly_id)
     polyadb_filename = apa.path.polyadb_filename(genome)
 
 
@@ -427,15 +428,6 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename)
 
-    if os.path.exists(e_filename_ucsc) and not force:
-        print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
-    else:
-        print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
-        open(e_filename_ucsc, "wt").close() # touch E BED (processing)
-        e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
-        e.save(e_filename_ucsc, genome=map_to, track_id="%s_e%s_m1" % (lib_id, exp_id))
-
 def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
@@ -446,9 +438,9 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
 
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
-        print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
+        print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
@@ -463,9 +455,9 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
 
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print "%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
-        print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
+        print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
@@ -482,9 +474,9 @@ def bed_expression_lexpas(lib_id, exp_id, map_id, map_to, poly_id, force=False):
 
     e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s_ucsc : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
-        print "%s_e%s_m%s_ucsc : E BED file : start" % (lib_id, exp_id, map_id)
+        print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=region_start, stop=region_stop)

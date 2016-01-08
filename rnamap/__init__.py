@@ -674,14 +674,14 @@ def process(comps_id, surr=200):
         if s1_pos!=None:
             s1_seq = pybio.genomes.seq(genome, chr, strand, s1_pos, start=-s1_lenup, stop=s1_lendown)
         else:
-            s1_seq = "0"
+            s1_seq = "N"
         if s2_pos!=None:
             s2_seq = pybio.genomes.seq(genome, chr, strand, s2_pos, start=-s2_lenup, stop=s2_lendown)
         else:
-            s2_seq = "0"
+            s2_seq = "N"
+
         proximal_seq = adjust_len(proximal_seq, proximal_lenup, proximal_lendown, surr)
         distal_seq = adjust_len(distal_seq, distal_lenup, distal_lendown, surr)
-
         s1_seq = adjust_len(s1_seq, s1_lenup, s1_lendown, surr)
         s2_seq = adjust_len(s2_seq, s2_lenup, s2_lendown, surr)
 
@@ -697,17 +697,17 @@ def process(comps_id, surr=200):
         present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], proximal_pre)]
 
         # should be removed
-        if comps.polya_db!=None:
-            if comps.db_type in ["pas", "cs"]:
-                proximal_pos += {"-":-1, "+":1}[strand] * int(polydb[(chr, strand, proximal_pos)]["%s_loci" % comps.db_type])
-                distal_pos += {"-":-1, "+":1}[strand] * int(polydb[(chr, strand, distal_pos)]["%s_loci" % comps.db_type])
-            if comps.db_type in ["pas_manual"]:
-                proximal_seq_trim = proximal_seq[:200].rfind("AATAAA")
-                distal_seq_trim = distal_seq[:200].rfind("AATAAA")
-                if proximal_seq_trim!=-1:
-                    proximal_pos += {"-":1, "+":-1}[strand] * (200-proximal_seq_trim)
-                if distal_seq_trim!=-1:
-                    distal_pos += {"-":1, "+":-1}[strand] * (200-distal_seq_trim)
+        #if comps.polya_db!=None:
+        #    if comps.db_type in ["pas", "cs"]:
+        #        proximal_pos += {"-":-1, "+":1}[strand] * int(polydb[(chr, strand, proximal_pos)]["%s_loci" % comps.db_type])
+        #        distal_pos += {"-":-1, "+":1}[strand] * int(polydb[(chr, strand, distal_pos)]["%s_loci" % comps.db_type])
+        #    if comps.db_type in ["pas_manual"]:
+        #        proximal_seq_trim = proximal_seq[:200].rfind("AATAAA")
+        #        distal_seq_trim = distal_seq[:200].rfind("AATAAA")
+        #        if proximal_seq_trim!=-1:
+        #            proximal_pos += {"-":1, "+":-1}[strand] * (200-proximal_seq_trim)
+        #        if distal_seq_trim!=-1:
+        #            distal_pos += {"-":1, "+":-1}[strand] * (200-distal_seq_trim)
 
         if proximal_reg in ["e", "r"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
@@ -815,8 +815,8 @@ def process(comps_id, surr=200):
         for pair_type in ["tandem", "composite", "skipped"]:
             for site in ["proximal", "distal"]:
                 for reg in ["r", "e"]:
-                    sname = "%s_%s_%s.fasta" % (site, reg, pair_type)
-                    dname = "%s_%s_%s_deepbind.tab" % (site, reg, pair_type)
+                    sname = "%s_%s_%s.fasta" % (site, pair_type, reg)
+                    dname = "%s_%s_%s_deepbind.tab" % (site, pair_type, reg)
                     sname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", sname)
                     dname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", dname)
                     os.system("./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname))
@@ -826,9 +826,9 @@ def process(comps_id, surr=200):
         ymax_db = {"tandem":0, "composite":0, "skipped":0}
         for pair_type in ["tandem", "composite", "skipped"]:
             for site in ["proximal", "distal"]:
-                neg_name = "%s_r_%s_deepbind.tab" % (site, pair_type)
+                neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
                 neg_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", neg_name)
-                pos_name = "%s_e_%s_deepbind.tab" % (site, pair_type)
+                pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
                 pos_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", pos_name)
                 vneg, _ = read_deepbind(neg_name)
                 vpos, _ = read_deepbind(pos_name)
@@ -839,9 +839,9 @@ def process(comps_id, surr=200):
 
         for pair_type in ["tandem", "composite", "skipped"]:
             for site in ["proximal", "distal"]:
-                neg_name = "%s_r_%s_deepbind.tab" % (site, pair_type)
+                neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
                 neg_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", neg_name)
-                pos_name = "%s_e_%s_deepbind.tab" % (site, pair_type)
+                pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
                 pos_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", pos_name)
                 vneg, vneg_vectors = read_deepbind(neg_name)
                 vpos, vpos_vectors = read_deepbind(pos_name)
