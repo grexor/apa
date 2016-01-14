@@ -24,6 +24,13 @@ def match_pas(seq):
             return True
     return False
 
+def save(data, key, pos_end, read_id):
+    level_1 = data.get(key, {})
+    level_2 = level_1.get(pos_end, set())
+    level_2.add(read_id)
+    level_1[pos_end] = level_2
+    data[key] = level_1
+
 def write_bed(d, filename):
     """
     Save bedGraph file from dictionary d (chr->strand->position->value) to filename.
@@ -138,18 +145,10 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
                 true_site = True
 
             if true_site:
-                temp = dataT.get(key, {})
-                temp2 = temp.get(pos_end, set())
-                temp2.add(rnd_code)
-                temp[pos_end] = temp2
-                dataT[key] = temp
+                save(dataT, key, pos_end, rnd_code)
 
         # update R file
-        temp = dataR.get(key, {})
-        temp2 = temp.get(pos_end, set())
-        temp2.add(rnd_code)
-        temp[pos_end] = temp2
-        dataR[key] = temp
+        save(dataR, key, pos_end, rnd_code)
 
     write_bed(dataR, r_filename)
     write_bed(dataT, t_filename)
@@ -181,7 +180,7 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
         a_number += 1
 
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sK reads processed : %s" % (lib_id, exp_id, map_id, a_number/1000, bam_filename)
+            print "%s_e%s_m%s : %sM reads processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
 
         cigar = a.cigar
         cigar_types = [t for (t, v) in cigar]
@@ -211,30 +210,15 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
 
         key = "%s:%s" % (chr, strand)
 
-        # update T file
-        true_site = True
-        downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=1, stop=15)
+        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
         upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
 
-        if downstream_seq.startswith("AAAAA") or downstream_seq[:10].count("A")>=6:   #or upstream_seq.endswith("AAAA") or upstream_seq[-10:].count("A")>=5:
-            true_site = False
-
-        if match_pas(upstream_seq):
-            true_site = True
-
-        if true_site:
-            temp = dataT.get(key, {})
-            temp2 = temp.get(pos_end, set())
-            temp2.add(read_id)
-            temp[pos_end] = temp2
-            dataT[key] = temp
+        # TODO (define clipping)
+        if match_pas(upstream_seq) and clipping>10:
+            save(dataT, key, pos_end, read_id)
 
         # update R file
-        temp = dataR.get(key, {})
-        temp2 = temp.get(pos_end, set())
-        temp2.add(read_id)
-        temp[pos_end] = temp2
-        dataR[key] = temp
+        save(dataR, key, pos_end, read_id)
 
     # write R file
     write_bed(dataR, r_filename)
@@ -243,6 +227,8 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
 
 def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexfwd")
+    read_len = apa.get_read_len(lib_id, exp_id)
+
     # http://www.cgat.org/~andreas/documentation/pysam/api.html
     # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
@@ -270,45 +256,8 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     len_dist = {}
     ft = {}
 
-    def aremoved_key(aremoved):
-        if aremoved==0:
-            return 0
-        elif 1<=aremoved<=10:
-            return 10
-        elif 11<=aremoved<=20:
-            return 20
-        elif 21<=aremoved<=30:
-            return 30
-        elif 31<=aremoved<=40:
-            return 40
-        elif 41<=aremoved<=50:
-            return 50
-        elif 51<=aremoved<=60:
-            return 60
-        elif 61<=aremoved<=70:
-            return 70
-        elif 71<=aremoved<=80:
-            return 80
-        elif 81<=aremoved<=90:
-            return 90
-        elif 91<=aremoved<=100:
-            return 100
-        elif 101<=aremoved<=110:
-            return 110
-        elif 111<=aremoved<=120:
-            return 120
-        elif 121<=aremoved<=130:
-            return 130
-        elif 131<=aremoved<=140:
-            return 140
-        elif 141<=aremoved<=150:
-            return 150
-
     for a in bam_file.fetch():
         a_number += 1
-
-        #if a_number>10000:
-        #    break
 
         if a_number%10000==0:
             print "%s_e%s_m%s : %sK reads processed : %s" % (lib_id, exp_id, map_id, a_number/1000, bam_filename)
@@ -325,62 +274,21 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
             pos_end = a.pos
             assert(pos_end==a.positions[0])
 
-        aremoved = 0
-        if a.is_reverse:
-            last_cigar = a.cigar[0]
-        else:
-            last_cigar = a.cigar[-1]
-        if last_cigar[0]==4:
-            aremoved = last_cigar[1]
-
         key = "%s:%s" % (chr, strand)
 
-        t1 = ft.get(aremoved_key(aremoved), {})
-        t2 = t1.get(key, {})
-        t3 = t2.get(pos_end, set())
-        t3.add(read_id)
-        t2[pos_end] = t3
-        t1[key] = t2
-        ft[aremoved_key(aremoved)] = t1
+        clipping = read_len - int(a.cigar[0][1])
 
-        # search for 15A and update T files
-        read_seq = a.seq # sequence of read
-        sur_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-18)
+        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
+        upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
 
-        #hit_read = regex.search(r'A(?:AAAAAAAAAAAAAAA){s<=4}', read_seq)
-        internal = internal_priming(sur_seq)
+        if match_pas(upstream_seq) and clipping>10:
+            save(dataT, key, pos_end, read_id)
 
-        if not internal:
-            temp = dataT.get(key, {})
-            temp2 = temp.get(pos_end, set())
-            temp2.add(read_id)
-            temp[pos_end] = temp2
-            dataT[key] = temp
-
-        # update R file
-        temp = dataR.get(key, {})
-        temp2 = temp.get(pos_end, set())
-        temp2.add(read_id)
-        temp[pos_end] = temp2
-        dataR[key] = temp
-        len_dist[aremoved_key(aremoved)] = len_dist.get(aremoved_key(aremoved), 0) + 1
+        save(dataR, key, pos_end, read_id)
 
     write_bed(dataR, r_filename)
     write_bed(dataT, t_filename)
 
-    f = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_clipped_dist.tab" % lib_id), "wt")
-    f.write("shows how many of the mapped reads were 3' clipped and by how much [nt]\n")
-    f.write("\t".join(["clipped_3", "#reads", "percentage_of_all_mapped"])+"\n")
-    keys = len_dist.keys()
-    keys.sort()
-    for k in keys:
-        row = [k, len_dist[k], "%.2f" % (len_dist[k]/float(a_number))]
-        f.write("\t".join([str(x) for x in row])+ "\n")
-    f.close()
-
-    for aremoved, data in ft.items():
-        fname = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.T%s.bed" % (lib_id, exp_id, map_id, aremoved))
-        write_bed(data, fname)
     return
 
 def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
@@ -408,9 +316,6 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
         apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
-
-    # process PAS database
-    #apa.bed.bed_expression_lexpas(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
@@ -461,23 +366,4 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
-        e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
-
-def bed_expression_lexpas(lib_id, exp_id, map_id, map_to, poly_id, force=False):
-    region_start = 10
-    region_stop = 60
-    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
-    if poly_id==None:
-        poly_id = map_to
-    polyadb_filename = apa.path.polyadb_filename(poly_id, filetype="pas")
-
-    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=poly_id)
-    if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
-    else:
-        print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
-        open(e_filename, "wt").close() # touch E BED (processing)
-        e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, start=region_start, stop=region_stop)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))

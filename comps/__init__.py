@@ -32,14 +32,14 @@ class Comps:
         self.control_name = ""
         self.species = ""
         self.CLIP = []
-        self.cDNA_thr = 5 # at least cDNA
-        self.presence_thr = 2.0 # for at least half of experiments
+        self.cDNA_thr = 2 # 5 # at least cDNA
+        self.presence_thr = 3 # 2.0 # for at least half of experiments
         self.pc_thr = 0.1
         self.fisher_thr = 0.1
         self.control_thr = 0.025
         self.pair_dist = 450
         self.exp_data = {}
-        self.polya_db = None
+        self.polya_db = ""
         self.polya_db_filter = ["strong"] # strong, weak, less
         self.deepbind = None
         self.rnamaps = []
@@ -210,7 +210,7 @@ def process_comps(comps_id, map_id=1):
     # if there is a polya-db specified in the comparison, load the positions into the filter
     # (strong, weak, less)
     poly_filter = {}
-    if comps.polya_db!=None and comps.db_type=="cs":
+    if comps.polya_db!="" and comps.db_type=="cs":
         polydb = apa.polya.read(comps.polya_db)
 
     replicates = []
@@ -225,9 +225,9 @@ def process_comps(comps_id, map_id=1):
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
             if comps.db_type=="cs":
-                e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
+                e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
             elif comps.db_type=="pas":
-                e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id)
+                e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=comps.polya_db)
             expression[comp_id].load(e_filename)
             print "adding: %s to %s" % (id, comp_id)
         print
@@ -253,9 +253,9 @@ def process_comps(comps_id, map_id=1):
                 lib_id = id[:id.rfind("_")]
                 exp_id = int(id.split("_")[-1][1:])
                 if comps.db_type=="cs":
-                    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
+                    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
                 elif comps.db_type=="pas":
-                    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id)
+                    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=comps.polya_db)
                 b.load(e_filename)
         bed_filename = os.path.join(beds_folder, "%s.%s_all.bed" % (comps_id, sample_name))
         b.save(bed_filename, track_id="%s.%s_all" % (comps_id, sample_name), genome=comps.species)
@@ -271,7 +271,7 @@ def process_comps(comps_id, map_id=1):
                 valid_positions = set()
                 for pos in pos_set:
                     # filter poly-A positions by type (strong, weak, etc)
-                    if comps.polya_db!=None and comps.db_type=="cs":
+                    if comps.polya_db!="" and comps.db_type=="cs":
                         polya_db_item = polydb.get((chr, strand, pos), None)
                         if polya_db_item.get("pas_type", None) in comps.polya_db_filter:
                             valid_positions.add(pos)
@@ -708,7 +708,7 @@ def utr_boxplot(study_id, comps_id):
         for id in experiments:
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
-            e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id)
+            e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
             expression[comp_id].load(e_filename)
         print
 

@@ -508,7 +508,8 @@ def coords(strand, proximal, distal, s1, s2, surr=200):
     def dist(L):
         R = []
         for x,y in zip(L, L[1:]):
-            R.append(y-x-1)
+            #R.append(y-x-1)
+            R.append(y-x) # coords("-", 213864426, 213814546, 213864427, 213864427)
         return R
     sites = []
     indices = {}

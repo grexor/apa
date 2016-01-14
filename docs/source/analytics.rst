@@ -10,13 +10,13 @@ Methods
 apa-db.org supports several 3' end sequencing protocols. After read pre-processing and alignment to the reference, the main difference between
 these protocols is in determining the cleavage site loci and in further filtering steps (see below).
 
-======== ============================= =============
-protocol description                   site loci
-======== ============================= =============
-pA-seq   Wang et al., unpublished      last nucleotide of alignment
-lex_fwd  Lexogen 3' forward            last nucleotide of alignment
-lex_rev  Lexogen 3' reverse            first nucleotide of alignment
-======== ============================= =============
+====================================== ================================ ===================
+Protocol                               Cleavage site                    Read attributes
+====================================== ================================ ===================
+pAseq, Wang et al., unpublished        3'-end nucleotide of alignment   A rich at 3'-end
+Lexogen 3' forward                     3'-end nucleotide of alignment   A rich at 3'-end
+Lexogen 3' reverse                     5'-end nucleotide of alignment   T rich at 5'-end
+====================================== ================================ ===================
 
 .. _r_bedgraph_method:
 
@@ -56,17 +56,22 @@ pA-seq (Wang et al.)
 Lexogen 3' forward
 ######################
 
-The assignment of the cleavage site follows this procedure:
+This protocol produces A-rich reads at the 3'-end of the sequence. The assignment of the cleavage site loci is as follows:
 
-#. set the site loci (cs_loci) as the last (3' end) nucleotide of the alignment
-#. check 18nt upstream of cs_loci: IF #A>10, skip alignment
+#. set the CS site as the last (3' end) nucleotide of the mapped read (alignment)
+#. if the last 20nt of the alignment is A-rich (#A>10), skip it (genomic priming)
 
-Since we allow soft clipping and do not pre-process the reads, we need to check the ending of the alignment for internal priming.
+Finally, construct the APA local-atlas from the CS-loci.
 
 Lexogen 3' reverse
 ######################
 
-To-do docs
+This protocol produces T-rich reads at the 5'-end of the sequence. The assignment of the cleavage site loci is as follows:
+
+#. set the CS site as the first (5' end) nucleotide of the mapped read (alignment)
+#. if the first 20nt of the alignment is T-rich (#T>10), skip it (genomic priming)
+
+Finally, construct the APA local-atlas from the CS-loci.
 
 Local poly-A atlas (database)
 ===========================
@@ -84,7 +89,7 @@ This config file contains the experiment identifiers, e.g.:
   elib_e1
   elib_e2
   elib_e3
-  elib_e4
+  ...
 
 We group together T bedGraph files from the defined experiments (in this example e1, e2, e3 and e4) and:
 

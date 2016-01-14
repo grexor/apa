@@ -34,16 +34,16 @@ def t_filename(lib_id, exp_id, map_id=1):
     """
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.T.bed" % (lib_id, exp_id, map_id))
 
-def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s.lock" % lock)
-
 def e_filename(lib_id, exp_id, map_id=1, poly_id="", filetype=None):
     if poly_id=="":
         poly_id = lib_id
-    if filetype!=None:
-        return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s%s.%s.E.bed" % (lib_id, exp_id, map_id, poly_id, filetype))
+    #if filetype!=None:
+    #    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_hg19.%s.E.bed" % (lib_id, exp_id, map_id, filetype))
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.E.bed" % (lib_id, exp_id, map_id, poly_id))
 
+def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s.lock" % lock)
+    
 def polyadb_filename(poly_id, filetype="bed"):
     if filetype=="bed":
         return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)

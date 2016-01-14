@@ -10,4 +10,4 @@ parser.add_argument('-map_id', type=int, action="store", dest="map_id", default=
 args = parser.parse_args()
 
 apa.polya.process(args.poly_id, map_id=args.map_id)
-apa.polya.pas_db(args.poly_id, map_id=args.map_id)
+#apa.polya.pas_db(args.poly_id, map_id=args.map_id)
