@@ -845,6 +845,9 @@ def process(comps_id, surr=200):
 <head>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 </head>
+"""
+
+    head += "<title>" + comps_id + "</title>" + """
 
 <script type="text/javascript" src="https://apa-db.org/software/highslide/highslide/highslide.js"></script>
 <link rel="stylesheet" type="text/css" href="https://apa-db.org/software/highslide/highslide/highslide.css" />
