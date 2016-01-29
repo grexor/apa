@@ -155,23 +155,25 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
 
 def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexrev")
+    read_len = apa.get_read_len(lib_id, exp_id)
 
-    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+    #r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
     t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
 
     # don't redo analysis if files exists
-    if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
-        print "%s_e%s_m%s : R/T BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+    if (os.path.exists(t_filename) and not force):
+        print "%s_e%s_m%s : tail BED : already processed or currently processing" % (lib_id, exp_id, map_id)
         return
 
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
 
-    open(r_filename, "wt").close()
+    #open(r_filename, "wt").close()
     open(t_filename, "wt").close()
 
-    dataR = {}
+    #dataR = {}
     dataT = {}
+
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     bam_file = pysam.Samfile(bam_filename)
@@ -205,24 +207,20 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
             pos_end = a.positions[0]
         else:
             pos_end = a.positions[-1]
-        # for lexrev, we turn strand
-        strand = {"+":"-", "-":"+"}[strand]
 
+        strand = {"+":"-", "-":"+"}[strand] # for lexrev, we turn strand
         key = "%s:%s" % (chr, strand)
 
-        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-        upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
+        #clipping = read_len - len(a.query)
+        #assert(clipping>=0)
+        #check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
+        #upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
 
-        # TODO (define clipping)
-        if match_pas(upstream_seq) and clipping>10:
-            save(dataT, key, pos_end, read_id)
+        #if clipping>=20:
+        save(dataT, key, pos_end, read_id)
+        #save(dataR, key, pos_end, read_id)
 
-        # update R file
-        save(dataR, key, pos_end, read_id)
-
-    # write R file
-    write_bed(dataR, r_filename)
-    # write T file
+    #write_bed(dataR, r_filename)
     write_bed(dataT, t_filename)
 
 def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
@@ -277,7 +275,7 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
         key = "%s:%s" % (chr, strand)
 
         clipping = read_len - int(a.cigar[0][1])
-
+        assert(clipping>=0)
         check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
         upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
 
@@ -335,7 +333,7 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
 
 def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+    t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
 
     if poly_id==None:
         poly_id = map_to
@@ -348,7 +346,7 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
+        e.overlay(polyadb_filename, t_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
 def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):

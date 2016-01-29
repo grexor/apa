@@ -86,26 +86,9 @@ def process(poly_id, map_id=1):
             bed.load(t_filename, meta=meta)
             print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
 
-    # filter database
-    bed.filter(min_distance=125)
+    bed.filter(min_distance=125) # construct main poly-A sites
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
     annotate(poly_id)
-
-def read(poly_id):
-    db = {}
-    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
-    print "reading polya_db: %s" % polyadb_tab
-    f = open(polyadb_tab, "rt")
-    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        data = dict(zip(header, r))
-        key = (data["chr"], data["strand"], int(data["pos"]))
-        db[key] = data
-        r = f.readline()
-    f.close()
-    return db
 
 def get_gene(species, gid):
     # only used by apa.sition
@@ -200,7 +183,7 @@ def classify_polya(poly_id):
     Use polyar to classify those sites.
     Update the polya_db.tab file to include site type (strong, weak, less, "").
     Empty means no CS detected;
-    Also add the location of the CS.
+    Also add the location of the CS and PAS signal.
     """
 
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
@@ -225,7 +208,7 @@ def classify_polya(poly_id):
             id = line[0][4:]
             strand = id[0]
             chr = id.split(":")[0][1:]
-            pos = id.split(":")[1]
+            pos = int(id.split(":")[1])
             pas_type = ""
             cs = ""
             pas = ""
@@ -236,27 +219,34 @@ def classify_polya(poly_id):
                             pas_type = "weak"
                     elif line[2].find("less")!=-1:
                             pas_type = "less"
-                    cs = int(line[3].replace("\t", "").split("CS:")[1][:5]) - 100 # since sequence is -100, 100, the loci 100 on the sequence = 0 (detected and predicted the same)
+                    cs = int(line[3].replace("\t", "").split("CS:")[1][:5]) - 100 # because sequence is -100, 100, 100 = 0
                     if line[3].replace("\t", "").find("PAS")!=-1:
-                        pas = int(line[3].replace("\t", "").split("PAS:")[1][:5]) - 100 # since sequence is -100, 100, the loci 100 on the sequence = 0 (detected and predicted the same)
+                        pas = int(line[3].replace("\t", "").split("PAS:")[1][:5]) - 100 # because sequence is -100, 100, 100 = 0
             polyar_results[(chr, strand, pos)] = (pas_type, pas, cs)
 
     f = open(polyadb_tab, "rt")
-    fout = open("%s.tab" % poly_id, "wt")
+    files = {}
+    f_tab = open("%s.tab" % poly_id, "wt")
+    for poly_type in ["tab", "strong", "weak", "less", "noclass"]:
+        files[poly_type] = open(apa.path.polyadb_filename(poly_id, poly_type=poly_type, filetype="bed"), "wt")
     header = f.readline()
-    fout.write(header)
-
+    f_tab.write(header)
     r = f.readline()
     while r:
     	r = r.replace("\n", "").replace("\r", "").split("\t")
-    	chr = r[0]
-    	strand = r[1]
-    	pos = r[2]
-    	r[-4], r[-3], r[-2] = polyar_results[(chr, strand, pos)]
-    	fout.write("\t".join([str(e) for e in r])+"\n")
+    	chr, strand, pos, gene_id, gene_name, interval, cDNA = r[0], r[1], int(r[2]), r[3], r[4], r[5], float(r[6])
+        pas_type, pas_offset, cs_offset = polyar_results[(chr, strand, pos)]
+        if pas_type=="":
+            pas_type="noclass"
+        r[-4], r[-3], r[-2] = pas_type, pas_offset, cs_offset
+    	f_tab.write("\t".join([str(e) for e in r])+"\n")
+        bed_row = [chr, pos, pos+1, cDNA]
+        files[pas_type].write("\t".join(str(e) for e in bed_row) + "\n")
     	r = f.readline()
     f.close()
-    fout.close()
+    f_tab.close()
+    for f in files.values():
+        f.close()
 
     os.system("cp %s.tab %s" % (poly_id, polyadb_tab))
     os.system("rm %s.res" % poly_id)
@@ -268,13 +258,13 @@ def polyadb_class_histogram(poly_id):
 
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
     f = open(polyadb_tab, "rt")
-    y = {"strong":[], "weak":[], "less":[]}
+    y = {"strong":[], "weak":[], "less":[], "noclass":[]}
     header = f.readline().replace("\n", "").replace("\r", "").split("\t")
     r = f.readline()
     while r:
         r = r.replace("\n", "").replace("\r", "").split("\t")
         data = dict(zip(header, r))
-        if data["pas_type"]!="":
+        if data["pas_type"]!="noclass":
             y.setdefault
             y[data["pas_type"]].append(int(data["cs_loci"]))
         r = f.readline()

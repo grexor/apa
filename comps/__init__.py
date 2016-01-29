@@ -32,15 +32,15 @@ class Comps:
         self.control_name = ""
         self.species = ""
         self.CLIP = []
-        self.cDNA_thr = 2 # 5 # at least cDNA
-        self.presence_thr = 3 # 2.0 # for at least half of experiments
+        self.cDNA_thr = 5 # at least cDNA
+        self.presence_thr = 2.0 # for at least half of experiments
         self.pc_thr = 0.1
         self.fisher_thr = 0.1
         self.control_thr = 0.025
         self.pair_dist = 450
         self.exp_data = {}
         self.polya_db = ""
-        self.polya_db_filter = ["strong"] # strong, weak, less
+        self.poly_type = ["strong"] # strong, weak, less, noclass
         self.deepbind = None
         self.rnamaps = []
         self.ignore_genes = []
@@ -119,8 +119,8 @@ def read_comps(comps_id):
             comps.polya_db = r[0].split("polya_db:")[1]
             r = f.readline()
             continue
-        if r[0].startswith("polya_db_filter:"):
-            comps.polya_db_filter = eval(r[0].split("polya_db_filter:")[1])
+        if r[0].startswith("poly_type:"):
+            comps.polya_db_filter = eval(r[0].split("poly_type:")[1])
             r = f.readline()
             continue
         if r[0].startswith("deepbind:"):
@@ -210,8 +210,9 @@ def process_comps(comps_id, map_id=1):
     # if there is a polya-db specified in the comparison, load the positions into the filter
     # (strong, weak, less)
     poly_filter = {}
-    if comps.polya_db!="" and comps.db_type=="cs":
-        polydb = apa.polya.read(comps.polya_db)
+    polydb = pybio.data.Bedgraph()
+    for poly_type in comps.poly_type:
+        polydb.load(apa.path.polyadb_filename(comps.polya_db, poly_type=poly_type, filetype="bed"))
 
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
@@ -270,13 +271,11 @@ def process_comps(comps_id, map_id=1):
                 positions.setdefault(chr, {}).setdefault(strand, set())
                 valid_positions = set()
                 for pos in pos_set:
+
                     # filter poly-A positions by type (strong, weak, etc)
-                    if comps.polya_db!="" and comps.db_type=="cs":
-                        polya_db_item = polydb.get((chr, strand, pos), None)
-                        if polya_db_item.get("pas_type", None) in comps.polya_db_filter:
-                            valid_positions.add(pos)
-                    else:
+                    if polydb.get_value(chr, strand, pos)!=0:
                         valid_positions.add(pos)
+
                 positions[chr][strand] = positions[chr][strand].union(valid_positions)
 
     # organize polya sites / pas signals inside genes

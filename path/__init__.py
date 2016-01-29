@@ -26,27 +26,36 @@ def r_filename(lib_id, exp_id, map_id=1):
 
 def t_filename(lib_id, exp_id, map_id=1):
     """
-    Returns constructed path to :ref:`T bedGraph file <t_bedgraph_method>` from lib_id, exp_id and map_id:
+    Returns constructed path to :ref:`tail bedGraph file <t_bedgraph_method>` from lib_id, exp_id and map_id:
 
     .. code-block:: bash
 
-        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.T.bg
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.tail.bed
     """
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.T.bed" % (lib_id, exp_id, map_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.tail.bed" % (lib_id, exp_id, map_id))
 
-def e_filename(lib_id, exp_id, map_id=1, poly_id="", filetype=None):
+def e_filename(lib_id, exp_id, map_id=1, poly_id=""):
+    """
+    Returns constructed path to :ref:`expression bedGraph file <e_bedgraph_method>` from lib_id, exp_id, poly_id and map_id:
+
+    .. code-block:: bash
+
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}_db-${poly_id}.exp.bed
+    """
     if poly_id=="":
         poly_id = lib_id
-    #if filetype!=None:
-    #    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_hg19.%s.E.bed" % (lib_id, exp_id, map_id, filetype))
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.E.bed" % (lib_id, exp_id, map_id, poly_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp.bed" % (lib_id, exp_id, map_id, poly_id))
 
 def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s.lock" % lock)
-    
-def polyadb_filename(poly_id, filetype="bed"):
+
+# poly_type = "strong", "weak", "less", "noclass"
+def polyadb_filename(poly_id, poly_type=None, filetype="bed"):
     if filetype=="bed":
-        return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)
+        if poly_type!=None:
+            return os.path.join(apa.path.polya_folder, "%s_%s.bed" % (poly_id, poly_type))
+        else:
+            return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)
     if filetype=="pas":
         return os.path.join(apa.path.polya_folder, "%s_pas.bed" % poly_id)
     if filetype=="temp":
@@ -54,7 +63,10 @@ def polyadb_filename(poly_id, filetype="bed"):
     if filetype=="complete":
         return os.path.join(apa.path.polya_folder, "%s_complete.tab" % poly_id)
     if filetype=="tab":
-        return os.path.join(apa.path.polya_folder, "%s.tab" % poly_id)
+        if poly_type!=None:
+            return os.path.join(apa.path.polya_folder, "%s_%s.tab" % (poly_id, poly_type))
+        else:
+            return os.path.join(apa.path.polya_folder, "%s.tab" % poly_id)
     if filetype=="class_hist":
         return os.path.join(apa.path.polya_folder, "%s_class_hist" % poly_id)
     return os.path.join(apa.path.polya_folder, "%s.%s" % (poly_id, filetype))

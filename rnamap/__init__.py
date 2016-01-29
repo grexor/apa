@@ -69,6 +69,8 @@ def read_deepbind(fname):
     return r[:-1], rscaled
 
 def freq(data, all_genes):
+    if len(data)==0:
+        return [0]
     col_sums = []
     for i in range(1, 401+1):
         v = np.array(data[i]) # get column
@@ -357,8 +359,9 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
     cblue = make_colormap([c('white'), c('#838cff'), 0.5, c('#838cff'), c('blue')])
 
     for reg_type, d in [("pos", vpos), ("neg", vneg)]:
+        if len(d)==0:
+            continue
         d = DataFrame(d)
-
         order = d.sum(axis=1).order(ascending=False).index
         vals = [x[2] for x in d.ix[order, 0]]
         s = sum(vals)
@@ -561,8 +564,6 @@ def process(comps_id, surr=200):
     genome = comps.species
     tab_file = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     rnamap_dest = os.path.join(apa.path.comps_folder, comps_id, "rnamap")
-    if comps.polya_db!=None:
-        polydb = apa.polya.read(comps.polya_db)
 
     assert(len(rnamap_dest)>=10)
     if os.path.exists(rnamap_dest):
@@ -696,19 +697,6 @@ def process(comps_id, surr=200):
         present[("distal", distal_reg, pair_type)] = [x+y for x,y in zip(present[("distal", distal_reg, pair_type)], proximal_pre)]
         present[("s1", s1_reg, pair_type)] = [x+y for x,y in zip(present[("s1", s1_reg, pair_type)], proximal_pre)]
         present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], proximal_pre)]
-
-        # should be removed
-        #if comps.polya_db!=None:
-        #    if comps.db_type in ["pas", "cs"]:
-        #        proximal_pos += {"-":-1, "+":1}[strand] * int(polydb[(chr, strand, proximal_pos)]["%s_loci" % comps.db_type])
-        #        distal_pos += {"-":-1, "+":1}[strand] * int(polydb[(chr, strand, distal_pos)]["%s_loci" % comps.db_type])
-        #    if comps.db_type in ["pas_manual"]:
-        #        proximal_seq_trim = proximal_seq[:200].rfind("AATAAA")
-        #        distal_seq_trim = distal_seq[:200].rfind("AATAAA")
-        #        if proximal_seq_trim!=-1:
-        #            proximal_pos += {"-":1, "+":-1}[strand] * (200-proximal_seq_trim)
-        #        if distal_seq_trim!=-1:
-        #            distal_pos += {"-":1, "+":-1}[strand] * (200-distal_seq_trim)
 
         if proximal_reg in ["e", "r"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
