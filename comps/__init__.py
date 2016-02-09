@@ -271,26 +271,34 @@ def process_comps(comps_id, map_id=1):
                 positions.setdefault(chr, {}).setdefault(strand, set())
                 valid_positions = set()
                 for pos in pos_set:
-
                     # filter poly-A positions by type (strong, weak, etc)
                     if polydb.get_value(chr, strand, pos)!=0:
                         valid_positions.add(pos)
-
                 positions[chr][strand] = positions[chr][strand].union(valid_positions)
 
     # organize polya sites / pas signals inside genes
     gsites = {}
+
+    num_sites = 0
+    num_sites_genes = set()
+    num_sites_genes_expressed = 0
+    num_sites_genes_expressed_final = 0
+    num_genes = 0
+
     for chr, strand_data in positions.items():
         for strand, pos_set in strand_data.items():
             pos_set = list(pos_set)
             for pos in pos_set:
+                num_sites += 1
                 gene_up, gene_id, gene_down, gene_interval = apa.polya.annotate_position(comps.species, chr, strand, pos)
                 if gene_id==None: # only consider polya sites inside genes
                     continue
+                num_sites_genes.add(gene_id)
                 sites = gsites.get(gene_id, {})
                 cDNA_sum = 0
                 expression_vector = []
                 site_data = {"pos":pos, "gene_interval":list(gene_interval)} # store position and gene_interval (start, stop, exon/intron), clip binding
+
                 # get clip data
                 for clip_name in comps.CLIP:
                     site_data[clip_name] = clip[clip_name].get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
@@ -310,6 +318,7 @@ def process_comps(comps_id, map_id=1):
                 site_data["cDNA_sum"] = int(cDNA_sum)
                 sites[pos] = site_data
                 gsites[gene_id] = sites
+                num_sites_genes_expressed += 1
 
     # filter out sites that have expression < minor_major_thr of maximally expressed site
     for gene_id, sites in gsites.items():
@@ -319,6 +328,63 @@ def process_comps(comps_id, map_id=1):
         for pos, site_data in list(sites.items()): # python3 safe
             if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
                 del sites[pos]
+
+    num_sites_per_gene = {}
+    for gene_id, sites in gsites.items():
+        num_sites_per_gene[len(sites.keys())] = num_sites_per_gene.get(len(sites.keys()), 0) + 1
+        num_sites_genes_expressed_final += len(sites.keys())
+
+    print "-----------site stats---------------"
+    print "all polyA sites = %s" % num_sites
+    print "\tpolyA sites assigned to genes = %s" % len(num_sites_genes)
+    print "\t\texpressed enough across experiments = %s" % num_sites_genes_expressed
+    print "\t\t\t>5%% expressed on gene level = %s" % num_sites_genes_expressed_final
+    print "sites per gene:"
+    print num_sites_per_gene.items()
+    print "-----------site stats (end)---------"
+
+    # draw num sites per gene
+    # =======================
+    import matplotlib
+    matplotlib.use("Agg", warn=False)
+    import matplotlib.pyplot as plt
+    import math
+    import gzip
+    from matplotlib import cm as CM
+    import matplotlib.patches as mpatches
+    import matplotlib.ticker as mticker
+    from matplotlib.colors import LinearSegmentedColormap
+    import matplotlib.colors as mcolors
+    matplotlib.rcParams['axes.labelsize'] = 12
+    matplotlib.rcParams['axes.titlesize'] = 12
+    matplotlib.rcParams['xtick.labelsize'] = 12
+    matplotlib.rcParams['ytick.labelsize'] = 12
+    matplotlib.rcParams['legend.fontsize'] = 12
+    matplotlib.rc('axes',edgecolor='gray')
+    matplotlib.rcParams['axes.linewidth'] = 0.4
+    matplotlib.rcParams['legend.frameon'] = 'False'
+    def autolabel(rects):
+        for rect in rects:
+            height = rect.get_height()
+            ax.text(rect.get_x() + rect.get_width()/2., height+100, format(int(height), ','), ha='center', va='bottom', fontdict={"size":10})
+    fig, ax = plt.subplots(1, 1, figsize=(12, 3))
+    x, y, total_sites, total_genes = [], [], 0, 0
+    for x1 in sorted(num_sites_per_gene.keys()):
+        x.append(x1)
+        y.append(num_sites_per_gene[x1])
+        total_sites += num_sites_per_gene[x1] * x1
+        total_genes += num_sites_per_gene[x1]
+    bar1 = ax.bar(x, y, 0.5, label='number of polyA sites', color='lightgray')
+    ax.get_yaxis().set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+    plt.xlim(1-0.25, max(num_sites_per_gene.keys())+0.5)
+    plt.xlabel('number of polyA sites'); plt.ylabel('number of genes')
+    plt.xticks([e+0.25 for e in x], x)
+    autolabel(bar1)
+    plt.title("%s strong polyA sites annotated to %s genes" % (format(int(total_sites), ','), format(int(total_genes), ',')))
+    plt.tight_layout()
+    plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.pdf" % comps_id))
+    plt.close()
+    # =======================
 
     # expression gene level
     fname = apa.path.comps_expression_filename(comps_id)
@@ -454,6 +520,7 @@ def process_comps(comps_id, map_id=1):
     bg_selected_sites_control = pybio.data.Bedgraph()
     bg_selected_sites_test = pybio.data.Bedgraph()
 
+    num_genes = {}
     f_pairs.write("\t".join(header)+"\n")
     results = []
     for gene_id, sites in gsites.items():
@@ -490,7 +557,7 @@ def process_comps(comps_id, map_id=1):
 
         # what kind of pair is it?
         pair_type = apa.polya.annotate_pair(comps.species, chr, strand, major["pos"], minor["pos"])
-
+        num_genes[pair_type] = num_genes.get(pair_type, 0) + 1
         minor_sites = []
         if pair_type=="tandem":
             for site_pos, site_data in sites.items():
@@ -638,6 +705,10 @@ def process_comps(comps_id, map_id=1):
     for row in results:
         f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
+
+    print "----------stats pairs------------"
+    print num_genes.items()
+    print "----------stats pairs (end)------"
 
     # save selected sited bedGraphs
     bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed" % lib_id)

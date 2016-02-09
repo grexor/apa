@@ -43,7 +43,6 @@ cross_ratio = 0.4
 seq_from = -50
 seq_to = 50
 len_seq = seq_to - seq_from + 1
-clip_bin = 10
 
 def make_motifs(size):
     motifs = []
@@ -54,7 +53,7 @@ def make_motifs(size):
 
 types = [("proximal_e", ["proximal_e", "distal_r"], ["proximal_c", "distal_c"]), ("proximal_r", ["proximal_r", "distal_e"], ["proximal_c", "distal_c"])]
 types = [("proximal_e", ["proximal_e"], ["proximal_c"]), ("proximal_r", ["proximal_r"], ["proximal_c"]), ("distal_e", ["distal_e"], ["distal_c"]), ("distal_r", ["distal_r"], ["distal_c"])]
-types = [("proximal", ["proximal_e"], ["proximal_r"]), ("distal", ["distal_e"], ["distal_r"])]
+types = [("proximal", ["proximal_r"], ["proximal_c"]), ("distal", ["distal_e"], ["distal_c"])]
 models = ["randomf", "svm"]
 ftypes = ["A", "B", "C"]
 ftypes = ["A", "D"]
@@ -135,19 +134,9 @@ def make_fasta(comps_id):
         rnamotifs_file = open(rnamotifs_filename, "wt")
         rnamotifs_file.write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
 
-    voom = {}
-    voom_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.voom_exons.tab" % comps_id)
-    f = open(voom_fname, "rt")
-    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        gene_id = r[2]
-        exon_id = r[1]
-        fdr = float(r[-1])
-        voom["%s:%s" % (gene_id, exon_id)] = fdr
-        r = f.readline()
-    f.close()
+    pc_thr = 0.1
+    fisher_thr = 0.1
+    pair_dist = 450
 
     # r = repressed, e = enhanced, c = control
     stats = Counter()
@@ -167,15 +156,14 @@ def make_fasta(comps_id):
         chr = data["chr"]
         strand = data["strand"]
         gene_id = data["gene_id"]
+        gene_name = data["gene_name"]
         proximal_pos = int(data["proximal_pos"])
         distal_pos = int(data["distal_pos"])
         pc = float(data["pc"])
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
-        fdr_voom_up = voom.get("%s:%s" % (gene_id, proximal_pos), 1)
-        fdr_voom_down = voom.get("%s:%s" % (gene_id, distal_pos), 1)
 
-        if abs(proximal_pos-distal_pos)<comps.pair_dist:
+        if abs(proximal_pos-distal_pos)<pair_dist:
             r = f.readline()
             continue
 
@@ -183,35 +171,24 @@ def make_fasta(comps_id):
             r = f.readline()
             continue
 
-        # filtering by Fisher
-        reg_proximal = None
-        if pc>0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
-            reg_proximal = "e"
-        if pc<0 and abs(pc)>comps.pc_thr and fisher<comps.fisher_thr:
-            reg_proximal = "r"
-        if abs(pc)<comps.control_thr:
-            reg_proximal = "c"
-        if reg_proximal==None:
+        proximal_reg = None
+        if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
+            proximal_reg = "e"
+        if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
+            proximal_reg = "r"
+        if abs(pc)<pc_thr and fisher>fisher_thr:
+            #proximal_reg = "c_up" if pc>0 else "c_down"
+            proximal_reg = "c"
+
+        # also set reg_distal accordingly to proximal_reg
+        distal_reg = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", "c":"c", None:None}[proximal_reg]
+
+        if proximal_reg==None:
             r = f.readline()
             continue
 
-        """
-        # filtering by voom
-        reg_proximal = None
-        if pc>0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
-            reg_proximal = "e"
-        if pc<0 and abs(pc)>comps.pc_thr and fdr_voom_up<comps.fisher_thr and fdr_voom_down<comps.fisher_thr:
-            reg_proximal = "r"
-        if abs(pc)<comps.control_thr:
-            reg_proximal = "c"
-        if reg_proximal==None:
-            r = f.readline()
-            continue
-        """
-
-        reg_distal = {"e":"r", "r":"e", "c":"c"}[reg_proximal]
         row_id += 1
-        for (site_reg, site_type, site_pos) in [(reg_proximal, "proximal", proximal_pos), (reg_distal, "distal", distal_pos)]:
+        for (site_reg, site_type, site_pos) in [(proximal_reg, "proximal", proximal_pos), (distal_reg, "distal", distal_pos)]:
             reg_key = "%s_%s" % (site_type, site_reg)
             stats[reg_key] += 1
             seq = pybio.genomes.seq(comps.species, chr, strand, site_pos, start=seq_from, stop=seq_to)
@@ -222,7 +199,7 @@ def make_fasta(comps_id):
                 fasta = open(fasta_filename, "wt")
             else:
                 fasta = open(fasta_filename, "at")
-            fasta.write(">%s.%s loci=%s:%s:%s:%s\n%s\n" % (reg_key, stats[reg_key], chr, strand, site_pos+seq_from, site_pos+seq_to, seq))
+            fasta.write(">%s.%s %s %s [%s:%s] loci=%s:%s:%s:%s\n%s\n" % (reg_key, stats[reg_key], gene_id, gene_name, seq_from, seq_to, chr, strand, site_pos+seq_from, site_pos+seq_to, seq))
             fasta.close()
 
             # rnamotifs
@@ -282,8 +259,8 @@ def prepare(comps_id):
         pos_to = int(seq_id[3])
         # single positional nucleotides
         if "CLIP" in ftypes:
-            for index in range(0, len_seq, clip_bin):
-                features.append(iclip.get_region(chr, strand, int(pos_from)+index, int(pos_from)+index+clip_bin))
+            for p in range(pos_from, pos_to):
+                features.append(iclip.get_value(chr, strand, p))
 
         if "A" in ftypes:
             for index in range(0, len_seq):
@@ -332,8 +309,8 @@ def prepare(comps_id):
         return result
 
     comps = apa.comps.read_comps(comps_id)
-    if comps.iCLIP_filename not in [None, "None", ""] and "CLIP" in ftypes:
-        iclip_filename = os.path.join(apa.path.iCLIP_folder, comps.iCLIP_filename)
+    if len(comps.CLIP)>0:
+        iclip_filename = os.path.join(apa.path.iCLIP_folder, comps.CLIP[0])
         iclip = pybio.data.Bedgraph(iclip_filename, genome=comps.species, fast=True) # we specify genome since iCLIP data has UCSC chromosome names, this converts it to Ensembl
     else:
         iclip = None
@@ -356,8 +333,8 @@ def prepare(comps_id):
         #        features.append("clip_%s" % index)
         for site in class_0:
             if "CLIP" in ftypes:
-                for index in range(0, len_seq, clip_bin):
-                    features.append("%s_clip%s" % (site, (index+seq_from)))
+                for p in range(0, len_seq-1):
+                    features.append("%s_clip%s" % (site, p))
 
             if "A"in ftypes:
                 for index in range(0, len_seq):

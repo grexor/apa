@@ -82,6 +82,7 @@ def process(poly_id, map_id=1):
         num_read += 1
         meta = ["%s_e%s" % (lib_id, exp_id)] # list of metadata
         t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
+        print t_filename
         if os.path.exists(t_filename):
             bed.load(t_filename, meta=meta)
             print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
@@ -282,7 +283,7 @@ def polyadb_class_histogram(poly_id):
     P.figure(figsize=(20,4))
     n, bins, patches = P.hist([y["strong"], y["weak"], y["less"]], bins=range(-30, 30+1), color=["#FFAEAE", 'lightgreen', "lightblue"], label=['strong', 'weak', "less"], histtype="barstacked", edgecolor="lightgray")
     #P.setp(patches, 'facecolor', 'lightblue', 'alpha', 0.75)
-    P.title("distribution of predicted poly-AR (strong, weak, less) around original sites (pool = %s)" % poly_id)
+    P.title("distribution of predicted poly-AR (strong, weak, less) around CS (atlas = %s)" % poly_id)
     P.ylim(bottom=0)
     #P.xlim(left=-30, right=30)
     P.xlabel("distance [nt]")

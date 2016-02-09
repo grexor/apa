@@ -54,7 +54,7 @@ def polyadb_filename(poly_id, poly_type=None, filetype="bed"):
     if filetype=="bed":
         if poly_type!=None:
             return os.path.join(apa.path.polya_folder, "%s_%s.bed" % (poly_id, poly_type))
-        else:
+        if poly_type==None or poly_type=="all":
             return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)
     if filetype=="pas":
         return os.path.join(apa.path.polya_folder, "%s_pas.bed" % poly_id)
