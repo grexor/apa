@@ -44,6 +44,7 @@ class Comps:
         self.deepbind = None
         self.rnamaps = []
         self.ignore_genes = []
+        self.exclusive_genes = []
         self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
 
     def __str__(self):
@@ -133,6 +134,10 @@ def read_comps(comps_id):
             continue
         if r[0].startswith("ignore_genes:"):
             comps.ignore_genes = r[0].split("ignore_genes:")[1].split(",")
+            r = f.readline()
+            continue
+        if r[0].startswith("exclusive_genes:"):
+            comps.exclusive_genes = eval(r[0].split("exclusive_genes:")[1])
             r = f.readline()
             continue
         if r[0].startswith("db_type:"):
@@ -493,27 +498,15 @@ def process_comps(comps_id, map_id=1):
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
     header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp", "proximal_UG", "distal_pos", "distal_exp", "distal_UG", "s1", "s2"]
-    if comps.control_name!="":
-        header.append("proximal_control [%s]" % comps.control_name)
-        header.append("proximal_control_sum [%s]" % comps.control_name)
-        header.append("distal_control [%s]" % comps.control_name)
-        header.append("distal_control_sum [%s]" % comps.control_name)
-    else:
-        header.append("proximal_control")
-        header.append("proximal_control_sum")
-        header.append("distal_control")
-        header.append("distal_control_sum")
 
-    if comps.test_name!="":
-        header.append("proximal_test [%s]" % comps.test_name)
-        header.append("proximal_test_sum [%s]" % comps.test_name)
-        header.append("distal_test [%s]" % comps.test_name)
-        header.append("distal_test_sum [%s]" % comps.test_name)
-    else:
-        header.append("proximal.test")
-        header.append("proximal_test_sum")
-        header.append("distal.test")
-        header.append("distal_test_sum")
+    header.append("proximal_control")
+    header.append("proximal_control_sum")
+    header.append("distal_control")
+    header.append("distal_control_sum")
+    header.append("proximal.test")
+    header.append("proximal_test_sum")
+    header.append("distal.test")
+    header.append("distal_test_sum")
 
     header += ["pc", "fisher", "pair_type"]
 
@@ -555,8 +548,7 @@ def process_comps(comps_id, map_id=1):
             major = S_exp[0][-1] # most expressed
             minor = S_exp[1][-1] # second most expressed
 
-        # what kind of pair is it?
-        pair_type = apa.polya.annotate_pair(comps.species, chr, strand, major["pos"], minor["pos"])
+        pair_type = apa.polya.annotate_pair(comps.species, chr, strand, major["pos"], minor["pos"]) # what kind of pair is it?
         num_genes[pair_type] = num_genes.get(pair_type, 0) + 1
         minor_sites = []
         if pair_type=="tandem":
@@ -592,50 +584,7 @@ def process_comps(comps_id, map_id=1):
             proximal_site = minor
             distal_site = major
 
-        # also determine splice sites
-        s1 = None
-        s2 = None
-        # https://docs.google.com/drawings/d/1_m4iZ1c9YwKI-NOWMSCSdg2IzEGedj-NaMTIlHqirc0/edit
-        if pair_type=="tandem":
-            interval = proximal_site["gene_interval"]
-            intervals = gene["gene_intervals"]
-            interval_index = intervals.index(interval)
-            interval_upstream_index = (interval_index - 1) if strand=="+" else (interval_index + 1)
-            if interval_upstream_index==-1 or interval_upstream_index>=len(intervals):
-                interval_upstream = None
-            else:
-                interval_upstream = intervals[interval_upstream_index]
-                # some genes are split, e.g. ENSG00000163684 (because of shorter gene priority when encountering overlapping genes)
-                # this causes the gene not to have a structure of oioioi; a situation like oioo can happen
-                # do not consider those cases
-                if interval_upstream[-1]!="i":
-                    interval_upstream = None
-
-            if interval_upstream!=None:
-                if strand=="+":
-                    s1 = interval_upstream[0]
-                    s2 = interval_upstream[1]
-                else:
-                    s1 = interval_upstream[1]
-                    s2 = interval_upstream[0]
-
-        if pair_type=="composite":
-            interval = proximal_site["gene_interval"]
-            assert(interval[-1]=="i")
-            if strand=="+":
-                s1 = interval[0]
-                s2 = interval[1]
-            else:
-                s1 = interval[1]
-                s2 = interval[0]
-
-        if pair_type=="skipped":
-            if strand=="+":
-                s1 = proximal_site["gene_interval"][0]
-                s2 = distal_site["gene_interval"][0]
-            else:
-                s1 = proximal_site["gene_interval"][1]
-                s2 = distal_site["gene_interval"][1]
+        s1, s2 = get_s1_s2(gene_id, chr, strand, comps.species, proximal_site["pos"], distal_site["pos"], pair_type)
 
         proximal_control = []
         proximal_test = []
@@ -716,6 +665,60 @@ def process_comps(comps_id, map_id=1):
 
     bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % lib_id)
     bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % lib_id)
+
+def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type):
+    pybio.genomes.load(genome)
+    gene = apa.polya.get_gene(genome, gene_id)
+    _, _, _, gene_interval = apa.polya.annotate_position(genome, chr, strand, proximal_pos)
+    proximal_site = {"pos":proximal_pos, "gene_interval":list(gene_interval)}
+    _, _, _, gene_interval = apa.polya.annotate_position(genome, chr, strand, distal_pos)
+    distal_site = {"pos":distal_pos, "gene_interval":list(gene_interval)}
+
+    s1 = None
+    s2 = None
+    # https://docs.google.com/drawings/d/1_m4iZ1c9YwKI-NOWMSCSdg2IzEGedj-NaMTIlHqirc0/edit
+
+    if pair_type=="tandem":
+        interval = proximal_site["gene_interval"]
+        intervals = gene["gene_intervals"]
+        interval_index = intervals.index(interval)
+        interval_upstream_index = (interval_index - 1) if strand=="+" else (interval_index + 1)
+        if interval_upstream_index==-1 or interval_upstream_index>=len(intervals):
+            interval_upstream = None
+        else:
+            interval_upstream = intervals[interval_upstream_index]
+            # some genes are split, e.g. ENSG00000163684 (because of shorter gene priority when encountering overlapping genes)
+            # this causes the gene not to have a structure of oioioi; a situation like oioo can happen
+            # do not consider those cases
+            if interval_upstream[-1]!="i":
+                interval_upstream = None
+        if interval_upstream!=None:
+            if strand=="+":
+                s1 = interval_upstream[0]
+                s2 = interval_upstream[1]
+            else:
+                s1 = interval_upstream[1]
+                s2 = interval_upstream[0]
+
+    if pair_type=="composite":
+        interval = proximal_site["gene_interval"]
+        assert(interval[-1]=="i")
+        if strand=="+":
+            s1 = interval[0]
+            s2 = interval[1]
+        else:
+            s1 = interval[1]
+            s2 = interval[0]
+
+    if pair_type=="skipped":
+        if strand=="+":
+            s1 = proximal_site["gene_interval"][0]
+            s2 = distal_site["gene_interval"][0]
+        else:
+            s1 = proximal_site["gene_interval"][1]
+            s2 = distal_site["gene_interval"][1]
+
+    return s1, s2
 
 def distance_hist(comps_id):
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)

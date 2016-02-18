@@ -366,54 +366,36 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         vals = [x[2] for x in d.ix[order, 0]]
         s = sum(vals)
         c = 0
-        indices = []
-        for i in order:
-            z = d.ix[i, 0]
-            c += z[2]
-            indices.append(i)
 
-        indices = indices[:20]
-
-        # Plot it out
         fig, ax = plt.subplots()
-
-        # -min, divide by (max-min)
-        #dn = d.ix[indices, 1:].sub(d.ix[indices, 1:].min(axis=1), axis=0)
-        #dn_div = dn.max(axis=1)-dn.min(axis=1)
-        #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
-        #dn = dn.div(dn_div, axis=0)
-
-        # A: divide by row sum
-        #dn = d.ix[indices, 1:] # get only subset of rows
-        #dn_div = dn.sum(axis=1) # get row sums
-        #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
-        #dn = dn.div(dn_div, axis=0) # divide by row sums
-
-        # B: divide by max value in whole table
-        dn = d.ix[indices, 1:]
+        dn = d.ix[order[:20], 1:] # divide by max value per line
         dn_div = dn.max()
         dn_div = dn_div.replace(0, 1)
         dn = dn.div(dn_div)
 
         if reg_type=="pos":
-            #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Reds, alpha=alpha)
-            heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha)
+            heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha, vmin=0, vmax=1)
         else:
-            #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Blues, alpha=alpha)
-            heatmap = ax.pcolor(dn, cmap=cblue, alpha=alpha)
+            heatmap = ax.pcolor(dn, cmap=cblue, alpha=alpha, vmin=0, vmax=1)
 
         fig = plt.gcf()
         fig.set_size_inches(30, 5)
 
-        ax.set_yticks(np.arange(d.ix[indices, 1:].shape[0]) + 0.5, minor=False)
+        ax.set_yticks(np.arange(d.ix[order[:20], 1:].shape[0]) + 0.5, minor=False)
         #ax.set_frame_on(False)
-        labels = ["%s:%.2f" % (x[1], x[2]) for x in d.ix[indices, 0]]
+
+        gene_list = []
+        for x in d.ix[order, 0]:
+            gene_id, gene_name, clip_sum = x[0], x[1], x[2]
+            gene_list.append((gene_id, gene_name, clip_sum))
+
+        labels = ["%s:%.2f" % (x[1], x[2]) for x in d.ix[order[:20], 0]]
         ax.set_yticklabels(labels, minor=False)
         ax.set_xticklabels([-200,-150,-100,-50,0,50,100,150,200], minor=False)
 
         #ax.grid(False)
         ax.set_xlim(0, 401)
-        ax.set_ylim(0, len(indices))
+        ax.set_ylim(0, len(order[:20]))
         ax.invert_yaxis()
         ax = plt.gca()
         for t in ax.xaxis.get_major_ticks():
@@ -425,13 +407,20 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
         plt.gca().add_patch(p)
         plt.title("%s (top 20)" % title)
-        #plt.subplots_adjust(left=0.05, right=0.97, top=0.90, bottom=0.05) # nicely aligned version
         plt.subplots_adjust(left=0.1, right=0.97, top=0.90, bottom=0.05)
         cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
         print "saving %s" % (filename+"_%s.png" % reg_type)
         plt.savefig(filename+"_%s.png" % reg_type, dpi=100)
         if save_pdf:
             plt.savefig(filename+"_%s.pdf" % reg_type)
+
+        # write gene data for this image in the tab file
+        f = open(filename+"_%s.tab" % reg_type, "wt")
+        header = ["gene_id", "gene_name", "clip"]
+        f.write("\t".join(header) + "\n")
+        for (gene_id, gene_name, clip_sum) in gene_list:
+            f.write("\t".join(str(el) for el in [gene_id, gene_name, clip_sum]) + "\n")
+        f.close()
     return
 
 def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False, title="test", site="proximal", stats=None, pair_type="tandem", ymax=None):
@@ -570,6 +559,7 @@ def process(comps_id, surr=200):
         shutil.rmtree(rnamap_dest)
     os.makedirs(rnamap_dest)
 
+
     # read clip data
     clip = {}
     for clip_name in comps.CLIP:
@@ -591,6 +581,7 @@ def process(comps_id, surr=200):
     # r = repressed, e = enhanced, c = control
     stats = Counter()
     stats_bysite = Counter()
+    gene_list = {}
     cdata_vectors = {} # individual vectors for heatmap
     sdata_vectors = {}
     pdata_vectors = {}
@@ -638,6 +629,7 @@ def process(comps_id, surr=200):
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
 
+
         if abs(proximal_pos-distal_pos)<pair_dist:
             r = f.readline()
             continue
@@ -662,7 +654,12 @@ def process(comps_id, surr=200):
             r = f.readline()
             continue
 
+        if (comps.exclusive_genes!=[]) and (gene_id not in comps.exclusive_genes) and (proximal_reg in ["e", "r"]):
+            r = f.readline()
+            continue
+
         stats[(proximal_reg, pair_type)] += 1
+        gene_list.setdefault((proximal_reg, pair_type), []).append((gene_id, gene_name, pc, fisher))
         stats_bysite[("proximal", proximal_reg, pair_type)] += 1
         stats_bysite[("distal", distal_reg, pair_type)] += 1
         stats_bysite[("s1", s1_reg, pair_type)] += 1
@@ -701,24 +698,6 @@ def process(comps_id, surr=200):
         if proximal_reg in ["e", "r"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
             fasta_files[("distal", pair_type, distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
-
-        for (site, reg, seq) in [("proximal", proximal_reg, proximal_seq), ("distal", distal_reg, distal_seq), ("s1", s1_reg, s1_seq), ("s2", s2_reg, s2_seq)]:
-            # TGTG
-            _, z = pybio.sequence.search(seq, "TGTG")
-            z = pybio.sequence.filter(z, hw=20, hwt=6)
-            sdata[(site, reg, pair_type)] = [x+y for x,y in zip(sdata[(site, reg, pair_type)],z)]
-            # [(gene_id, gene_name), 0, 0, 1, 1 ....]
-            z_vector = [(gene_id, gene_name, sum(z))] + z
-            sdata_vectors[(site, reg, pair_type)].append(z_vector)
-            assert(len(sdata[(site, reg, pair_type)])==401)
-
-            # AATAAA
-            _, z = pybio.sequence.search(seq, "AATAAA")
-            #z = pybio.sequence.filter(z)
-            pdata[(site, reg, pair_type)] = [x+y for x,y in zip(pdata[(site, reg, pair_type)],z)]
-            z_vector = [(gene_id, gene_name, sum(z))] + z
-            pdata_vectors[(site, reg, pair_type)].append(z_vector)
-            assert(len(pdata[(site, reg, pair_type)])==401)
 
         # CLIP
         for clip_name in comps.CLIP:
@@ -786,56 +765,16 @@ def process(comps_id, surr=200):
                     rnamap_freq(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], cdata_vectors[(clip_name, site, "c_up", pair_type)], cdata_vectors[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s_freq.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, ymax=fmax[clip_name][pair_type])
                     rnamap_heat(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id)
 
-            # ug
-            if "ug" in comps.rnamaps:
-                rnamap_area(sdata[(site, "e", pair_type)], sdata[(site, "r", pair_type)], sdata[(site, "c_up", pair_type)], sdata[(site, "c_down", pair_type)], os.path.join(rnamap_dest, "seq.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site), ymax=smax[pair_type], site=site, pair_type=pair_type, stats=stats)
-                rnamap_freq(sdata_vectors[(site, "e", pair_type)], sdata_vectors[(site, "r", pair_type)], sdata_vectors[(site, "c_up", pair_type)], sdata_vectors[(site, "c_down", pair_type)], os.path.join(rnamap_dest, "seq_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site)
-                rnamap_heat(sdata_vectors[(site, "e", pair_type)], sdata_vectors[(site, "r", pair_type)], os.path.join(rnamap_dest, "seq_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id, alpha=0.3)
-
-            # pas
-            if "pas" in comps.rnamaps:
-                rnamap_area(pdata[(site, "e", pair_type)], pdata[(site, "r", pair_type)], pdata[(site, "c_up", pair_type)], pdata[(site, "c_down", pair_type)], os.path.join(rnamap_dest, "pas.%s.%s" % (pair_type, site)), title="%s.%s" % (pair_type, site), ymax=pmax[pair_type], site=site, pair_type=pair_type, stats=stats)
-                rnamap_freq(pdata_vectors[(site, "e", pair_type)], pdata_vectors[(site, "r", pair_type)], pdata_vectors[(site, "c_up", pair_type)], pdata_vectors[(site, "c_down", pair_type)], os.path.join(rnamap_dest, "pas_freq.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site)
-                rnamap_heat(pdata_vectors[(site, "e", pair_type)], pdata_vectors[(site, "r", pair_type)], os.path.join(rnamap_dest, "pas_heat.%s.%s" % (pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id, alpha=0.3)
-
-    # deep bind
-    if comps.deepbind!=None:
-        os.chdir(os.path.join(os.getenv("HOME"), "software/deepbind/"))
-        for pair_type in ["tandem", "composite", "skipped"]:
-            for site in ["proximal", "distal"]:
-                for reg in ["r", "e"]:
-                    sname = "%s_%s_%s.fasta" % (site, pair_type, reg)
-                    dname = "%s_%s_%s_deepbind.tab" % (site, pair_type, reg)
-                    sname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", sname)
-                    dname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", dname)
-                    os.system("./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname))
-                    print "./deepbind %s < \"%s\" > \"%s\"" % (comps.deepbind, sname, dname)
-
-        # get the ymax values for deep_bind
-        ymax_db = {"tandem":0, "composite":0, "skipped":0}
-        for pair_type in ["tandem", "composite", "skipped"]:
-            for site in ["proximal", "distal"]:
-                neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
-                neg_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", neg_name)
-                pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
-                pos_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", pos_name)
-                vneg, _ = read_deepbind(neg_name)
-                vpos, _ = read_deepbind(pos_name)
-                vneg = pybio.utils.smooth(vneg)
-                vpos = pybio.utils.smooth(vpos)
-                diff = [abs(x-y) for x,y in zip(vpos, vneg)]
-                ymax_db[pair_type] = max(ymax_db[pair_type], max(diff))
-
-        for pair_type in ["tandem", "composite", "skipped"]:
-            for site in ["proximal", "distal"]:
-                neg_name = "%s_%s_r_deepbind.tab" % (site, pair_type)
-                neg_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", neg_name)
-                pos_name = "%s_%s_e_deepbind.tab" % (site, pair_type)
-                pos_name = os.path.join(apa.path.comps_folder, comps_id, "rnamap", pos_name)
-                vneg, vneg_vectors = read_deepbind(neg_name)
-                vpos, vpos_vectors = read_deepbind(pos_name)
-                rnamap_deepbind(vpos, vneg, os.path.join(rnamap_dest, "%s_%s_deepbind" % (pair_type, site)), ymax=ymax_db[pair_type], site=site, title="%s %s %s (%s)" % (comps_id, site, pair_type, comps.deepbind))
-                rnamap_deepbind_heat(vpos_vectors, vneg_vectors, os.path.join(rnamap_dest, "%s_%s_hdeepbind" % (pair_type, site)), site=site, title="%s %s %s (%s)" % (comps_id, site, pair_type, comps.deepbind))
+    # save gene lists (.tab files)
+    for pair_type in ["tandem", "composite", "skipped"]:
+        f = open(os.path.join(rnamap_dest, "data_%s.tab" % pair_type), "wt")
+        header = ["gene_id", "gene_name", "pair_type", "proximal_reg", "distal_reg", "pc", "fisher"]
+        f.write("\t".join(header) + "\n")
+        rev = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}
+        for proximal_reg in ["e", "r", "c_up", "c_down"]:
+            for gene_id, gene_name, pc, fisher in gene_list[(proximal_reg, pair_type)]:
+                f.write("\t".join([gene_id, gene_name, pair_type, proximal_reg, rev[proximal_reg], "%.5f" % pc, "%.5f" % fisher])+"\n")
+        f.close()
 
     f = open(os.path.join(rnamap_dest, "index.html"), "wt")
     f.write("<html>\n")
@@ -975,6 +914,19 @@ a:visited {
     body += exp_print_out(comps.test)
 
     body += """
+
+    <br>
+    Gene lists:
+    </br>
+    <div style="padding-left: 10px;">
+    """
+    for pair_type in ["tandem", "composite", "skipped"]:
+        fname = "data_%s.tab" % pair_type
+        body += "<a href=" + fname + " target=_" + pair_type + ">" + pair_type + " gene list</a><br>"
+
+    body += """
+    </div>
+
     </div>
     </div>
 
@@ -1075,6 +1027,7 @@ function change_clip()
             f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
             f.write("\n")
 
+    """
     if comps.deepbind!=None:
         for t in ["tandem", "composite", "skipped"]:
             f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
@@ -1146,6 +1099,7 @@ function change_clip()
             f.write("</tr>")
             f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
             f.write("\n")
+    """
 
     f.write("\n")
     f.write("</table>")

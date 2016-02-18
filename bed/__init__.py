@@ -190,14 +190,6 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
         #if 3 in cigar_types: # skip spliced reads
         #    continue
 
-        aremoved = 0
-        if a.is_reverse:
-            last_cigar = a.cigar[-1]
-        else:
-            last_cigar = a.cigar[0]
-        if last_cigar[0]==4:
-            aremoved = last_cigar[1]
-
         read_id = a.qname
         chr = bam_file.getrname(a.tid)
         strand = "+" if not a.is_reverse else "-"
@@ -225,12 +217,10 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
 
 def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexfwd")
-    read_len = apa.get_read_len(lib_id, exp_id)
 
     # http://www.cgat.org/~andreas/documentation/pysam/api.html
     # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
-    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
     t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
 
     # don't redo analysis if files exists
@@ -241,25 +231,18 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
 
-    open(r_filename, "wt").close()
     open(t_filename, "wt").close()
 
-    dataR = {}
     dataT = {}
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     bam_file = pysam.Samfile(bam_filename)
     a_number = 0
-    pas_count = 0
-    len_dist = {}
-    ft = {}
 
     for a in bam_file.fetch():
         a_number += 1
-
         if a_number%10000==0:
             print "%s_e%s_m%s : %sK reads processed : %s" % (lib_id, exp_id, map_id, a_number/1000, bam_filename)
-
         read_id = a.qname
         chr = bam_file.getrname(a.tid)
         strand = "+" if not a.is_reverse else "-"
@@ -271,22 +254,8 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
         else:
             pos_end = a.pos
             assert(pos_end==a.positions[0])
-
-        key = "%s:%s" % (chr, strand)
-
-        clipping = read_len - int(a.cigar[0][1])
-        assert(clipping>=0)
-        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-        upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
-
-        if match_pas(upstream_seq) and clipping>10:
-            save(dataT, key, pos_end, read_id)
-
-        save(dataR, key, pos_end, read_id)
-
-    write_bed(dataR, r_filename)
+        save(dataT, "%s:%s" % (chr, strand), pos_end, read_id)
     write_bed(dataT, t_filename)
-
     return
 
 def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
