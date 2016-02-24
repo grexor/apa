@@ -20,8 +20,8 @@ import itertools
 from collections import Counter
 import copy
 
-minor_major_thr = 0.05 # all sites in assigned to gene need to have expression >= 5% of major site
-clip_interval = (-30, 30) # interval around sites for binding data
+minor_major_thr = 0.05 # for a site to be considered, it's expression needs to be >5% of the max site inside the gene
+clip_interval = (-100, 100) # interval around sites for binding data
 
 class Comps:
     def __init__(self, comps_id=None):
@@ -121,7 +121,7 @@ def read_comps(comps_id):
             r = f.readline()
             continue
         if r[0].startswith("poly_type:"):
-            comps.polya_db_filter = eval(r[0].split("poly_type:")[1])
+            comps.poly_type = eval(r[0].split("poly_type:")[1])
             r = f.readline()
             continue
         if r[0].startswith("deepbind:"):
@@ -193,6 +193,10 @@ def save(comps):
 
 def process_comps(comps_id, map_id=1):
 
+    if not os.path.exists(os.path.join(apa.path.comps_folder, comps_id, "%s.config" % comps_id)):
+        print "%s.config missing, quitting" % (comps_id)
+        sys.exit(1)
+
     # clean
     assert(len(apa.path.comps_folder)>0)
     files = glob.glob(os.path.join(apa.path.comps_folder, comps_id, "*"))
@@ -224,18 +228,14 @@ def process_comps(comps_id, map_id=1):
 
     for (comp_id, experiments, comp_name) in comps.control+comps.test:
         key = "%s:%s" % (comp_id, comp_name)
-        print "reading: ", key
         expression[comp_id] = pybio.data.Bedgraph()
         replicates.append((comp_id, key)) # (short_name, long_name)
         for id in experiments:
+            print "%s: +%s" % (comp_id, id)
             lib_id = id[:id.rfind("_")]
             exp_id = int(id.split("_")[-1][1:])
-            if comps.db_type=="cs":
-                e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
-            elif comps.db_type=="pas":
-                e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=comps.polya_db)
+            e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
             expression[comp_id].load(e_filename)
-            print "adding: %s to %s" % (id, comp_id)
         print
 
     replicates.sort()
@@ -285,10 +285,10 @@ def process_comps(comps_id, map_id=1):
     gsites = {}
 
     num_sites = 0
-    num_sites_genes = set()
+    num_sites_genes = 0
+    num_genes = set()
     num_sites_genes_expressed = 0
     num_sites_genes_expressed_final = 0
-    num_genes = 0
 
     for chr, strand_data in positions.items():
         for strand, pos_set in strand_data.items():
@@ -298,9 +298,9 @@ def process_comps(comps_id, map_id=1):
                 gene_up, gene_id, gene_down, gene_interval = apa.polya.annotate_position(comps.species, chr, strand, pos)
                 if gene_id==None: # only consider polya sites inside genes
                     continue
-                num_sites_genes.add(gene_id)
+                num_sites_genes += 1
+                num_genes.add(gene_id)
                 sites = gsites.get(gene_id, {})
-                cDNA_sum = 0
                 expression_vector = []
                 site_data = {"pos":pos, "gene_interval":list(gene_interval)} # store position and gene_interval (start, stop, exon/intron), clip binding
 
@@ -308,16 +308,27 @@ def process_comps(comps_id, map_id=1):
                 for clip_name in comps.CLIP:
                     site_data[clip_name] = clip[clip_name].get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
 
+                control_sum = 0
+                test_sum = 0
+                cDNA_sum = 0
                 for (rshort, _) in replicates:
                     bg = expression[rshort]
                     cDNA = bg.get_value(chr, strand, pos)
                     cDNA_sum += cDNA
                     expression_vector.append(cDNA)
+                    if rshort.startswith("c"):
+                        control_sum += cDNA
+                    if rshort.startswith("t"):
+                        test_sum += cDNA
                     site_data[rshort] = cDNA
 
+                # OLD: filter lowly expressed sites
+                #expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
+                #if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
+                #    continue
+
                 # filter lowly expressed sites
-                expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
-                if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
+                if (control_sum<10) and (test_sum<10):
                     continue
 
                 site_data["cDNA_sum"] = int(cDNA_sum)
@@ -339,14 +350,24 @@ def process_comps(comps_id, map_id=1):
         num_sites_per_gene[len(sites.keys())] = num_sites_per_gene.get(len(sites.keys()), 0) + 1
         num_sites_genes_expressed_final += len(sites.keys())
 
-    print "-----------site stats---------------"
-    print "all polyA sites = %s" % num_sites
-    print "\tpolyA sites assigned to genes = %s" % len(num_sites_genes)
-    print "\t\texpressed enough across experiments = %s" % num_sites_genes_expressed
-    print "\t\t\t>5%% expressed on gene level = %s" % num_sites_genes_expressed_final
-    print "sites per gene:"
-    print num_sites_per_gene.items()
-    print "-----------site stats (end)---------"
+    f_stats = open(os.path.join(apa.path.comps_folder, comps_id, "%s_annotation_stats.txt" % comps_id), "wt")
+    f_stats.write("-----------site stats---------------\n")
+    f_stats.write("%s polyA sites\n" % num_sites)
+    f_stats.write("    %s polyA sites assigned to %s genes\n" % (num_sites_genes, len(num_genes)))
+    f_stats.write("        %s polyA sites expressed enough across experiments\n" % num_sites_genes_expressed)
+    f_stats.write("            %s final polyA sites kept that had >5%% expression on gene level\n" % num_sites_genes_expressed_final)
+    f_stats.write("-----------site stats (end)---------\n")
+    f_stats.write("\n")
+    f_stats.write("-----------site per gene -----------\n")
+    sum_temp_sites = 0
+    sum_temp_genes = 0
+    for s_gene, v in num_sites_per_gene.items():
+        f_stats.write("%s genes with %s site(s)\n" % (v, s_gene))
+        sum_temp_sites += s_gene*v
+        sum_temp_genes += v
+    f_stats.write("total of %s polyA sites assigned to %s genes\n" % (sum_temp_sites, sum_temp_genes))
+    f_stats.write("-----------site per gene (end)------\n")
+    f_stats.close()
 
     # draw num sites per gene
     # =======================
@@ -385,7 +406,7 @@ def process_comps(comps_id, map_id=1):
     plt.xlabel('number of polyA sites'); plt.ylabel('number of genes')
     plt.xticks([e+0.25 for e in x], x)
     autolabel(bar1)
-    plt.title("%s strong polyA sites annotated to %s genes" % (format(int(total_sites), ','), format(int(total_genes), ',')))
+    plt.title("%s polyA sites annotated to %s genes" % (format(int(total_sites), ','), format(int(total_genes), ',')))
     plt.tight_layout()
     plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.pdf" % comps_id))
     plt.close()
@@ -659,12 +680,12 @@ def process_comps(comps_id, map_id=1):
     print num_genes.items()
     print "----------stats pairs (end)------"
 
-    # save selected sited bedGraphs
-    bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed" % lib_id)
-    bg_selected_sites_test_fname = os.path.join(beds_folder, "%s_test_selected.bed" % lib_id)
+    # save selected sites bedGraphs
+    bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed" % comps_id)
+    bg_selected_sites_test_fname = os.path.join(beds_folder, "%s_test_selected.bed" % comps_id)
 
-    bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % lib_id)
-    bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % lib_id)
+    bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % comps_id)
+    bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % comps_id)
 
 def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type):
     pybio.genomes.load(genome)

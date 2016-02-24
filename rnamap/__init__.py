@@ -25,49 +25,6 @@ import bisect
 
 save_pdf = True
 
-def read_deepbind(fname):
-    rall = []
-    rscaled = []
-    f = open(fname, "rt")
-    header = f.readline()
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        id = r[0][1:].split(" ")[0]
-        gene_id, gene_name = id.split(":")
-
-        # raw vectors
-        v = []
-        for el in r[1:]:
-            v.append(float(el))
-        while len(v)<400:
-            v.append(0)
-        rall.append(v)
-
-        # min normalized vectors
-        v = []
-        for el in r[1:]:
-            v.append(float(el))
-        min_v = abs(min(v))
-        while len(v)<400:
-            v.append(-min_v)
-        v = [e + min_v for e in v]
-        v = [(gene_id, gene_name, sum(v))] + v
-        rscaled.append(v)
-
-        r = f.readline()
-    f.close()
-
-    # normalize
-    r = []
-    for nt in range(0, len(rall[0])):
-        s = 0
-        for i in range(0, len(rall)):
-            s+=rall[i][nt]
-        s = s / float(len(rall))
-        r.append(s)
-    return r[:-1], rscaled
-
 def freq(data, all_genes):
     if len(data)==0:
         return [0]
@@ -92,166 +49,6 @@ def freq(data, all_genes):
             temp.append(0)
     temp = [e/float(all_genes)*100 for e in temp] # show percentage of genes (/all_genes, * 100)
     return temp
-
-def rnamap_deepbind(vpos, vneg, filename, title="test", ymax=None, site="proximal"):
-    """
-    Draw RNA maps
-    """
-    import matplotlib
-    matplotlib.use("Agg", warn=False)
-    import matplotlib.pyplot as plt
-    import math
-    import gzip
-    from matplotlib import cm as CM
-    import matplotlib.patches as mpatches
-    import matplotlib.ticker as mticker
-    from matplotlib.colors import LinearSegmentedColormap
-    import matplotlib.colors as mcolors
-    c = mcolors.ColorConverter().to_rgb
-
-    # styling
-    matplotlib.rcParams['axes.labelsize'] = 17
-    matplotlib.rcParams['axes.titlesize'] = 17
-    matplotlib.rcParams['xtick.labelsize'] = 14
-    matplotlib.rcParams['ytick.labelsize'] = 14
-    matplotlib.rcParams['legend.fontsize'] = 14
-    matplotlib.rc('axes',edgecolor='gray')
-    matplotlib.rcParams['axes.linewidth'] = 0.3
-    matplotlib.rcParams['legend.frameon'] = 'False'
-
-    fig = plt.figure(figsize=(20, 4))
-    a = plt.axes([0.07, 0.2, 0.9, 0.7])
-    a.set_xlim(0, 400)
-    plt.ylabel("DeepBind score")
-    plt.xlabel("distance (nt)")
-
-    vpos_draw = pybio.utils.smooth(vpos)
-    vneg_draw = pybio.utils.smooth(vneg)
-    diff_draw = [x-y for x,y in zip(vpos_draw, vneg_draw)]
-    plt.fill_between(range(0, len(diff_draw)), 0, diff_draw, facecolor='gray', alpha=0.6, interpolate=True)
-
-    if ymax!=None:
-        a.set_ylim(-ymax, ymax)
-
-    p = mpatches.Rectangle([200, -200], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
-    p = mpatches.Rectangle([0, 0], 400, ymax*0.001, facecolor='none', edgecolor=(0.8, 0.8, 0.8), linestyle='dotted')
-    plt.gca().add_patch(p)
-    plt.xticks([0,50,100,150,200,250,300,350,400], [-200,-150,-100,-50,0,50,100,150,200])
-
-    print "saving", filename
-    plt.title(title)
-    plt.savefig(filename+".png", dpi=100)
-    if save_pdf:
-        plt.savefig(filename+".pdf")
-    plt.close()
-
-def rnamap_deepbind_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
-    """
-    Draw RNA heatmaps
-    """
-    def log_transform(x):
-        if type(x)==numpy.float64:
-            return math.log(x+1)
-        else:
-            return x
-
-    # styling
-    matplotlib.rcParams['axes.labelsize'] = 13
-    matplotlib.rcParams['axes.titlesize'] = 13
-    matplotlib.rcParams['xtick.labelsize'] = 11
-    matplotlib.rcParams['ytick.labelsize'] = 11
-    matplotlib.rcParams['legend.fontsize'] = 11
-    matplotlib.rc('axes',edgecolor='gray')
-    matplotlib.rcParams['axes.linewidth'] = 0.2
-    matplotlib.rcParams['legend.frameon'] = 'False'
-    import matplotlib.colors as mcolors
-
-    def make_colormap(seq):
-        """Return a LinearSegmentedColormap
-        seq: a sequence of floats and RGB-tuples. The floats should be increasing
-        and in the interval (0,1).
-        """
-        seq = [(None,) * 3, 0.0] + list(seq) + [1.0, (None,) * 3]
-        cdict = {'red': [], 'green': [], 'blue': []}
-        for i, item in enumerate(seq):
-            if isinstance(item, float):
-                r1, g1, b1 = seq[i - 1]
-                r2, g2, b2 = seq[i + 1]
-                cdict['red'].append([item, r1, r2])
-                cdict['green'].append([item, g1, g2])
-                cdict['blue'].append([item, b1, b2])
-        return mcolors.LinearSegmentedColormap('CustomMap', cdict)
-
-    c = mcolors.ColorConverter().to_rgb
-    cred = make_colormap([c('white'), c('#ff8383'), 0.5, c('#ff8383'), c('red')])
-    cblue = make_colormap([c('white'), c('#838cff'), 0.5, c('#838cff'), c('blue')])
-
-    for reg_type, d in [("pos", vpos), ("neg", vneg)]:
-        d = DataFrame(d)
-
-        order = d.sum(axis=1).order(ascending=False).index
-        vals = [x[2] for x in d.ix[order, 0]]
-        s = sum(vals)
-        c = 0
-        indices = []
-        for i in order:
-            z = d.ix[i, 0]
-            c += z[2]
-            indices.append(i)
-
-        indices = indices[:20]
-
-        # Plot it out
-        fig, ax = plt.subplots()
-
-        # -min, divide by (max-min)
-        #dn = d.ix[indices, 1:].sub(d.ix[indices, 1:].min(axis=1), axis=0)
-        #dn_div = dn.max(axis=1)-dn.min(axis=1)
-        #dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
-        #dn = dn.div(dn_div, axis=0)
-
-        # divide by row sum
-        dn = d.ix[indices, 1:] # get only subset of rows
-        dn_div = dn.sum(axis=1) # get row sums
-        dn_div = dn_div.replace(0, 1) # do not divide row elements with 0
-        dn = dn.div(dn_div, axis=0) # divide by row sums
-        if reg_type=="pos":
-            #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Reds, alpha=alpha)
-            heatmap = ax.pcolor(dn, cmap=cred, alpha=alpha)
-        else:
-            #heatmap = ax.pcolor(d.ix[indices, 1:], cmap=plt.cm.Blues, alpha=alpha)
-            heatmap = ax.pcolor(dn, cmap=cblue, alpha=alpha)
-
-        fig = plt.gcf()
-        fig.set_size_inches(30, 5)
-
-        ax.set_yticks(np.arange(d.ix[indices, 1:].shape[0]) + 0.5, minor=False)
-        #ax.set_frame_on(False)
-        labels = ["%s : %.2f" % (x[1], x[2]) for x in d.ix[indices, 0]]
-        ax.set_yticklabels(labels, minor=False)
-        ax.set_xticklabels([-200,-150,-100,-50,0,50,100,150,200], minor=False)
-
-        #ax.grid(False)
-        ax.set_xlim(0, 401)
-        ax.set_ylim(0, len(indices))
-        ax.invert_yaxis()
-        ax = plt.gca()
-        for t in ax.xaxis.get_major_ticks():
-            t.tick1On = False
-            t.tick2On = False
-        for t in ax.yaxis.get_major_ticks():
-            t.tick1On = False
-            t.tick2On = False
-        p = mpatches.Rectangle([200, -100], 0.01, 200, facecolor='none', edgecolor=(0.8, 0, 0))
-        plt.gca().add_patch(p)
-        plt.title("%s (top 20)" % title)
-        plt.subplots_adjust(left=0.05, right=0.97, top=0.90, bottom=0.05)
-        cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
-        print "saving %s" % (filename+"_%s.png" % reg_type)
-        plt.savefig(filename+"_%s.png" % reg_type, dpi=100)
-        if save_pdf:
-            plt.savefig(filename+"_%s.pdf" % reg_type)
-    return
 
 def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", pair_type="tandem", ymax=None, stats=None):
     """
@@ -286,7 +83,7 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     if ymax!=None:
         a.set_ylim(-ymax, ymax)
     plt.ylabel("counts per million (cpm)")
-    plt.xlabel("distance [nt]")
+    plt.xlabel("distance from CS [nt]")
 
     vpos = pybio.utils.smooth(vpos)
     vneg = [-el for el in pybio.utils.smooth(vneg)]
@@ -448,7 +245,7 @@ def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False
     a = plt.axes([0.1, 0.2, 0.85, 0.7])
     a.set_xlim(0, 400)
     plt.ylabel("%genes")
-    plt.xlabel("distance [nt]")
+    plt.xlabel("distance from CS [nt]")
 
     for axis in [a.xaxis, a.yaxis]:
         axis.set_major_locator(ticker.MaxNLocator(integer=True))
@@ -574,9 +371,9 @@ def process(comps_id, surr=200):
                 fname = os.path.join(rnamap_dest, k+".fasta")
                 fasta_files[(site, pair_type, reg)] = open(fname, "wt")
 
-    pc_thr = 0.1
-    fisher_thr = 0.1
-    pair_dist = 450
+    pc_thr = comps.pc_thr
+    fisher_thr = comps.fisher_thr
+    pair_dist = comps.pair_dist
 
     # r = repressed, e = enhanced, c = control
     stats = Counter()
@@ -604,15 +401,22 @@ def process(comps_id, surr=200):
     f = open(tab_file, "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
+
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
         data = dict(zip(header, r))
         chr = data["chr"]
         strand = data["strand"]
         gene_id = data["gene_id"]
+
+        if (comps.exclusive_genes!=[]) and (gene_id not in comps.exclusive_genes):
+            r = f.readline()
+            continue
+
         if gene_id in comps.ignore_genes:
             r = f.readline()
             continue
+
         gene_name = data["gene_name"]
         proximal_pos = int(data["proximal_pos"])
         distal_pos = int(data["distal_pos"])
@@ -628,7 +432,6 @@ def process(comps_id, surr=200):
         pc = float(data["pc"])
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
-
 
         if abs(proximal_pos-distal_pos)<pair_dist:
             r = f.readline()
@@ -651,10 +454,6 @@ def process(comps_id, surr=200):
             s2_reg = distal_reg
 
         if proximal_reg==None:
-            r = f.readline()
-            continue
-
-        if (comps.exclusive_genes!=[]) and (gene_id not in comps.exclusive_genes) and (proximal_reg in ["e", "r"]):
             r = f.readline()
             continue
 
@@ -721,6 +520,16 @@ def process(comps_id, surr=200):
         r = f.readline()
     f.close() # end of reading gene data
 
+    present_pairs = list(set([pair_type for (reg, pair_type) in stats.keys()]))
+    sorted_present_pairs = []
+    if "tandem" in present_pairs:
+        sorted_present_pairs.append("tandem")
+    if "composite" in present_pairs:
+        sorted_present_pairs.append("composite")
+    if "skipped" in present_pairs:
+        sorted_present_pairs.append("skipped")
+    present_pairs = sorted_present_pairs
+
     print stats.items()
     print "---"
     print stats_bysite.items()
@@ -730,7 +539,7 @@ def process(comps_id, surr=200):
         f.close()
 
     # normalize with nt resolution
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["e", "r", "c_up", "c_down"]:
                 n = present[(site, reg, pair_type)]
@@ -747,7 +556,7 @@ def process(comps_id, surr=200):
         fmax[clip_name] = {"tandem":0, "composite":0, "skipped":0}
     smax = {"tandem":0, "composite":0, "skipped":0}
     pmax = {"tandem":0, "composite":0, "skipped":0}
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["e", "r", "c_up", "c_down"]:
                 for clip_name in comps.CLIP:
@@ -756,7 +565,7 @@ def process(comps_id, surr=200):
                 smax[pair_type] = max(smax[pair_type], max(sdata[(site, reg, pair_type)]))
                 pmax[pair_type] = max(pmax[pair_type], max(pdata[(site, reg, pair_type)]))
 
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             # clip
             if len(comps.CLIP)>0:
@@ -766,14 +575,28 @@ def process(comps_id, surr=200):
                     rnamap_heat(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id)
 
     # save gene lists (.tab files)
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in present_pairs:
         f = open(os.path.join(rnamap_dest, "data_%s.tab" % pair_type), "wt")
         header = ["gene_id", "gene_name", "pair_type", "proximal_reg", "distal_reg", "pc", "fisher"]
         f.write("\t".join(header) + "\n")
         rev = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}
         for proximal_reg in ["e", "r", "c_up", "c_down"]:
-            for gene_id, gene_name, pc, fisher in gene_list[(proximal_reg, pair_type)]:
-                f.write("\t".join([gene_id, gene_name, pair_type, proximal_reg, rev[proximal_reg], "%.5f" % pc, "%.5f" % fisher])+"\n")
+            if gene_list.get((proximal_reg, pair_type), None)!=None:
+                for gene_id, gene_name, pc, fisher in gene_list[(proximal_reg, pair_type)]:
+                    f.write("\t".join([gene_id, gene_name, pair_type, proximal_reg, rev[proximal_reg], "%.5f" % pc, "%.5f" % fisher])+"\n")
+        # write python list of gene names
+        if gene_list.get(("r", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("r", pair_type)]]
+            f.write("genes_repressed=[%s]" % (",".join(L))+"\n")
+        if gene_list.get(("e", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("e", pair_type)]]
+            f.write("genes_enhanced=[%s]" % (",".join(L))+"\n")
+        if gene_list.get(("c_up", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("c_up", pair_type)]]
+            f.write("genes_controls_up=[%s]" % (",".join(L))+"\n")
+        if gene_list.get(("c_down", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("c_down", pair_type)]]
+            f.write("genes_controls_down=[%s]" % (",".join(L))+"\n")
         f.close()
 
     f = open(os.path.join(rnamap_dest, "index.html"), "wt")
@@ -920,7 +743,7 @@ a:visited {
     </br>
     <div style="padding-left: 10px;">
     """
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in present_pairs:
         fname = "data_%s.tab" % pair_type
         body += "<a href=" + fname + " target=_" + pair_type + ">" + pair_type + " gene list</a><br>"
 
@@ -994,7 +817,7 @@ function change_clip()
     f.write("<table style='border-collapse: collapse; border-spacing: 0px;'>")
 
     if len(comps.CLIP)>0:
-        for t in ["tandem", "composite", "skipped"]:
+        for t in present_pairs:
             f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td><td align=center>%s: s1</td><td align=center>%s: s2</td></tr>\n" % (t, t, t, t))
             f.write("<tr>")
             f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s, rep=%s, con=%s</td>" % (t, stats[("e", t)], stats[("r", t)], stats[("c_up", t)]+stats[("c_down", t)]))
@@ -1026,80 +849,6 @@ function change_clip()
             f.write("</tr>")
             f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
             f.write("\n")
-
-    """
-    if comps.deepbind!=None:
-        for t in ["tandem", "composite", "skipped"]:
-            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats[("e", t)], stats[("r", t)]))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_deepbind.png" % t, "%s_proximal_deepbind.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_deepbind.png" % t, "%s_distal_deepbind.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats[("e", t)], stats[("r", t)]))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_hdeepbind_neg.png" % t, "%s_proximal_hdeepbind_neg.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_hdeepbind_neg.png" % t, "%s_distal_hdeepbind_neg.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>DeepBind<br><a href='http://tools.genes.toronto.edu/deepbind/%s/index.html' target=_db>%s</a><br>enh=%s<br>rep=%s</td>" % (t, comps.deepbind, comps.deepbind, stats[("e", t)], stats[("r", t)]))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_proximal_hdeepbind_pos.png" % t, "%s_proximal_hdeepbind_pos.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("%s_distal_hdeepbind_pos.png" % t, "%s_distal_hdeepbind_pos.png" % t))
-            f.write("</tr>")
-            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
-
-    if "ug" in comps.rnamaps:
-        for t in ["tandem", "composite", "skipped"]:
-            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>UG<br>enh=%s<br>rep=%s</td>" % (t, stats[("e", t)], stats[("r", t)]))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.proximal.png" % t, "seq.%s.proximal.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq.%s.distal.png" % t, "seq.%s.distal.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>UG<br>targets</td>" % t)
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.proximal.png" % t, "seq_freq.%s.proximal.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_freq.%s.distal.png" % t, "seq_freq.%s.distal.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>UG<br>top enh</td>" % t)
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.proximal_pos.png" % t, "seq_heat.%s.proximal_pos.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.distal_pos.png" % t, "seq_heat.%s.distal_pos.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>UG<br>top rep</td>" % t)
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.proximal_neg.png" % t, "seq_heat.%s.proximal_neg.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("seq_heat.%s.distal_neg.png" % t, "seq_heat.%s.distal_neg.png" % t))
-            f.write("</tr>")
-            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
-            f.write("\n")
-
-    if "pas" in comps.rnamaps:
-        for t in ["tandem", "composite", "skipped"]:
-            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td></tr>\n" % (t, t))
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>PAS<br>enh=%s<br>rep=%s</td>" % (t, stats[("e", t)], stats[("r", t)]))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.proximal.png" % t, "pas.%s.proximal.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas.%s.distal.png" % t, "pas.%s.distal.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>PAS<br>targets</td>" % t)
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.proximal.png" % t, "pas_freq.%s.proximal.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_freq.%s.distal.png" % t, "pas_freq.%s.distal.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>PAS<br>top enh</td>" % t)
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.proximal_pos.png" % t, "pas_heat.%s.proximal_pos.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.distal_pos.png" % t, "pas_heat.%s.distal_pos.png" % t))
-            f.write("</tr>")
-            f.write("<tr>")
-            f.write("<td align=right valign=center>UG<br>top rep</td>")
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.proximal_neg.png" % t, "pas_heat.%s.proximal_neg.png" % t))
-            f.write("<td align=right valign=center><a href=%s class='highslide' onclick='return hs.expand(this)'><img src=%s width=500px></a></td>" % ("pas_heat.%s.distal_neg.png" % t, "pas_heat.%s.distal_neg.png" % t))
-            f.write("</tr>")
-            f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
-            f.write("\n")
-    """
 
     f.write("\n")
     f.write("</table>")

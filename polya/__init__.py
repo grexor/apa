@@ -17,6 +17,8 @@ mpl.rcParams['xtick.labelsize'] = 10
 mpl.rcParams['ytick.labelsize'] = 10
 mpl.rcParams['legend.fontsize'] = 9
 
+PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
+
 # coordinates are 0-based
 
 def get_species(poly_id):
@@ -228,17 +230,22 @@ def classify_polya(poly_id):
     f = open(polyadb_tab, "rt")
     files = {}
     f_tab = open("%s.tab" % poly_id, "wt")
-    for poly_type in ["tab", "strong", "weak", "less", "noclass"]:
+    for poly_type in ["tab", "strong", "weak", "less", "noclass", "p31"]:
         files[poly_type] = open(apa.path.polyadb_filename(poly_id, poly_type=poly_type, filetype="bed"), "wt")
     header = f.readline()
     f_tab.write(header)
     r = f.readline()
     while r:
     	r = r.replace("\n", "").replace("\r", "").split("\t")
-    	chr, strand, pos, gene_id, gene_name, interval, cDNA = r[0], r[1], int(r[2]), r[3], r[4], r[5], float(r[6])
+    	chr, strand, pos, gene_id, gene_name, interval, cDNA, seq = r[0], r[1], int(r[2]), r[3], r[4], r[5], float(r[6]), r[10]
         pas_type, pas_offset, cs_offset = polyar_results[(chr, strand, pos)]
         if pas_type=="":
             pas_type="noclass"
+            # search for top 12 hexamers in -30..-10 around CS
+            for h in PAS_hexamers:
+                if seq[70:90].find(h)!=-1:
+                    pas_type="p31"
+                    break
         r[-4], r[-3], r[-2] = pas_type, pas_offset, cs_offset
     	f_tab.write("\t".join([str(e) for e in r])+"\n")
         bed_row = [chr, pos, pos+1, cDNA]
@@ -259,34 +266,44 @@ def polyadb_class_histogram(poly_id):
 
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
     f = open(polyadb_tab, "rt")
-    y = {"strong":[], "weak":[], "less":[], "noclass":[]}
+    y = {"strong":[], "weak":[], "less":[], "p31":[], "noclass":[]}
     header = f.readline().replace("\n", "").replace("\r", "").split("\t")
     r = f.readline()
     while r:
         r = r.replace("\n", "").replace("\r", "").split("\t")
         data = dict(zip(header, r))
-        if data["pas_type"]!="noclass":
-            y.setdefault
+        if data["pas_type"] not in ["noclass", "p31"]:
             y[data["pas_type"]].append(int(data["cs_loci"]))
+        else:
+            y[data["pas_type"]].append(0) # just for counting by len
         r = f.readline()
     f.close()
 
+    import matplotlib
     import numpy as np
     import pylab as P
     import matplotlib.pyplot as plt
     import matplotlib.ticker as tkr
+    # styling
+    matplotlib.rcParams['axes.labelsize'] = 15
+    matplotlib.rcParams['axes.titlesize'] = 15
+    matplotlib.rcParams['xtick.labelsize'] = 13
+    matplotlib.rcParams['ytick.labelsize'] = 13
+    matplotlib.rcParams['legend.fontsize'] = 13
+    matplotlib.rc('axes',edgecolor='gray')
+    matplotlib.rcParams['axes.linewidth'] = 0.1
+    matplotlib.rcParams['legend.frameon'] = 'False'
+    from matplotlib import ticker
 
     def func(x, pos):  # formatter function takes tick label and tick position
        s = '{:0,d}'.format(int(x))
        return s
 
-    P.figure(figsize=(20,4))
-    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"]], bins=range(-30, 30+1), color=["#FFAEAE", 'lightgreen', "lightblue"], label=['strong', 'weak', "less"], histtype="barstacked", edgecolor="lightgray")
-    #P.setp(patches, 'facecolor', 'lightblue', 'alpha', 0.75)
-    P.title("distribution of predicted poly-AR (strong, weak, less) around CS (atlas = %s)" % poly_id)
+    P.figure(figsize=(12,4))
+    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"], [], []], bins=np.arange(-30, 30+1)-0.5, color=["#FFAEAE", 'lightgreen', "lightblue", "#f1f1f1", "#f1f1f1"], label=["strong (%s)" % format(int(len(y["strong"])), ","), "weak (%s)" % format(int(len(y["weak"])), ","), "PAS-less (%s)" % format(int(len(y["less"])), ","), "p31 (%s)" % format(int(len(y["p31"])), ","), "no class (%s)" % format(int(len(y["noclass"])), ",")], histtype="barstacked", edgecolor="none")
+    P.title("distribution of predicted polyAR cleavage sites around %s cleavage sites" % poly_id)
     P.ylim(bottom=0)
-    #P.xlim(left=-30, right=30)
-    P.xlabel("distance [nt]")
+    P.xlabel("distance from cleavage site [nt]")
     P.ylabel("number of sites")
     P.legend()
 
@@ -298,10 +315,10 @@ def polyadb_class_histogram(poly_id):
     axes.spines['top'].set_alpha(0.5)
     axes.spines['right'].set_alpha(0.5)
     axes.spines['left'].set_alpha(0.5)
-    polyadb_image = apa.path.polyadb_filename(poly_id, filetype="class_hist")
+    axes.set_xlim(-20, 20)
+    polyadb_image = apa.path.polyadb_filename(poly_id, filetype="polyar_pdf")
     P.tight_layout()
-    P.savefig(polyadb_image+".png")
-    P.savefig(polyadb_image+".svg")
+    P.savefig(polyadb_image)
 
 def annotate_pair(species, chr, strand, pos1, pos2):
     # keep positions in positive orientation

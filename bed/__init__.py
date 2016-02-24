@@ -12,11 +12,21 @@ import regex
 
 PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
 
-def internal_priming(seq):
-    if seq.count("A")<10:
-        return False
-    else:
+"""
+25201104=D. Zheng and B. Tian, Systems Biology of RNA binding proteins. 2014
+"This problem, commonly known as the "internal priming issue" can be partially
+addressed by examining the genomic sequence surrounding the pA. For example,
+our lab typically uses the -10 to +10 nt region, and considers a pA to be an
+internal priming candidate if there are 6 continuous As or more than 7 As in
+a 10 nt window within this region"
+"""
+def ip(s):
+    if s.count("AAAAAA")>0:
         return True
+    for i in range(0, len(s)):
+        if s[i:i+10].count("A")>=7:
+            return True
+    return False
 
 def match_pas(seq):
     for hexamer in PAS_hexamers:
@@ -157,7 +167,7 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexrev")
     read_len = apa.get_read_len(lib_id, exp_id)
 
-    #r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
     t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
 
     # don't redo analysis if files exists
@@ -168,16 +178,17 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
     lib = apa.annotation.libs[lib_id]
     exp_data = lib.experiments[exp_id]
 
-    #open(r_filename, "wt").close()
     open(t_filename, "wt").close()
-
-    #dataR = {}
     dataT = {}
+
+    open(r_filename, "wt").close()
+    dataR = {}
 
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     bam_file = pysam.Samfile(bam_filename)
     a_number = 0
+    ip_number = 0
     for a in bam_file.fetch():
         a_number += 1
 
@@ -186,9 +197,6 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
 
         cigar = a.cigar
         cigar_types = [t for (t, v) in cigar]
-
-        #if 3 in cigar_types: # skip spliced reads
-        #    continue
 
         read_id = a.qname
         chr = bam_file.getrname(a.tid)
@@ -203,17 +211,22 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
         strand = {"+":"-", "-":"+"}[strand] # for lexrev, we turn strand
         key = "%s:%s" % (chr, strand)
 
-        #clipping = read_len - len(a.query)
-        #assert(clipping>=0)
-        #check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-        #upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
+        save(dataR, key, pos_end, read_id)
 
-        #if clipping>=20:
+        # internal priming
+        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
+        if ip(check_seq):
+            ip_number += 1
+            continue
         save(dataT, key, pos_end, read_id)
-        #save(dataR, key, pos_end, read_id)
 
-    #write_bed(dataR, r_filename)
+    write_bed(dataR, r_filename)
     write_bed(dataT, t_filename)
+
+    f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
+    f_ip.write("%s total processed alignments\n" % a_number)
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.close()
 
 def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexfwd")
@@ -222,6 +235,7 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
     t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
 
     # don't redo analysis if files exists
     if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
@@ -232,17 +246,22 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
     exp_data = lib.experiments[exp_id]
 
     open(t_filename, "wt").close()
+    open(r_filename, "wt").close()
 
+    dataR = {}
     dataT = {}
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     bam_file = pysam.Samfile(bam_filename)
-    a_number = 0
 
+    a_number = 0
+    ip_number = 0
     for a in bam_file.fetch():
+
         a_number += 1
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sK reads processed : %s" % (lib_id, exp_id, map_id, a_number/1000, bam_filename)
+            print "%s_e%s_m%s : %sM reads processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
+
         read_id = a.qname
         chr = bam_file.getrname(a.tid)
         strand = "+" if not a.is_reverse else "-"
@@ -254,8 +273,27 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
         else:
             pos_end = a.pos
             assert(pos_end==a.positions[0])
-        save(dataT, "%s:%s" % (chr, strand), pos_end, read_id)
+
+        key = "%s:%s" % (chr, strand)
+
+        save(dataR, key, pos_end, read_id)
+
+        # internal priming
+        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
+        if ip(check_seq):
+            ip_number += 1
+            continue
+
+        save(dataT, key, pos_end, read_id)
+
     write_bed(dataT, t_filename)
+    write_bed(dataR, r_filename)
+
+    f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
+    f_ip.write("%s total processed alignments\n" % a_number)
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.close()
+
     return
 
 def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
@@ -302,7 +340,7 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
 
 def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
 
     if poly_id==None:
         poly_id = map_to
@@ -315,7 +353,7 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, t_filename, start=-100, stop=25)
+        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
 def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
@@ -334,3 +372,4 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
+        

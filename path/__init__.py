@@ -20,9 +20,9 @@ def r_filename(lib_id, exp_id, map_id=1):
 
     .. code-block:: bash
 
-        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.R.bg
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.raw.bg
     """
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.R.bed" % (lib_id, exp_id, map_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.raw.bed" % (lib_id, exp_id, map_id))
 
 def t_filename(lib_id, exp_id, map_id=1):
     """
@@ -67,8 +67,8 @@ def polyadb_filename(poly_id, poly_type=None, filetype="bed"):
             return os.path.join(apa.path.polya_folder, "%s_%s.tab" % (poly_id, poly_type))
         else:
             return os.path.join(apa.path.polya_folder, "%s.tab" % poly_id)
-    if filetype=="class_hist":
-        return os.path.join(apa.path.polya_folder, "%s_class_hist" % poly_id)
+    if filetype=="polyar_pdf":
+        return os.path.join(apa.path.polya_folder, "%s.pdf" % poly_id)
     return os.path.join(apa.path.polya_folder, "%s.%s" % (poly_id, filetype))
 
 def polyadb_ann_filename(species):
