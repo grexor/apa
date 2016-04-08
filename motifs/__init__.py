@@ -9,29 +9,28 @@ def process(comps_id):
 
     name_folder = "motifs"
     fasta_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder, "fasta")
+    tab_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder, "tab")
 
     if comps_id!=None:
         comps = apa.comps.read_comps(comps_id)
         genome = comps.species
-        if comps.iCLIP_filename!=None:
-            clip_file = os.path.join(apa.path.iCLIP_folder, comps.iCLIP_filename)
         tab_file = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
         dest_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder)
-        if comps.polya_db!=None:
-            polydb = apa.polya.read(comps.polya_db)
 
     assert(len(dest_folder)>5)
     if os.path.exists(dest_folder):
         shutil.rmtree(dest_folder)
     os.makedirs(dest_folder)
     os.makedirs(fasta_folder)
-
-    #if comps.iCLIP_filename==None:
-    #    return
+    os.makedirs(tab_folder)
 
     fasta_files = {}
+    tab_files = {}
     for site in ["proximal", "distal"]:
         for pair_type in ["tandem", "composite", "skipped"]:
+            fname = os.path.join(tab_folder, "%s_%s_%s.tab" % (comps_id, site, pair_type))
+            tab_files["%s_%s" % (site, pair_type)] = open(fname, "wt")
+            tab_files["%s_%s" % (site, pair_type)].write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
             for reg in ["r", "e", "c"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
                 fname = os.path.join(fasta_folder, k+".fasta")
@@ -41,7 +40,7 @@ def process(comps_id):
     fisher_thr = 0.1
     pair_dist = 450
     control_pc_thr = 0.1
-    control_fisher_thr = 0.2
+    control_fisher_thr = 0.1
 
     # r = repressed, e = enhanced, c = control
     stats = Counter()
@@ -49,6 +48,7 @@ def process(comps_id):
     f = open(tab_file, "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
+    tab_files_index = {}
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
         data = dict(zip(header, r))
@@ -56,8 +56,8 @@ def process(comps_id):
         strand = data["strand"]
         gene_id = data["gene_id"]
         gene_name = data["gene_name"]
-        siteup_pos = int(data["siteup_pos"])
-        sitedown_pos = int(data["sitedown_pos"])
+        siteup_pos = int(data["proximal_pos"])
+        sitedown_pos = int(data["distal_pos"])
 
         pc = float(data["pc"])
         fisher = float(data["fisher"])
@@ -88,10 +88,21 @@ def process(comps_id):
         fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up))
         fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down))
 
+        tab_files_index["proximal_%s" % pair_type] = tab_files_index.setdefault("proximal_%s" % pair_type, 0) + 1
+        tab_files_index["distal_%s" % pair_type] = tab_files_index.setdefault("distal_%s" % pair_type, 0) + 1
+
+        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, siteup_pos, reg_siteup]]
+        tab_files["proximal_%s" % pair_type].write("\t".join(row)+"\n")
+        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, sitedown_pos, reg_sitedown]]
+        tab_files["distal_%s" % pair_type].write("\t".join(row)+"\n")
+
         r = f.readline()
     f.close() # end of reading gene data
 
     for f in fasta_files.values():
+        f.close()
+
+    for f in tab_files.values():
         f.close()
 
     f_stats = open(os.path.join(dest_folder, "site_stats.tab"), "wt")

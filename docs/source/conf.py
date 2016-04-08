@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-# biox documentation build configuration file, created by
-# sphinx-quickstart on Wed Feb 22 15:33:17 2012.
-#
 # This file is execfile()d with the current directory set to its containing dir.
 #
 # Note that not all possible configuration values are present in this
@@ -38,7 +35,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'apa'
-copyright = u'2015, University of Zurich, Zurich, Switzerland'
+copyright = u'2016, University of Zurich, Zurich, Switzerland'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -93,6 +90,7 @@ pygments_style = 'sphinx'
 # Sphinx are currently 'default' and 'sphinxdoc'.
 
 html_theme = "pyramid"
+#html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

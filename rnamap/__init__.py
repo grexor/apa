@@ -83,7 +83,7 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     if ymax!=None:
         a.set_ylim(-ymax, ymax)
     plt.ylabel("counts per million (cpm)")
-    plt.xlabel("distance from CS [nt]")
+    plt.xlabel("distance from polyA site [nt]")
 
     vpos = pybio.utils.smooth(vpos)
     vneg = [-el for el in pybio.utils.smooth(vneg)]
@@ -109,10 +109,20 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     if site=="distal":
         title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("r", pair_type)], stats[("e", pair_type)], stats[("c_up", pair_type)]+stats[("c_down", pair_type)])
     plt.title(title)
-    plt.savefig(filename+".png", dpi=100)
+    plt.savefig(filename+".png", dpi=100, transparent=True)
     if save_pdf:
         plt.savefig(filename+".pdf")
     plt.close()
+
+    # save data
+    f = open(filename+".tab", "wt")
+    f.write(str(range(0, len(vpos)))+"\n")
+    f.write(str(vpos)+"\n")
+    f.write(str(vneg)+"\n")
+    f.write(str(vcon_up)+"\n")
+    f.write(str(vcon_down)+"\n")
+    f.close()
+
 
 def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
     """
@@ -207,7 +217,7 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         plt.subplots_adjust(left=0.1, right=0.97, top=0.90, bottom=0.05)
         cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
         print "saving %s" % (filename+"_%s.png" % reg_type)
-        plt.savefig(filename+"_%s.png" % reg_type, dpi=100)
+        plt.savefig(filename+"_%s.png" % reg_type, dpi=100, transparent=True)
         if save_pdf:
             plt.savefig(filename+"_%s.pdf" % reg_type)
 
@@ -245,7 +255,7 @@ def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False
     a = plt.axes([0.1, 0.2, 0.85, 0.7])
     a.set_xlim(0, 400)
     plt.ylabel("%genes")
-    plt.xlabel("distance from CS [nt]")
+    plt.xlabel("distance from polyA site [nt]")
 
     for axis in [a.xaxis, a.yaxis]:
         axis.set_major_locator(ticker.MaxNLocator(integer=True))
@@ -283,7 +293,7 @@ def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False
     if site=="distal":
         title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("r", pair_type)], stats[("e", pair_type)], stats[("c_up", pair_type)]+stats[("c_down", pair_type)])
     plt.title(title)
-    plt.savefig(filename+".png", dpi=100)
+    plt.savefig(filename+".png", dpi=100, transparent=True)
     if save_pdf:
         plt.savefig(filename+".pdf")
     plt.close()
@@ -361,7 +371,7 @@ def process(comps_id, surr=200):
     clip = {}
     for clip_name in comps.CLIP:
         clip_file = os.path.join(apa.path.iCLIP_folder, clip_name)
-        clip[clip_name] = pybio.data.Bedgraph(clip_file)
+        clip[clip_name] = pybio.data.Bedgraph(clip_file, fixed_cDNA=1) # set all cDNA values at all present positions to 1
 
     fasta_files = {}
     for site in ["proximal", "distal"]:

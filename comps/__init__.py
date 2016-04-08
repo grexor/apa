@@ -40,7 +40,7 @@ class Comps:
         self.pair_dist = 450
         self.exp_data = {}
         self.polya_db = ""
-        self.poly_type = ["strong"] # strong, weak, less, noclass
+        self.poly_type = ["strong", "weak"] # strong, weak, less, noclass
         self.deepbind = None
         self.rnamaps = []
         self.ignore_genes = []
@@ -554,6 +554,7 @@ def process_comps(comps_id, map_id=1):
             L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
         else:
             L = [(0, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
+
         # determine major / minor sites
         S_clip = copy.deepcopy(L)
         S_clip.sort(key=lambda x: x[0], reverse=True) # sort by clip_binding

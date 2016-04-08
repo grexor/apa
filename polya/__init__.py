@@ -32,7 +32,7 @@ def get_species(poly_id):
         r = f.readline()
         while r:
             r = r.replace("\r", "").replace("\n", "")
-            lib_id = "_".join(r.split("_")[:2])
+            lib_id = "_".join(r.split("_")[:-1])
             exp_id = int(r.split("_")[-1][1:])
             map_to = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
             species.add(map_to)
@@ -71,7 +71,7 @@ def process(poly_id, map_id=1):
         r = f.readline()
         while r:
             r = r.replace("\r", "").replace("\n", "")
-            lib_id = "_".join(r.split("_")[:2])
+            lib_id = "_".join(r.split("_")[:-1])
             exp_id = int(r.split("_")[-1][1:])
             experiments.append((lib_id, exp_id))
             map_to = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
@@ -242,10 +242,10 @@ def classify_polya(poly_id):
         if pas_type=="":
             pas_type="noclass"
             # search for top 12 hexamers in -30..-10 around CS
-            for h in PAS_hexamers:
-                if seq[70:90].find(h)!=-1:
-                    pas_type="p31"
-                    break
+            #for h in PAS_hexamers:
+            #    if seq[70:90].find(h)!=-1:
+            #        pas_type="p31"
+            #        break
         r[-4], r[-3], r[-2] = pas_type, pas_offset, cs_offset
     	f_tab.write("\t".join([str(e) for e in r])+"\n")
         bed_row = [chr, pos, pos+1, cDNA]
@@ -266,13 +266,13 @@ def polyadb_class_histogram(poly_id):
 
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
     f = open(polyadb_tab, "rt")
-    y = {"strong":[], "weak":[], "less":[], "p31":[], "noclass":[]}
+    y = {"strong":[], "weak":[], "less":[], "noclass":[]}
     header = f.readline().replace("\n", "").replace("\r", "").split("\t")
     r = f.readline()
     while r:
         r = r.replace("\n", "").replace("\r", "").split("\t")
         data = dict(zip(header, r))
-        if data["pas_type"] not in ["noclass", "p31"]:
+        if data["pas_type"] not in ["noclass"]:
             y[data["pas_type"]].append(int(data["cs_loci"]))
         else:
             y[data["pas_type"]].append(0) # just for counting by len
@@ -299,8 +299,8 @@ def polyadb_class_histogram(poly_id):
        s = '{:0,d}'.format(int(x))
        return s
 
-    P.figure(figsize=(12,4))
-    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"], [], []], bins=np.arange(-30, 30+1)-0.5, color=["#FFAEAE", 'lightgreen', "lightblue", "#f1f1f1", "#f1f1f1"], label=["strong (%s)" % format(int(len(y["strong"])), ","), "weak (%s)" % format(int(len(y["weak"])), ","), "PAS-less (%s)" % format(int(len(y["less"])), ","), "p31 (%s)" % format(int(len(y["p31"])), ","), "no class (%s)" % format(int(len(y["noclass"])), ",")], histtype="barstacked", edgecolor="none")
+    P.figure(figsize=(12,3))
+    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"], []], bins=np.arange(-30, 30+1)-0.5, color=["#FFAEAE", 'lightgreen', "lightblue", "#f1f1f1"], label=["strong (%s)" % format(int(len(y["strong"])), ","), "weak (%s)" % format(int(len(y["weak"])), ","), "PAS-less (%s)" % format(int(len(y["less"])), ","), "no class (%s)" % format(int(len(y["noclass"])), ",")], histtype="barstacked", edgecolor="none")
     P.title("distribution of predicted polyAR cleavage sites around %s cleavage sites" % poly_id)
     P.ylim(bottom=0)
     P.xlabel("distance from cleavage site [nt]")
