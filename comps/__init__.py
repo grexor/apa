@@ -409,6 +409,7 @@ def process_comps(comps_id, map_id=1):
     plt.title("%s polyA sites annotated to %s genes" % (format(int(total_sites), ','), format(int(total_genes), ',')))
     plt.tight_layout()
     plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.pdf" % comps_id))
+    plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.png" % comps_id), transparent=True)
     plt.close()
     # =======================
 

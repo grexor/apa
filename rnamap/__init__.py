@@ -22,6 +22,7 @@ import matplotlib.patches as mpatches
 import pickle
 import shutil
 import bisect
+import json
 
 save_pdf = True
 
@@ -114,15 +115,21 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
         plt.savefig(filename+".pdf")
     plt.close()
 
-    # save data
-    f = open(filename+".tab", "wt")
-    f.write(str(range(0, len(vpos)))+"\n")
-    f.write(str(vpos)+"\n")
-    f.write(str(vneg)+"\n")
-    f.write(str(vcon_up)+"\n")
-    f.write(str(vcon_down)+"\n")
-    f.close()
+    tab_data = {}
+    tab_data["x"] = range(-200, 200)
+    tab_data["vpos"] = list(vpos)
+    tab_data["vneg"] = list(vneg)
+    tab_data["cup"] = list(vcon_up)
+    tab_data["cdown"] = list(vcon_down)
+    tab_data["ymax"] = ymax
+    tab_data["num_r"] = stats[("r", pair_type)]
+    tab_data["num_e"] = stats[("e", pair_type)]
+    tab_data["num_cup"] = stats[("c_up", pair_type)]
+    tab_data["num_cdown"] = stats[("c_down", pair_type)]
 
+    f = open(filename+".tab", "wt")
+    f.write(json.dumps(tab_data))
+    f.close()
 
 def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
     """

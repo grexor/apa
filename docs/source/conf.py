@@ -34,7 +34,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'apa'
+project = u'apaExpress'
 copyright = u'2016, University of Zurich, Zurich, Switzerland'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -157,7 +157,7 @@ html_static_path = ['_static']
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'apa'
+htmlhelp_basename = 'apaExpress'
 
 
 # -- Options for LaTeX output --------------------------------------------------

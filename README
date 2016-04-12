@@ -1,16 +1,11 @@
 apa v2
 
-Processing and analysis of pA-seq data. Identification of alternatively polyadenylated
-genes (test/control experimental setups).
+Research platform for the analysis of NGS 3'-end targeted data.
 
 Dependencies
 
 * R : library amap : http://cran.r-project.org/web/packages/amap/index.html
 * pybio : NGS analytics with Python: https://github.com/grexor/pybio
 * scikit-learn: http://scikit-learn.org/0.11/install.html
-* polyar (http://cub.comsats.edu.pk/polyapredict.htm) installed to ~/software/polyar
-* regex (easy_install regex)
-
-Installation
-
-* download and add apa/bin folder to PATH
+* polyar (http://cub.comsats.edu.pk/polyapredict.htm)
+* python regex (easy_install regex)
