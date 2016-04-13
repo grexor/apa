@@ -6,7 +6,6 @@ import shutil
 from collections import Counter
 
 def process(comps_id):
-
     name_folder = "motifs"
     fasta_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder, "fasta")
     tab_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder, "tab")
@@ -26,6 +25,13 @@ def process(comps_id):
 
     fasta_files = {}
     tab_files = {}
+
+    for pair_type in ["tandem", "composite", "skipped"]:
+        for reg in ["r", "e", "c"]:
+            k = "%s_%s" % (pair_type, reg)
+            fname = os.path.join(fasta_folder, k+"_intersite.fasta")
+            fasta_files[k] = open(fname, "wt")
+
     for site in ["proximal", "distal"]:
         for pair_type in ["tandem", "composite", "skipped"]:
             fname = os.path.join(tab_folder, "%s_%s_%s.tab" % (comps_id, site, pair_type))
@@ -56,8 +62,8 @@ def process(comps_id):
         strand = data["strand"]
         gene_id = data["gene_id"]
         gene_name = data["gene_name"]
-        siteup_pos = int(data["proximal_pos"])
-        sitedown_pos = int(data["distal_pos"])
+        proximal_pos = int(data["proximal_pos"])
+        distal_pos = int(data["distal_pos"])
 
         pc = float(data["pc"])
         fisher = float(data["fisher"])
@@ -75,25 +81,28 @@ def process(comps_id):
             r = f.readline()
             continue
 
-        if abs(siteup_pos-sitedown_pos)<pair_dist:
+        if abs(proximal_pos-distal_pos)<pair_dist:
             r = f.readline()
             continue
 
         reg_sitedown = {"e":"r", "r":"e", "c":"c"}[reg_siteup]
         stats["%s.%s" % (reg_siteup, pair_type)] += 1
 
-        seq_up = pybio.genomes.seq(genome, chr, strand, siteup_pos, start=-200, stop=200)
-        seq_down = pybio.genomes.seq(genome, chr, strand, sitedown_pos, start=-200, stop=200)
+        seq_up = pybio.genomes.seq(genome, chr, strand, proximal_pos, start=-200, stop=200)
+        seq_down = pybio.genomes.seq(genome, chr, strand, distal_pos, start=-200, stop=200)
 
-        fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, siteup_pos, seq_up))
-        fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, sitedown_pos, seq_down))
+        seq_proximal_distal = pybio.genomes.seq_direct(genome, chr, strand, proximal_pos, distal_pos)
+        fasta_files["%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
+
+        fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
+        fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
 
         tab_files_index["proximal_%s" % pair_type] = tab_files_index.setdefault("proximal_%s" % pair_type, 0) + 1
         tab_files_index["distal_%s" % pair_type] = tab_files_index.setdefault("distal_%s" % pair_type, 0) + 1
 
-        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, siteup_pos, reg_siteup]]
+        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, proximal_pos, reg_siteup]]
         tab_files["proximal_%s" % pair_type].write("\t".join(row)+"\n")
-        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, sitedown_pos, reg_sitedown]]
+        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, distal_pos, reg_sitedown]]
         tab_files["distal_%s" % pair_type].write("\t".join(row)+"\n")
 
         r = f.readline()
