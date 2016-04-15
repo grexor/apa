@@ -235,6 +235,15 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         for (gene_id, gene_name, clip_sum) in gene_list:
             f.write("\t".join(str(el) for el in [gene_id, gene_name, clip_sum]) + "\n")
         f.close()
+
+        tab_data = {}
+        tab_data["data"] = dn.to_json(orient='values') # DataFrame to json
+        tab_data["x"] = range(-200, 200)
+        tab_data["ylabels"] = labels
+        f = open(filename+"_%s_json.tab" % reg_type, "wt")
+        f.write(json.dumps(tab_data))
+        f.close()
+
     return
 
 def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False, title="test", site="proximal", stats=None, pair_type="tandem", ymax=None):
