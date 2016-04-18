@@ -9,6 +9,7 @@ import os
 import pybio
 
 import apa
+import analysis
 import path
 import annotation
 import extract
@@ -18,7 +19,6 @@ import polya
 import comps
 import rnamap
 import model
-import analysis
 import motifs
 import warnings
 

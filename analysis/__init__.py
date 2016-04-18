@@ -2,110 +2,95 @@ import apa
 import os
 import sys
 import pybio
+from orangecontrib.bio import go
 
-def count_table(exp_list, output=""):
+def go_enrichment(species, comps_id, pair_type):
 
-    species = set()
-    expression = {}
-    names = []
-    for (lib_id, exp_id) in exp_list:
-        lib = apa.annotation.libs[lib_id]
-        exp_data = lib.experiments[exp_id]
-        species.add(exp_data["map_to"])
-        k = "%s_%s [%s]" % (lib_id, exp_id, exp_data["condition"])
-        e_filename = apa.path.e_filename(lib_id, exp_id)
-        expression[k] = pybio.data.Bedgraph(e_filename)
-        names.append(k)
+    def read_tab_reg(comps_id, pair_type, site_type, reg_type):
+        res = []
+        reg_type = {"r":"neg", "e":"pos"}[reg_type]
+        fname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", "clip0_heat.%s.%s_%s.tab" % (pair_type, site_type, reg_type))
+        f = open(fname, "rt")
+        header = f.readline().replace("\n", "").replace("\r", "").split("\t")
+        r = f.readline()
+        while r:
+            r = r.replace("\n", "").replace("\r", "").split("\t")
+            data = dict(zip(header, r))
+            if int(data["clip"])>0:
+                res.append(data["gene_name"])
+            r = f.readline()
+        f.close()
+        return res
 
-    assert(len(species)==1)
-    species = list(species)[0]
+    data_file = os.path.join(apa.path.comps_folder, comps_id, "rnamap", "data_%s.tab" % pair_type)
 
-    # find common list of positions
-    positions = {}
-    for id, bg in expression.items():
-        for chr, strand_data in bg.raw.items():
-            positions.setdefault(chr, {})
-            for strand, pos in strand_data.items():
-                positions.setdefault(chr, {}).setdefault(strand, set())
-                positions[chr][strand] = positions[chr][strand].union(set(pos.keys()))
+    r_list = []
+    e_list = []
+    c_list = [] # reference list
 
-    # organize polya sites inside genes
-    genes_sites = {}
-    for chr, strand_data in positions.items():
-        for strand, pos_set in strand_data.items():
-            pos_set = list(pos_set)
-            for pos in pos_set:
-                gid_up, gid, gid_down, gid_interval = apa.polya.annotate_position(species, chr, strand, pos)
-                if gid==None:
-                    continue# only consider polya sites inside genes
-                sites = genes_sites.get(gid, [])
-                cDNA_sum = 0
-                expression_vector = []
-                for exp_id in names:
-                    bg = expression[exp_id]
-                    cDNA = bg.get_value(chr, strand, pos)
-                    cDNA_sum += cDNA
-                    expression_vector.append(cDNA)
-                site_record = {"cDNA_sum":int(cDNA_sum), "site_pos":int(pos)} # later list of dictionaries will be sorted, still works fine (cDNA is first position, pos is second position)
-                sites.append(site_record)
-                genes_sites[gid] = sites
-
-    # expression.genes
-    genes_filename = output+"genes.tab"
-    f_genes = open(genes_filename, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype"]
-    header += ["sites_position_cDNA", "sites_num", "cDNA_sum"]
-    for exp_id in names:
-        header.append(exp_id)
-    f_genes.write("\t".join(header)+"\n")
-    for gid, sites in genes_sites.items():
-        sites = [(site_data["site_pos"], site_data["cDNA_sum"]) for site_data in sites]
-        sites.sort()
-        gene = apa.polya.get_gene(species, gid)
-        chr = gene["gene_chr"]
-        strand = gene["gene_strand"]
-        gene_start = gene["gene_start"]
-        gene_stop = gene["gene_stop"]
-        gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
-        row = [chr, strand, gene_locus, gid, gene["gene_name"], gene["gene_biotype"]]
-        row.append(sites)
-        row.append(len(sites))
-        row_comp = []
-        cDNA_total = 0
-        for exp_id in names:
-            bg = expression[exp_id]
-            cDNA_comp = 0
-            for (site_pos, _) in sites:
-                val = bg.get_value(chr, strand, site_pos)
-                cDNA_comp += val
-            cDNA_total += cDNA_comp
-            row_comp.append(cDNA_comp)
-        row.append(cDNA_total)
-        row += row_comp
-        f_genes.write("\t".join([str(x) for x in row]) + "\n")
-    f_genes.close()
-
-    # expression.sites
-    fname = output + "sites.tab"
-    f = open(fname, "wt")
-    header = ["site_id", "chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos"]
-    for exp_id in names:
-        header.append(exp_id)
-    f.write("\t".join(header)+"\n")
-    for gid, sites in genes_sites.items():
-        sites = [(site_data["site_pos"], site_data["cDNA_sum"]) for site_data in sites]
-        sites.sort()
-        gene = apa.polya.get_gene(species, gid)
-        chr = gene["gene_chr"]
-        strand = gene["gene_strand"]
-        gene_start = gene["gene_start"]
-        gene_stop = gene["gene_stop"]
-        gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
-        for (site_pos, _) in sites:
-            row = ["%s_%s" % (gid, site_pos), chr, strand, gene_locus, gid, gene["gene_name"], gene["gene_biotype"], site_pos]
-            for exp_id in names:
-                bg = expression[exp_id]
-                val = bg.get_value(chr, strand, site_pos)
-                row.append(val)
-            f.write("\t".join([str(x) for x in row]) + "\n")
+    # read in the gene lists
+    f = open(data_file, "rt")
+    r = f.readline()
+    while r:
+        r = r.replace("\n", "").replace("\r", "")
+        if r.startswith("genes_repressed="):
+            r = r.split("genes_repressed=")[1]
+            r_list = eval(r)
+        if r.startswith("genes_enhanced="):
+            r = r.split("genes_enhanced=")[1]
+            e_list = eval(r)
+        if r.startswith("genes_controls_down="):
+            r = r.split("genes_controls_down=")[1]
+            c_list = c_list + eval(r)
+        if r.startswith("genes_controls_up="):
+            r = r.split("genes_controls_up=")[1]
+            c_list = c_list + eval(r)
+        r = f.readline()
     f.close()
+
+    c_list = list(set(r_list+e_list+c_list)) # construct reference list from all present genes
+
+    # read in top regulated (bound) genes
+    r_proximal = read_tab_reg(comps_id, pair_type, "proximal", "r")
+    e_proximal = read_tab_reg(comps_id, pair_type, "proximal", "e")
+    r_distal = read_tab_reg(comps_id, pair_type, "distal", "r")
+    e_distal = read_tab_reg(comps_id, pair_type, "distal", "e")
+
+    data_file = os.path.join(apa.path.comps_folder, comps_id, "rnamap", "clip0_heat.%s.proximal_neg.png" % pair_type)
+
+    # compute GO enrichment
+    ontology = go.Ontology()
+    annotations = go.Annotations({"hg19":"hsa", "mm10":"mmu", "mm9":"mmu"}[species], ontology=ontology)
+
+    comps = []
+    comps.append((r_list, c_list, "enhanced"))
+    comps.append((e_list, c_list, "repressed"))
+    comps.append((r_proximal, c_list, "repressed_proximal"))
+    comps.append((r_distal, c_list, "repressed_distal"))
+    comps.append((e_proximal, c_list, "enhanced_proximal"))
+    comps.append((e_distal, c_list, "enhanced_distal"))
+
+    for (gene_set, reference_set, name) in comps:
+        print "%s GO analysis: genes=%s, controls=%s" % (name, len(gene_set), len(reference_set))
+        res = annotations.get_enriched_terms(gene_set, reference=reference_set, use_fdr=False)
+        results = []
+        for go_id, (genes, p_value, ref) in res.items():
+            go_depth = ontology.term_depth(go_id)
+            if go_depth>=4: # ignore lower levels
+                results.append((p_value, go_id, go_depth, ontology[go_id].name, ",".join(genes)))
+
+        fname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", "go_%s.tab" % name)
+        print "\t-> %s" % fname
+        f = open(fname, "wt")
+        f.write("#query (%s genes) = " % len(gene_set) + ",".join(gene_set) + "\n")
+        f.write("#reference (%s genes) = " % len(reference_set) + ",".join(reference_set) + "\n\n")
+        f.write("GO id\tGO term\tGO depth\tp-value\tenriched genes\n")
+        results.sort()
+        count = 0
+        for (p_value, go_id, go_depth, go_term, genes) in results:
+            if p_value<0.05:
+                count += 1
+                f.write("%s\t%s\t%s\t%.4f\t%s\n" % (go_id, go_term, go_depth, p_value, genes))
+        f.close()
+        print "\t-> %s GO terms enriched" % count
+        print
