@@ -6,6 +6,7 @@ data_folder = "data.apa"
 polya_folder = "data.polya"
 comps_folder = "data.comps"
 iCLIP_folder = "data.iCLIP"
+rnamotifs_folder = "/home/gregor/rnamotifs2"
 
 def init():
     apa.path.root_folder = os.path.abspath(os.path.join(os.path.abspath(__file__), "..", ".."))
