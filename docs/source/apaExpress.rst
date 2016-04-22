@@ -7,5 +7,6 @@ In this section we start by shortly describing the use of the web application an
    :maxdepth: 3
 
    apaExpress_usingw
-   apaExpress_rnamap
    apaExpress_cat
+   apaExpress_rnamap
+   apaExpress_go

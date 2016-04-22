@@ -394,17 +394,24 @@ def process_comps(comps_id, map_id=1):
             height = rect.get_height()
             ax.text(rect.get_x() + rect.get_width()/2., height+100, format(int(height), ','), ha='center', va='bottom', fontdict={"size":10})
     fig, ax = plt.subplots(1, 1, figsize=(12, 3))
-    x, y, total_sites, total_genes = [], [], 0, 0
+    total_sites, total_genes = 0, 0
+    x = [1,2,3,4,5,6,7,8,9,10]
+    y = {}
+    for e in x:
+        y[e] = 0
     for x1 in sorted(num_sites_per_gene.keys()):
-        x.append(x1)
-        y.append(num_sites_per_gene[x1])
+        if x1<10:
+            y[x1] += num_sites_per_gene[x1]
+        else:
+            y[10] += num_sites_per_gene[x1]
         total_sites += num_sites_per_gene[x1] * x1
         total_genes += num_sites_per_gene[x1]
+    y = [y[e] for e in x]
     bar1 = ax.bar(x, y, 0.5, label='number of polyA sites', color='lightgray')
     ax.get_yaxis().set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
-    plt.xlim(1-0.25, max(num_sites_per_gene.keys())+0.5)
+    plt.xlim(1-0.25, 10+0.5)
     plt.xlabel('number of polyA sites'); plt.ylabel('number of genes')
-    plt.xticks([e+0.25 for e in x], x)
+    plt.xticks([e+0.25 for e in x], [1,2,3,4,5,6,7,8,9,">=10"])
     autolabel(bar1)
     plt.title("%s polyA sites annotated to %s genes" % (format(int(total_sites), ','), format(int(total_genes), ',')))
     plt.tight_layout()
