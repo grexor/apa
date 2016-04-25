@@ -19,8 +19,8 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
     try:
         os.makedirs(map_folder)
     except:
-        print "error creating mapping folder:", map_folder
-        return False
+        pass
+
     print "%s_e%s : MAP : %s" % (lib_id, exp_id, map_folder)
     if mapper=="star":
         pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)

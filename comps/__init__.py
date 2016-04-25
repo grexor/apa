@@ -41,6 +41,7 @@ class Comps:
         self.exp_data = {}
         self.polya_db = ""
         self.poly_type = ["strong", "weak"] # strong, weak, less, noclass
+        self.site_selection = "CLIP" # CLIP / APA
         self.deepbind = None
         self.rnamaps = []
         self.ignore_genes = []
@@ -114,6 +115,10 @@ def read_comps(comps_id):
             continue
         if r[0].startswith("test_name:"):
             comps.test_name = r[0].split("test_name:")[1]
+            r = f.readline()
+            continue
+        if r[0].startswith("site_selection"):
+            comps.site_selection = r[0].split("site_selection:")[1]
             r = f.readline()
             continue
         if r[0].startswith("polya_db:"):
@@ -558,7 +563,7 @@ def process_comps(comps_id, map_id=1):
         if len(sites)<2:
             continue
 
-        if len(comps.CLIP)>0:
+        if len(comps.CLIP)>0 and comps.site_selection=="CLIP":
             L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
         else:
             L = [(0, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]

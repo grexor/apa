@@ -105,63 +105,46 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
     bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     bam_file = pysam.Samfile(bam_filename)
     a_number = 0
+    ip_number = 0
     for a in bam_file.fetch():
         a_number += 1
-
         if a_number%10000==0:
-            sys.stdout.write("\r%s_e%s_m%s : %sK reads processed : %s (pas count = %s)" % (lib_id, exp_id, map_id, a_number/1000, bam_filename))
-            sys.stdout.flush()
+            print "%s_e%s_m%s : %sM reads processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
 
         # do not process spliced reads
-        cigar = a.cigar
-        cigar_types = [t for (t, v) in cigar]
-        if 3 in cigar_types:
-            continue
+        #cigar = a.cigar
+        #cigar_types = [t for (t, v) in cigar]
+        #if 3 in cigar_types:
+        #    continue
 
         read_id = int(a.qname)
         chr = bam_file.getrname(a.tid)
         strand = "+" if not a.is_reverse else "-"
-        # we use the reference positions of the aligned read (aend, pos)
-        # relative positions are stored in qend, qstart
-        if strand=="+":
-            pos_end = a.aend - 1 # aend points to one past the last aligned residue, also see a.positions
-            assert(pos_end==a.positions[-1])
-        else:
-            pos_end = a.pos
-            assert(pos_end==a.positions[0])
-        rnd_code = apa.annotation.rndcode(lib_id, read_id)
 
-        aremoved = 0
-        if a.is_reverse:
-            last_cigar = a.cigar[0]
+        if strand=="+":
+            pos_end = a.positions[-1] # aend points to one past the last aligned residue, also see a.positions
         else:
-            last_cigar = a.cigar[-1]
-        if last_cigar[0]==4:
-            aremoved = last_cigar[1]
+            pos_end = a.positions[0]
+        rnd_code = apa.annotation.rndcode(lib_id, read_id)
 
         key = "%s:%s" % (chr, strand)
 
-        # update T file
-        if aremoved>=6:
-            true_site = True
-            downstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=1, stop=15)
-            upstream_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-36, stop=-1)
+        save(dataR, key, pos_end, read_id)
 
-            if downstream_seq.startswith("AAAA") or downstream_seq[:10].count("A")>=5 or upstream_seq.endswith("AAAA") \
-                or upstream_seq[-10:].count("A")>=5:
-                true_site = False
-
-            if match_pas(upstream_seq):
-                true_site = True
-
-            if true_site:
-                save(dataT, key, pos_end, rnd_code)
-
-        # update R file
-        save(dataR, key, pos_end, rnd_code)
+        # internal priming
+        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
+        if ip(check_seq):
+            ip_number += 1
+            continue
+        save(dataT, key, pos_end, read_id)
 
     write_bed(dataR, r_filename)
     write_bed(dataT, t_filename)
+
+    f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
+    f_ip.write("%s total processed alignments\n" % a_number)
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.close()
 
 def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="lexrev")
@@ -316,7 +299,7 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
     map_to = exp_data["map_to"]
     if exp_data["method"] in ["pAseq", "paseq"]:
-        apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, force=force)
+        apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexrev":
         apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexfwd":
@@ -324,11 +307,13 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
-    polyadb_filename = apa.path.polyadb_filename(genome)
+    if poly_id==None:
+        poly_id = map_to
+    polyadb_filename = apa.path.polyadb_filename(poly_id)
 
-
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
@@ -336,12 +321,11 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
-        e.save(e_filename)
+        e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
 def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
-
     if poly_id==None:
         poly_id = map_to
     polyadb_filename = apa.path.polyadb_filename(poly_id)
@@ -372,4 +356,3 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
-        
