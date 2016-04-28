@@ -1,0 +1,15 @@
+#!/usr/bin/python
+import apa
+import sys
+import argparse
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-comps_id', action="store", dest="comps_id", default=None)
+args = parser.parse_args()
+
+os.system("apa.comps -comps_id %s" % args.comps_id)
+os.system("apa.rnamap -comps_id %s" % args.comps_id)
+os.system("apa.motifs -comps_id %s" % args.comps_id)
+os.system("apa.go -comps_id %s" % args.comps_id)
+os.system("apa.rnamotifs -comps_id %s" % args.comps_id)

@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+import apa
+import os
+import sys
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('-comps_id', action="store", dest="comps_id", default=None)
+args = parser.parse_args()
+
+if args.comps_id!=None:
+    comps_id = args.comps_id
+    comps = apa.comps.read_comps(comps_id)
+    for site in ["proximal", "distal"]:
+        for pt in ["tandem", "composite", "skipped"]:
+            rnamotifs_id = "%s_%s_%s" % (comps_id, site, pt)
+            folder = os.path.join(apa.path.rnamotifs_folder, "comps", "%s_%s_%s" % (comps_id, site, pt))
+            try:
+                os.makedirs(folder)
+            except:
+                pass
+
+            fname1 = os.path.join(apa.path.comps_folder, comps_id, "motifs", "tab", rnamotifs_id+".tab")
+            fname2 = os.path.join(apa.path.rnamotifs_folder, "comps", rnamotifs_id, rnamotifs_id+".tab")
+            os.system("perl -pe 's/r\n/s\n/g' %s > %s" % (fname1, fname2))
+            fname_config = os.path.join(apa.path.rnamotifs_folder, "comps", rnamotifs_id, rnamotifs_id+".config")
+            f = open(fname_config, "wt")
+            f.write("data_type=apa\n")
+            f.write("hw=15\n")
+            f.write("flanking=100\n")
+            f.write("genome=%s\n" % comps.species)
+            f.write('regions=[("r1", -80, -40), ("r2", 0, 40), ("r3", 40, 80)]\n')
+            f.close()
+
+            os.system("rnamotifs2 %s" % rnamotifs_id)
+            os.system("rnamotifs2.draw_apa -comps %s" % rnamotifs_id)
