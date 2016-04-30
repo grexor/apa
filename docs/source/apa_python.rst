@@ -6,12 +6,34 @@
 Quick start
 -----------
 
-A quick start example to show you how to use the platform to process your data.
+.. raw:: html
 
-Dependencies
--------------------------------
+  <b>apa</b> is the python module behind all computational analysis and results. <b>apa</b> implements several steps of the analysis:
 
-This list of software needs to be installed and in your path to run the analysis:
+
+  <ul>
+  <li> organizes the experimental data into libraries and manages the experiment annotation
+  <li> processes aligned reads and creates polyA atlases together with polyA expression
+  <li> computes comparisons: identifying alternatively polyadenylated genes (APA, this is where the name comes from)
+  <li> integrates RNA-protein binding data and draws RNA-maps
+  </ul>
+
+  In order to be able to compute all the above, <b>apa</b> also integrates several external software packages:
+
+  <ul>
+  <li> genomic annotation and low level processing: <a href="https://github.com/grexor/pybio" target=_pybio>pybio</a>
+  <li> motif analysis: <a href="https://genomebiology.biomedcentral.com/articles/10.1186/gb-2014-15-1-r20" target=_rnamotifs>RNAmotifs</a>
+  <li> GO ontology enrichment analysis: <a href='http://orange-bioinformatics.readthedocs.io/en/latest' target=_orange_bio>Orange Bioinformatics Add-on</a>
+  <li> differential gene expression: <a href="https://bioconductor.org/packages/release/bioc/html/edgeR.html" target="_edgeR">edgeR</a>
+  <li> read alignment: <a href="https://github.com/alexdobin/STAR" target="_star">STAR</a>
+  </ul>
+
+The minimal set of external software to be installed for <b>apa</b> to operate is STAR and pybio. Go analysis requires Orange and it's Bioinformatics Add-on.
+
+Minimal set of dependencies
+---------------------------
+
+Short instructions to install STAR and pybio:
 
 .. code-block:: bash
 
@@ -22,174 +44,155 @@ This list of software needs to be installed and in your path to run the analysis
   # pybio genomic analysis
   git clone https://github.com/grexor/pybio.git pybio   # clone pybio repository
   export PATH=$PATH:pybio/bin                           # add pybio/bin to PATH
+  # + download any genomes that you will be using with the provided .sh script in the pybio/genomes folder
 
-Download example library and annotation
+Prepare your library annotation
 -------------------------------
-Experiments are organized in libraries. For this example we will call our library example_lib, containing 4 experiments (with id 1, 2, 3 and 4).
-
-To download the example library (elib) with 4 experiments (id 1,2,3 and 4), move to your ${data_folder} (by default data.apa) and run wget:
-
-.. code-block:: bash
-
-  wget http://www.apa-db.org/example . -R
-
-This will download the experiment FASTQ files (one file per experiment) and the annotation file to your ${data_folder}:
+For this example we will call our library **elib** (unique library identifier). Let's assume it contains 4 experiments (with id 1-4).
+Each experiment is represented by one FASTQ file. The libraries are stored in the ${data_folder} (apa/data by default):
 
 .. code-block:: bash
 
-  ${data_folder}/example_lib/annotation.tab # annotation file
-  ${data_folder}/elib/e1/elib_e1.fastq.gz   # FASTQ experiment 1
-  ${data_folder}/elib/e2/elib_e2.fastq.gz   # FASTQ experiment 2
-  ${data_folder}/elib/e3/elib_e3.fastq.gz   # FASTQ experiment 3
-  ${data_folder}/elib/e4/elib_e4.fastq.gz   # FASTQ experiment 4
+  ${data_folder}/elib/annotation.tab        # annotation file describing the library experiments
+  ${data_folder}/elib/e1/elib_e1.fastq.gz   # FASTQ for experiment 1
+  ${data_folder}/elib/e2/elib_e2.fastq.gz   # FASTQ for experiment 2
+  ${data_folder}/elib/e3/elib_e3.fastq.gz   # FASTQ for experiment 3
+  ${data_folder}/elib/e4/elib_e4.fastq.gz   # FASTQ for experiment 4
 
-Check annotation.tab:
+Example annotation.tab (TAB delimited file):
 
 ====== ======= === ====== ======= ======= ======
 exp_id method  rep tissue cond    species map_to
 ====== ======= === ====== ======= ======= ======
-1      lex_fwd 1   HeLa   control Hs      hg19
-2      lex_fwd 2   HeLa   control Hs      hg19
-3      lex_fwd 1   HeLa   test    Hs      hg19
-4      lex_fwd 2   HeLa   test    Hs      hg19
+1      lexfwd 1   HeLa   control Hs      hg19
+2      lexfwd 2   HeLa   control Hs      hg19
+3      lexfwd 1   HeLa   test    Hs      hg19
+4      lexfwd 2   HeLa   test    Hs      hg19
 ====== ======= === ====== ======= ======= ======
 
-It contains 4 experiments, 2x test and 2x control, from HeLa cells.
+It contains 4 experiments, 2 test, 2x control, on HeLa cells, sequenced with Lexogen forward 3' end method.
 
-Map reads to reference genome (hg19)
-------------------------------------
 
-Genomic data processing is done with pybio. Download and setup the hg19 reference genome and Ensemble annotation:
+Define comparison
+-----------------
+
+We need to define which test experiments are going to be compared to which controls. We define an elib.config file
+in the ${comps_folder} (by default apa/data_comps):
 
 .. code-block:: bash
 
-  cd pybio/genomes     # cd to genomes folder
-  ./hg19.download.sh   # download hg19 assembly and Ensembl annotation, build STAR indices
+  ${comps_folder}/elib/elib.config   # elib comparison configutation file
+
+In elib.config (TAB delimited file), we assign our experiments to control or test:
+
+.. code-block:: bash
+
+  id	experiments	name
+  c1	elib_e1	    control_1
+  c2	elib_e2	    control_2
+  t1	elib_e3	    test_1
+  t2	elib_e4	    test_2
+
+At this point, we have a library with experiments in the ${data_folder}/elib and one comparison in the ${comps_folder}/elib.
+
+Process data and compute comparison
+-----------------------------------
+
+First we map the reads to the reference genome (hg19):
+
+.. code-block:: bash
+
+  apa.map -comps_id elib
+
+Then we generate bedGraph files from the aligned reads (depending on the protocol, the first mapped nucleotide or the last mapped nucleotide is considered
+and the strand is reversed or kept):
+
+.. code-block:: bash
+
+  apa.bed.multi -lib_id elib
+
+Then we create the polyA atlas from all the hg19 experiments:
+
+.. code-block:: bash
+
+  apa.polya -poly_id hg19
+
+and finally we take the final atlas of polyA sites to compute expression in each of the experiments (results are again stored in bedGraph files):
+
+.. code-block:: bash
+
+  apa.bed.multi -lib_id -type expression
+
+Now we have the atlas of polyA sites in our data and also the expression of the sites in experiments 1 to 4. We can analyze the data and compute the comparison:
+
+.. code-block:: bash
+
+  apa.comps -comps_id elib
+
+Comparison results are stored in the ${comps_folder}/elib.
 
 -------
 Methods
 -------
 
-.. _3protocols:
+.. 3_protocols:
 
 3' end sequencing protocols
 -------------------------------
 
-apa-db.org supports several 3' end sequencing protocols. After read pre-processing and alignment to the reference, the main difference between
-these protocols is in determining the cleavage site loci and in further filtering steps (see below).
+apaExpress supports several 3' end sequencing protocols. Basically we could divide the procedure of processing reads from different sequencing protocols in two
+categories: (1) the polyA site (cleavage site) position is at the first aligned nucleotide of each aligned read, or (2) at the last nucleotide. Depending on the
+protocol, the strand could be either left the same (as the strand of the aligned read) or reversed.
 
-====================================== ================================ ===================
-Protocol                               Cleavage site                    Read attributes
-====================================== ================================ ===================
-pAseq, Wang et al., unpublished        3'-end nucleotide of alignment   A rich at 3'-end
-Lexogen 3' forward                     3'-end nucleotide of alignment   A rich at 3'-end
-Lexogen 3' reverse                     5'-end nucleotide of alignment   T rich at 5'-end
-====================================== ================================ ===================
+=========================================== ================================ ===================
+Protocol                                    Cleavage site                    Strand
+=========================================== ================================ ===================
+fwd (e.g. Lexogen 3' forward, pA-seq)       3'-end nucleotide of alignment   leave or reverse
+rev (e.g. Lexogen 3' reverse, PolyA-seq)    5'-end nucleotide of alignment   leave or reverse
+=========================================== ================================ ===================
 
-.. _r_bedgraph_method:
+.. read_alignment:
 
 Mapping of reads to the reference genome
 -------------------------------
 
-Reads mapping (alignment) to the appropriate reference genome (hg19, mm10, etc.) is done with `STAR <https://github.com/alexdobin/STAR/releases>`_.
-No special preprocessing other than quality control is performed. `STAR <https://github.com/alexdobin/STAR/releases>`_ is run allowing 5' and 3' soft clipping:
-the potential poly-A tail (poly-T in some protocols) is soft-clipped from the read, allowing a more accurate identification of cleavage sites compared
-to pre-processing and removing A/T rich 3'/5' ends of reads prior to mapping.
+.. raw:: html
 
-.. figure:: figures/clipping_analysis.png
-  :width: 900px
-  :figwidth: 900px
+  Reads mapping (alignment) to the reference genome (hg19, mm10, etc.) is done with <a href=https://github.com/alexdobin/STAR/releases target="_star">STAR</a>.
+  No special preprocessing other than quality control is performed. STAR is run allowing 5' and 3' soft clipping: the potential poly-A tail (poly-T in some protocols)
+  is soft-clipped from the read, allowing a more accurate identification of cleavage sites compared to pre-processing and removing A/T rich 3'/5' ends of reads
+  prior to mapping.
+
+.. figure:: figures/star_clipping.png
+  :width: 600px
   :align: center
 
-  Clipping analysis of aligned reads. Green line shows percentage of aligned nucleotides at specific position, blue line clipping from 5' end of reads and red line clipping from 3' end of reads.
+  The above figure shows the amount of clipping at 5' and 3' end of aligned reads.
 
-
-R (raw, unfiltered) bedGraph
+Custom polyA atlas
 -------------------------------
 
-The raw :ref:`bedGraph <r_bedgraph_format>` sites file, constructed by providing one site loci per alignment. This information is extracted from the bam file.
-The sites loci are determined based on :ref:`protocol <3protocols>` (5' or 3' end of alignment). Files are stored in:
+Instead of constructing the polyA atlas from all experiments available (species wise), it's possible to define a custom set of experiments for the polyA atlas.
+The custom set is a single file, e.g. an atlas with name "myatlas" would define experiments in the file ${polya_folder}/myatlas.config:
 
 .. code-block:: bash
 
- ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.T.bg
+  ${polya_folder}/myatlas.config
 
-T (tail, filtered) bedGraph
--------------------------------
-The tail :ref:`bedGraph <r_bedgraph_format>` sites file. The filtering depends on the protocol (see below).
-
-pA-seq (Wang et al.)
-#################################
-
-Lexogen 3' forward
-######################
-
-This protocol produces A-rich reads at the 3'-end of the sequence. The assignment of the cleavage site loci is as follows:
-
-#. set the CS site as the last (3' end) nucleotide of the mapped read (alignment)
-#. if the last 20nt of the alignment is A-rich (#A>10), skip it (genomic priming)
-
-Finally, construct the APA local-atlas from the CS-loci.
-
-Lexogen 3' reverse
-######################
-
-This protocol produces T-rich reads at the 5'-end of the sequence. The assignment of the cleavage site loci is as follows:
-
-#. set the CS site as the first (5' end) nucleotide of the mapped read (alignment)
-#. if the first 20nt of the alignment is T-rich (#T>10), skip it (genomic priming)
-
-Finally, construct the APA local-atlas from the CS-loci.
-
-Local poly-A atlas (database)
--------------------------------
-
-Before computing expression files, we define local groups of experiments (usually every library has it's own poly-A atlas). The atlas definition file is stored in:
-
-.. code-block:: bash
-
-  ${polya_folder}/${lib_id}.config
-
-This config file contains the experiment identifiers, e.g.:
+This config file contains the experiment identifier per line, e.g.:
 
 .. code-block:: bash
 
   elib_e1
   elib_e2
   elib_e3
-  ...
-
-We group together T bedGraph files from the defined experiments (in this example e1, e2, e3 and e4) and:
-
-#. create sorted loci list (reverse order = most expressed loci at the top)
-#. select first loci in the list and remove all surrounding loci in region [-125, 125]
-#. store selected loci in the atlas and remove it from the list
-#. repeat previous two steps until loci list is empty
-
-E (expression) bedGraph
------------------------
-
-For a given poly-A atlas and experiment R file, compute:
-
-#. sum up experiment R file in region [-100, 25] for each poly-A atlas loci
-
-
-.. role:: green
-.. raw:: html
-
-  <style>
-  .green {
-    color:green;
-  }
-  </style>
+  elib_e3
 
 ------------
 File formats
 ------------
 
-Description of various file formats with their structure that apa platform supports or generates.
-
-.. _r_bedgraph_format:
+Description of various file formats with their structure that apa platform supports.
 
 bedGraph files
 --------------
@@ -235,6 +238,3 @@ polya_folder     data.polya  poly-A atlas (database) files
 comps_folder     data.comps  comparisons for searching of APA gene
 iCLIP_folder     data.iCLIP  iCLIP data used for RNA-maps (in bedGraph format)
 ================ =========== ===========
-
-.. autofunction:: apa.path.t_filename
-.. autofunction:: apa.path.r_filename

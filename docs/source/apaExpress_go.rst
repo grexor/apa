@@ -1,6 +1,6 @@
 .. _go:
 
-Gene Ontology (GO) enrichment analysis
+GO, Gene Ontology enrichment analysis
 --------------------------------------
 The target genes identified in the comparison of choice are used for a standard hypergeometric test of GO term enrichment. We use all polyA genes as the **reference
 set** and perform 6 different enrichment analysis:

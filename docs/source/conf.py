@@ -71,7 +71,7 @@ exclude_trees = []
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
-#add_module_names = True
+add_module_names = True
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
@@ -102,10 +102,10 @@ html_theme = "pyramid"
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-#html_title = None
+html_title = "apaExpress docs"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-#html_short_title = None
+html_short_title = "apaExpress docs"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.

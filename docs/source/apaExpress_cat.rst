@@ -1,3 +1,5 @@
+.. index::
+
 .. _apacat:
 
 APA categories
