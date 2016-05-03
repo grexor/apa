@@ -337,7 +337,9 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
-        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
+        #e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
+        # TODO
+        e.overlay(polyadb_filename, r_filename, start=-5, stop=5)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
 
 def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):

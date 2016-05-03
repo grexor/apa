@@ -28,7 +28,7 @@ Quick start
   <li> read alignment: <a href="https://github.com/alexdobin/STAR" target="_star">STAR</a>
   </ul>
 
-The minimal set of external software to be installed for <b>apa</b> to operate is STAR and pybio. Go analysis requires Orange and it's Bioinformatics Add-on.
+The minimal set of external software to be installed for **apa* to operate is STAR and pybio. Go analysis requires Orange and it's Bioinformatics Add-on.
 
 Minimal set of dependencies
 ---------------------------
