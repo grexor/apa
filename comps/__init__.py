@@ -44,6 +44,7 @@ class Comps:
         self.site_selection = "CLIP" # CLIP / APA
         self.deepbind = None
         self.rnamaps = []
+        self.use_FDR = False
         self.ignore_genes = []
         self.exclusive_genes = []
         self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
@@ -82,6 +83,11 @@ def read_comps(comps_id):
             continue
         if r[0].startswith("pc_thr:"):
             comps.pc_thr = float(r[0].split("pc_thr:")[1])
+            r = f.readline()
+            continue
+        if r[0].startswith("use_FDR:"):
+            if r[0].split("use_FDR:")[1] in ["True", "true", "yes", "1"]:
+                comps.use_FDR = True
             r = f.readline()
             continue
         if r[0].startswith("fisher_thr"):
@@ -689,6 +695,9 @@ def process_comps(comps_id, map_id=1):
     for row in results:
         f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
+
+    if comps.use_FDR:
+        pybio.utils.FDR_tab(pairs_filename, "fisher")
 
     print "----------stats pairs------------"
     print num_genes.items()

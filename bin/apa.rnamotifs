@@ -6,6 +6,7 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-comps_id', action="store", dest="comps_id", default=None)
+parser.add_argument('-fdr', action="store_true", default=False)
 args = parser.parse_args()
 
 if args.comps_id!=None:
@@ -30,6 +31,10 @@ if args.comps_id!=None:
             f.write("flanking=100\n")
             f.write("genome=%s\n" % comps.species)
             f.write('regions=[("r1", -80, -40), ("r2", 0, 40), ("r3", 40, 80)]\n')
+            if args.fdr:
+                f.write("use_FDR=True\n")
+            else:
+                f.write("use_FDR=False\n")
             f.close()
 
             os.system("rnamotifs2 %s" % rnamotifs_id)

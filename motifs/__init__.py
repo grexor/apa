@@ -122,7 +122,7 @@ def process(comps_id):
             f_stats.write("%s\t%s\t%s\n" % (pair_type, reg, stats["%s.%s" % (reg, pair_type)]))
     f_stats.close()
 
-    dreme(comps_id)
+    #dreme(comps_id)
 
 
 def dreme(comps_id):
