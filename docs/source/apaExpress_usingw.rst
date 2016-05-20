@@ -5,7 +5,7 @@ The main menu on the top right in the browser is your basic navigation point in 
 .. figure:: figures/help_menu.png
   :align: center
 
-#. Search allows you to find and view comparisons in apaExpress
+#. Browse allows you to find and view comparisons in apaExpress
 #. Help opens this documentation
 #. About provides some compact information about apaExpress research platform, it's use and contributors
 #. Sign-in provides the possibility to login with your existing Google account for accessing un-published data on our servers at **apaexpress.org**. We do not store any information or get access to any of your Google account details

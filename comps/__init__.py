@@ -392,18 +392,18 @@ def process_comps(comps_id, map_id=1):
     import matplotlib.ticker as mticker
     from matplotlib.colors import LinearSegmentedColormap
     import matplotlib.colors as mcolors
-    matplotlib.rcParams['axes.labelsize'] = 12
-    matplotlib.rcParams['axes.titlesize'] = 12
-    matplotlib.rcParams['xtick.labelsize'] = 12
-    matplotlib.rcParams['ytick.labelsize'] = 12
-    matplotlib.rcParams['legend.fontsize'] = 12
+    matplotlib.rcParams['axes.labelsize'] = 14
+    matplotlib.rcParams['axes.titlesize'] = 14
+    matplotlib.rcParams['xtick.labelsize'] = 14
+    matplotlib.rcParams['ytick.labelsize'] = 14
+    matplotlib.rcParams['legend.fontsize'] = 14
     matplotlib.rc('axes',edgecolor='gray')
     matplotlib.rcParams['axes.linewidth'] = 0.4
     matplotlib.rcParams['legend.frameon'] = 'False'
     def autolabel(rects):
         for rect in rects:
             height = rect.get_height()
-            ax.text(rect.get_x() + rect.get_width()/2., height+100, format(int(height), ','), ha='center', va='bottom', fontdict={"size":10})
+            ax.text(rect.get_x() + rect.get_width()/2., height+100, format(int(height), ','), ha='center', va='bottom', fontdict={"size":14})
     fig, ax = plt.subplots(1, 1, figsize=(12, 3))
     total_sites, total_genes = 0, 0
     x = [1,2,3,4,5,6,7,8,9,10]
@@ -538,7 +538,6 @@ def process_comps(comps_id, map_id=1):
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
     header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp", "proximal_UG", "distal_pos", "distal_exp", "distal_UG", "s1", "s2"]
-
     header.append("proximal_control")
     header.append("proximal_control_sum")
     header.append("distal_control")
@@ -695,6 +694,62 @@ def process_comps(comps_id, map_id=1):
     for row in results:
         f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
+
+    # write expression_proximal file
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.expression_proximal.tab" % comps_id), "wt")
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp"]
+    i = 0
+    for (rshort, _) in replicates:
+        if rshort.startswith("c"):
+            i += 1
+            header.append("c%s" % i)
+    i = 0
+    for (rshort, _) in replicates:
+        if rshort.startswith("t"):
+            i += 1
+            header.append("t%s" % i)
+    header.append("csum")
+    header.append("tsum")
+    header.append("pair_type")
+    f.write("\t".join(header)+"\n")
+    for row in results:
+        r = row[:9]
+        r = r + row[15].split(";")
+        r = r + row[19].split(";")
+        r.append(row[16])
+        r.append(row[20])
+        r.append(row[-1])
+        f.write("\t".join([str(x) for x in r]) + "\n")
+    f.close()
+
+    # write expression_distal file
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.expression_distal.tab" % comps_id), "wt")
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "distal_pos", "distal_exp"]
+    i = 0
+    for (rshort, _) in replicates:
+        if rshort.startswith("c"):
+            i += 1
+            header.append("c%s" % i)
+    i = 0
+    for (rshort, _) in replicates:
+        if rshort.startswith("t"):
+            i += 1
+            header.append("t%s" % i)
+    header.append("csum")
+    header.append("tsum")
+    header.append("pair_type")
+    f.write("\t".join(header)+"\n")
+    for row in results:
+        r = row[:7]
+        r.append(row[10])
+        r.append(row[11])
+        r = r + row[17].split(";")
+        r = r + row[21].split(";")
+        r.append(row[18])
+        r.append(row[22])
+        r.append(row[-1])
+        f.write("\t".join([str(x) for x in r]) + "\n")
+    f.close()
 
     if comps.use_FDR:
         pybio.utils.FDR_tab(pairs_filename, "fisher")
