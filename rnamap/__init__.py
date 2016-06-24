@@ -391,7 +391,7 @@ def process(comps_id, surr=200):
 
     fasta_files = {}
     for site in ["proximal", "distal"]:
-        for pair_type in ["tandem", "composite", "skipped"]:
+        for pair_type in ["tandem", "composite", "skipped", "all"]:
             for reg in ["r", "e"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
                 fname = os.path.join(rnamap_dest, k+".fasta")
@@ -412,7 +412,7 @@ def process(comps_id, surr=200):
     sdata = {}
     pdata = {}
     present = {}
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in ["tandem", "composite", "skipped", "all"]:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["r", "e", "c_up", "c_down"]:
                 for clip_name in comps.CLIP:
@@ -484,11 +484,17 @@ def process(comps_id, surr=200):
             continue
 
         stats[(proximal_reg, pair_type)] += 1
+        stats[(proximal_reg, "all")] += 1
         gene_list.setdefault((proximal_reg, pair_type), []).append((gene_id, gene_name, pc, fisher))
+        gene_list.setdefault((proximal_reg, "all"), []).append((gene_id, gene_name, pc, fisher))
         stats_bysite[("proximal", proximal_reg, pair_type)] += 1
+        stats_bysite[("proximal", proximal_reg, "all")] += 1
         stats_bysite[("distal", distal_reg, pair_type)] += 1
+        stats_bysite[("distal", distal_reg, "all")] += 1
         stats_bysite[("s1", s1_reg, pair_type)] += 1
+        stats_bysite[("s1", s1_reg, "all")] += 1
         stats_bysite[("s2", s2_reg, pair_type)] += 1
+        stats_bysite[("s2", s2_reg, "all")] += 1
 
         (_, proximal_lenup, proximal_lendown), (_, distal_lenup, distal_lendown), (_, s1_lenup, s1_lendown), (_, s2_lenup, s2_lendown) = coords(strand, proximal_pos, distal_pos, s1_pos, s2_pos)
 
@@ -516,13 +522,19 @@ def process(comps_id, surr=200):
         s2_pre = presence_vector(s2_seq, s2_lenup, s2_lendown, surr)
 
         present[("proximal", proximal_reg, pair_type)] = [x+y for x,y in zip(present[("proximal", proximal_reg, pair_type)], proximal_pre)]
+        present[("proximal", proximal_reg, "all")] = [x+y for x,y in zip(present[("proximal", proximal_reg, "all")], proximal_pre)]
         present[("distal", distal_reg, pair_type)] = [x+y for x,y in zip(present[("distal", distal_reg, pair_type)], proximal_pre)]
+        present[("distal", distal_reg, "all")] = [x+y for x,y in zip(present[("distal", distal_reg, "all")], proximal_pre)]
         present[("s1", s1_reg, pair_type)] = [x+y for x,y in zip(present[("s1", s1_reg, pair_type)], proximal_pre)]
+        present[("s1", s1_reg, "all")] = [x+y for x,y in zip(present[("s1", s1_reg, "all")], proximal_pre)]
         present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], proximal_pre)]
+        present[("s2", s2_reg, "all")] = [x+y for x,y in zip(present[("s2", s2_reg, "all")], proximal_pre)]
 
         if proximal_reg in ["e", "r"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
+            fasta_files[("proximal", "all", proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
             fasta_files[("distal", pair_type, distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
+            fasta_files[("distal", "all", distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
 
         # CLIP
         for clip_name in comps.CLIP:
@@ -538,10 +550,13 @@ def process(comps_id, surr=200):
                 if strand=="-":
                     z.reverse()
                 cdata[(clip_name, site, reg, pair_type)] = [x+y for x,y in zip(cdata[(clip_name, site, reg, pair_type)], z)]
+                cdata[(clip_name, site, reg, "all")] = [x+y for x,y in zip(cdata[(clip_name, site, reg, "all")], z)]
                 # [(gene_id, gene_name), 0, 0, 1, 1 ....]
                 z_vector = [(gene_id, gene_name, sum(z))] + z
                 cdata_vectors[(clip_name, site, reg, pair_type)].append(z_vector)
+                cdata_vectors[(clip_name, site, reg, "all")].append(z_vector)
                 assert(len(cdata[(clip_name, site, reg, pair_type)])==401)
+                assert(len(cdata[(clip_name, site, reg, "all")])==401)
 
         r = f.readline()
     f.close() # end of reading gene data
@@ -554,6 +569,8 @@ def process(comps_id, surr=200):
         sorted_present_pairs.append("composite")
     if "skipped" in present_pairs:
         sorted_present_pairs.append("skipped")
+    if "all" in present_pairs:
+        sorted_present_pairs.append("all")
     present_pairs = sorted_present_pairs
 
     print stats.items()
@@ -578,10 +595,10 @@ def process(comps_id, surr=200):
     cmax = {}
     fmax = {}
     for clip_name in comps.CLIP:
-        cmax[clip_name] = {"tandem":0, "composite":0, "skipped":0}
-        fmax[clip_name] = {"tandem":0, "composite":0, "skipped":0}
-    smax = {"tandem":0, "composite":0, "skipped":0}
-    pmax = {"tandem":0, "composite":0, "skipped":0}
+        cmax[clip_name] = {"tandem":0, "composite":0, "skipped":0, "all":0}
+        fmax[clip_name] = {"tandem":0, "composite":0, "skipped":0, "all":0}
+    smax = {"tandem":0, "composite":0, "skipped":0, "all":0}
+    pmax = {"tandem":0, "composite":0, "skipped":0, "all":0}
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["e", "r", "c_up", "c_down"]:
@@ -796,7 +813,7 @@ a:visited {
 function change_clip()
 {
   index = $('#cmb_clip option:selected').val();
-  sites = ["tandem", "composite", "skipped"];
+  sites = ["tandem", "composite", "skipped", "all"];
   for (var i=0; i<sites.length; i++)
   {
     $("#" + sites[i]+"_c00_img").attr("src", "clip" + index + "." + sites[i] + ".proximal.png");

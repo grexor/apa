@@ -26,14 +26,14 @@ def process(comps_id):
     fasta_files = {}
     tab_files = {}
 
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in ["tandem", "composite", "skipped", "all"]:
         for reg in ["r", "e", "c"]:
             k = "%s_%s" % (pair_type, reg)
             fname = os.path.join(fasta_folder, k+"_intersite.fasta")
             fasta_files[k] = open(fname, "wt")
 
     for site in ["proximal", "distal"]:
-        for pair_type in ["tandem", "composite", "skipped"]:
+        for pair_type in ["tandem", "composite", "skipped", "all"]:
             fname = os.path.join(tab_folder, "%s_%s_%s.tab" % (comps_id, site, pair_type))
             tab_files["%s_%s" % (site, pair_type)] = open(fname, "wt")
             tab_files["%s_%s" % (site, pair_type)].write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
@@ -87,23 +87,34 @@ def process(comps_id):
 
         reg_sitedown = {"e":"r", "r":"e", "c":"c"}[reg_siteup]
         stats["%s.%s" % (reg_siteup, pair_type)] += 1
+        stats["%s.%s" % (reg_siteup, "all")] += 1
 
         seq_up = pybio.genomes.seq(genome, chr, strand, proximal_pos, start=-200, stop=200)
         seq_down = pybio.genomes.seq(genome, chr, strand, distal_pos, start=-200, stop=200)
 
         seq_proximal_distal = pybio.genomes.seq_direct(genome, chr, strand, proximal_pos, distal_pos)
         fasta_files["%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
+        fasta_files["%s_%s" % ("all", reg_siteup)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
 
         fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
+        fasta_files["proximal_%s_%s" % ("all", reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
         fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
+        fasta_files["distal_%s_%s" % ("all", reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
 
         tab_files_index["proximal_%s" % pair_type] = tab_files_index.setdefault("proximal_%s" % pair_type, 0) + 1
+        tab_files_index["proximal_%s" % "all"] = tab_files_index.setdefault("proximal_%s" % "all", 0) + 1
         tab_files_index["distal_%s" % pair_type] = tab_files_index.setdefault("distal_%s" % pair_type, 0) + 1
+        tab_files_index["distal_%s" % "all"] = tab_files_index.setdefault("distal_%s" % "all", 0) + 1
 
         row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, proximal_pos, reg_siteup]]
         tab_files["proximal_%s" % pair_type].write("\t".join(row)+"\n")
         row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, distal_pos, reg_sitedown]]
         tab_files["distal_%s" % pair_type].write("\t".join(row)+"\n")
+
+        row = [str(el) for el in [tab_files_index["proximal_%s" % "all"], chr, strand, proximal_pos, reg_siteup]]
+        tab_files["proximal_%s" % "all"].write("\t".join(row)+"\n")
+        row = [str(el) for el in [tab_files_index["distal_%s" % "all"], chr, strand, distal_pos, reg_sitedown]]
+        tab_files["distal_%s" % "all"].write("\t".join(row)+"\n")
 
         r = f.readline()
     f.close() # end of reading gene data
@@ -117,13 +128,11 @@ def process(comps_id):
     f_stats = open(os.path.join(dest_folder, "site_stats.tab"), "wt")
     f_stats.write("# r = repressed, e = enhanced, c = control\n")
     f_stats.write("# relative to proximal site; if proximal site = r, distal = e, and vice-versa; if proximal = c, distal is also c\n")
-    for pair_type in ["tandem", "composite", "skipped"]:
+    for pair_type in ["tandem", "composite", "skipped", "all"]:
         for reg in ["r", "e", "c"]:
             f_stats.write("%s\t%s\t%s\n" % (pair_type, reg, stats["%s.%s" % (reg, pair_type)]))
     f_stats.close()
-
     #dreme(comps_id)
-
 
 def dreme(comps_id):
     name_folder = "motifs"

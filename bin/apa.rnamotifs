@@ -13,7 +13,7 @@ if args.comps_id!=None:
     comps_id = args.comps_id
     comps = apa.comps.read_comps(comps_id)
     for site in ["proximal", "distal"]:
-        for pt in ["tandem", "composite", "skipped"]:
+        for pt in ["tandem", "composite", "skipped", "all"]:
             rnamotifs_id = "%s_%s_%s" % (comps_id, site, pt)
             folder = os.path.join(apa.path.rnamotifs_folder, "comps", "%s_%s_%s" % (comps_id, site, pt))
             try:
@@ -37,5 +37,5 @@ if args.comps_id!=None:
                 f.write("use_FDR=False\n")
             f.close()
 
-            os.system("rnamotifs2 %s" % rnamotifs_id)
+            os.system("rnamotifs2 -comps %s" % rnamotifs_id)
             os.system("rnamotifs2.draw_apa -comps %s" % rnamotifs_id)
