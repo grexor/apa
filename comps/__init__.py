@@ -21,7 +21,6 @@ from collections import Counter
 import copy
 
 minor_major_thr = 0.05 # for a site to be considered, it's expression needs to be >5% of the max site inside the gene
-clip_interval = (-100, 100) # interval around sites for binding data
 
 class Comps:
     def __init__(self, comps_id=None):
@@ -42,7 +41,9 @@ class Comps:
         self.polya_db = ""
         self.poly_type = ["strong", "weak"] # strong, weak, less, noclass
         self.site_selection = "CLIP" # CLIP / APA
+        self.choose_function = "sum" # how are sites evaluated from iCLIP data, by "sum" in the clip_interval or by "closest" in the "clip_interval"
         self.deepbind = None
+        self.clip_interval = (-100, 100) # interval around sites for binding data
         self.rnamaps = []
         self.use_FDR = False
         self.ignore_genes = []
@@ -81,8 +82,16 @@ def read_comps(comps_id):
         if r[0].startswith("#"):
             r = f.readline()
             continue
+        if r[0].startswith("choose_function:"):
+            comps.choose_function = str(r[0].split("choose_function:")[1])
+            r = f.readline()
+            continue
         if r[0].startswith("pc_thr:"):
             comps.pc_thr = float(r[0].split("pc_thr:")[1])
+            r = f.readline()
+            continue
+        if r[0].startswith("clip_interval:"):
+            comps.clip_interval = eval(r[0].split("clip_interval:")[1])
             r = f.readline()
             continue
         if r[0].startswith("use_FDR:"):
@@ -225,7 +234,7 @@ def process_comps(comps_id, map_id=1):
     # load CLIP data if available
     clip = {}
     for clip_name in comps.CLIP:
-        clip[clip_name] = pybio.data.Bedgraph(os.path.join(apa.path.iCLIP_folder, clip_name))
+        clip[clip_name] = pybio.data.Bedgraph2(os.path.join(apa.path.iCLIP_folder, clip_name))
 
     # if there is a polya-db specified in the comparison, load the positions into the filter
     # (strong, weak, less)
@@ -301,6 +310,8 @@ def process_comps(comps_id, map_id=1):
     num_sites_genes_expressed = 0
     num_sites_genes_expressed_final = 0
 
+    print "clip_interval=", comps.clip_interval
+
     for chr, strand_data in positions.items():
         for strand, pos_set in strand_data.items():
             pos_set = list(pos_set)
@@ -317,7 +328,16 @@ def process_comps(comps_id, map_id=1):
 
                 # get clip data
                 for clip_name in comps.CLIP:
-                    site_data[clip_name] = clip[clip_name].get_region("chr"+chr, strand, pos, start=clip_interval[0], stop=clip_interval[1])
+                    # TODO: get_vector instead of get_region, and then also later on consider choose_function ("sum" or "distance")
+                    # bedgraph
+                    #site_data[clip_name] = clip[clip_name].get_region("chr"+chr, strand, pos, start=comps.clip_interval[0], stop=comps.clip_interval[1])
+
+                    # old
+                    #site_data[clip_name] = clip[clip_name].get_vector("chr"+chr, strand, pos, start=comps.clip_interval[0], stop=comps.clip_interval[1])
+                    #assert(test==sum(site_data[clip_name]))
+
+                    # bedgraph2
+                    site_data[clip_name] = clip[clip_name].get_vector("chr"+chr, strand, pos, start=comps.clip_interval[0], stop=comps.clip_interval[1])
 
                 control_sum = 0
                 test_sum = 0
@@ -492,7 +512,9 @@ def process_comps(comps_id, map_id=1):
         for site_pos, site_data in sites.items():
             row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_interval"]]
             for clip_name in comps.CLIP:
-                row_1.append(site_data[clip_name])
+                # TODO
+                #row_1.append(site_data[clip_name])
+                row_1.append(sum(site_data[clip_name]))
             row_2 = []
             cDNA_sum = 0
             for (rshort, rlong) in replicates:
@@ -569,7 +591,28 @@ def process_comps(comps_id, map_id=1):
             continue
 
         if len(comps.CLIP)>0 and comps.site_selection=="CLIP":
-            L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+            # TODO: consider sum or distance
+            #L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+            if comps.choose_function=="sum":
+                L = [(sum(sites[pos][comps.CLIP[0]]), sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+                #L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+            elif comps.choose_function=="distance":
+                vector = sites[pos][comps.CLIP[0]]
+                center = (comps.clip_interval[1]-comps.clip_interval[0])/2
+                distance = 0
+                for c in range(1, abs(comps.clip_interval[0])):
+                    if vector[center-c]>0:
+                        distance = min(distance, c)
+                        break
+                for c in range(1, comps.clip_interval[0]):
+                    if vector[center+c]>0:
+                        distance = min(distance, c)
+                        break
+                if distance!=():
+                    distance = 1/float(distance) # inverse it, lower values are better, but we always sort reverse (take highest iCLIP binding, take highest inverse distance)
+                else:
+                    distance = 0
+                L = [(distance, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
         else:
             L = [(0, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
 
@@ -580,7 +623,7 @@ def process_comps(comps_id, map_id=1):
         S_exp.sort(key=lambda x: x[1], reverse=True) # sort by expression
 
         if S_clip[0][0]>0:
-            major = S_clip[0][-1] # take position of most bound site
+            major = S_clip[0][-1] # take position of most bound site (or closest element, depending of choose_function)
             minor = S_exp[0][-1] # take position of most expressed site
             if major["pos"]==minor["pos"]:
                 minor = S_exp[1][-1]

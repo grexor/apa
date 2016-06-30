@@ -382,12 +382,11 @@ def process(comps_id, surr=200):
         shutil.rmtree(rnamap_dest)
     os.makedirs(rnamap_dest)
 
-
     # read clip data
     clip = {}
     for clip_name in comps.CLIP:
         clip_file = os.path.join(apa.path.iCLIP_folder, clip_name)
-        clip[clip_name] = pybio.data.Bedgraph(clip_file, fixed_cDNA=1) # set all cDNA values at all present positions to 1
+        clip[clip_name] = pybio.data.Bedgraph2(clip_file, fixed_cDNA=1) # set all cDNA values at all present positions to 1
 
     fasta_files = {}
     for site in ["proximal", "distal"]:
@@ -541,9 +540,11 @@ def process(comps_id, surr=200):
             for (site, reg, pos, len_up, len_down) in [("proximal", proximal_reg, proximal_pos, proximal_lenup, proximal_lendown), ("distal", distal_reg, distal_pos, distal_lenup, distal_lendown), ("s1", s1_reg, s1_pos, s1_lenup, s1_lendown), ("s2", s2_reg, s2_pos, s2_lenup, s2_lendown)]:
                 z = []
                 if pos!=None:
-                    for index, x in enumerate(range(pos-len_up, pos+len_down+1)):
-                        # all CLIP data is in UCSC genomic format of chromosome names?
-                        z.append(clip[clip_name].get_value("chr"+chr, strand, x, db="raw"))
+                    # TODO: the for loop is incorrect, since it doesnt consider strand when providing len_up and len_down
+                    #for index, x in enumerate(range(pos-len_up, pos+len_down+1)):
+                    #    # all CLIP data is in UCSC genomic format of chromosome names?
+                    #    z.append(clip[clip_name].get_value("chr"+chr, strand, x, db="raw"))
+                    z = clip[clip_name].get_vector("chr"+chr, strand, pos, -len_up, len_down)
                 else:
                     z = [0]
                 z = adjust_len(z, len_up, len_down, surr)
