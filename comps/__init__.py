@@ -593,26 +593,35 @@ def process_comps(comps_id, map_id=1):
         if len(comps.CLIP)>0 and comps.site_selection=="CLIP":
             # TODO: consider sum or distance
             #L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
-            if comps.choose_function=="sum":
-                L = [(sum(sites[pos][comps.CLIP[0]]), sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
-                #L = [(sites[pos][comps.CLIP[0]], sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
-            elif comps.choose_function=="distance":
-                vector = sites[pos][comps.CLIP[0]]
-                center = (comps.clip_interval[1]-comps.clip_interval[0])/2
-                distance = 0
-                for c in range(1, abs(comps.clip_interval[0])):
-                    if vector[center-c]>0:
-                        distance = min(distance, c)
-                        break
-                for c in range(1, comps.clip_interval[0]):
-                    if vector[center+c]>0:
-                        distance = min(distance, c)
-                        break
-                if distance!=():
-                    distance = 1/float(distance) # inverse it, lower values are better, but we always sort reverse (take highest iCLIP binding, take highest inverse distance)
-                else:
-                    distance = 0
-                L = [(distance, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()] # we take the first CLIP file and use it to determine regulated sites
+            L = []
+            for pos in sites.keys():
+                if comps.choose_function=="sum":
+                    L.append((sum(sites[pos][comps.CLIP[0]]), sites[pos]["cDNA_sum"], sites[pos])) # we take the first CLIP file and use it to determine regulated sites
+                elif comps.choose_function=="distance":
+                    vector = sites[pos][comps.CLIP[0]]
+                    center = (comps.clip_interval[1]-comps.clip_interval[0])/2
+                    if vector[center]>0:
+                        L.append((1, sites[pos]["cDNA_sum"], sites[pos]))
+                    elif sum(vector)==0:
+                        L.append((0, sites[pos]["cDNA_sum"], sites[pos]))
+                    else:
+                        vector_left = vector[:abs(comps.clip_interval[0])]
+                        vector_right = vector[abs(comps.clip_interval[1])+1:]
+                        vector_left.reverse() # we search for element closest to the center, the index method returns first element, so we reverse this vector here
+                        # TODO: also implement a function that will find elements >0, not only the first element = 1
+                        try:
+                            index_left = vector_left.index(1)+1
+                        except:
+                            index_left = ()
+                        try:
+                            index_right = vector_right.index(1)+1
+                        except:
+                            index_right = ()
+                        distance = min(index_left, index_right)
+                        print index_left, index_right, distance
+                        assert(distance>0)
+                        distance = 1/float(distance) # inverse it, lower values are better, but we always sort reverse (take highest iCLIP binding, take highest inverse distance)
+                        L.append((distance, sites[pos]["cDNA_sum"], sites[pos])) # we take the first CLIP file and use it to determine regulated sites
         else:
             L = [(0, sites[pos]["cDNA_sum"], sites[pos]) for pos in sites.keys()]
 
