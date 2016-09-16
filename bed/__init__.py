@@ -75,6 +75,8 @@ def bed_raw(lib_id, exp_id, map_id=1, force=False):
     exp_data = lib.experiments[exp_id]
     if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_raw_paseq(lib_id, exp_id, map_id=map_id, force=force)
+    if exp_data["method"] in ["aseq"]:
+        apa.bed.bed_raw_aseq(lib_id, exp_id, map_id=map_id, force=force)
     if exp_data["method"]=="lexrev":
         apa.bed.bed_raw_lexrev(lib_id, exp_id, map_id=map_id, force=force)
     if exp_data["method"]=="lexfwd":
@@ -132,6 +134,62 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
         save(dataR, key, pos_end, read_id)
 
         # internal priming
+        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
+        if ip(check_seq):
+            ip_number += 1
+            continue
+        save(dataT, key, pos_end, read_id)
+
+    write_bed(dataR, r_filename)
+    write_bed(dataT, t_filename)
+
+    f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
+    f_ip.write("%s total processed alignments\n" % a_number)
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.close()
+
+def bed_raw_aseq(lib_id, exp_id, map_id, force=False):
+    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"] in ["aseq"])
+    # http://www.cgat.org/~andreas/documentation/pysam/api.html
+    # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
+
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+    t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
+
+    # don't redo analysis if files exists
+    if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
+        print "%s_e%s_m%s : R/T BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        return
+
+    lib = apa.annotation.libs[lib_id]
+    exp_data = lib.experiments[exp_id]
+
+    open(r_filename, "wt").close()
+    open(t_filename, "wt").close()
+
+    dataR = {}
+    dataT = {}
+    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
+    bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+    bam_file = pysam.Samfile(bam_filename)
+    a_number = 0
+    ip_number = 0
+    for a in bam_file.fetch():
+        a_number += 1
+        if a_number%10000==0:
+            print "%s_e%s_m%s : %sM reads processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
+
+        read_id = a.qname
+        chr = bam_file.getrname(a.tid)
+        strand = "+" if not a.is_reverse else "-"
+
+        if strand=="+":
+            pos_end = a.positions[-1] # aend points to one past the last aligned residue, also see a.positions
+        else:
+            pos_end = a.positions[0]
+
+        key = "%s:%s" % (chr, strand)
+        save(dataR, key, pos_end, read_id)
         check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
         if ip(check_seq):
             ip_number += 1
@@ -300,12 +358,32 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None):
     map_to = exp_data["map_to"]
     if exp_data["method"] in ["pAseq", "paseq"]:
         apa.bed.bed_expression_paseq(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
+    if exp_data["method"] in ["aseq"]:
+        apa.bed.bed_expression_aseq(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexrev":
         apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
+    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    if poly_id==None:
+        poly_id = map_to
+    polyadb_filename = apa.path.polyadb_filename(poly_id)
+
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    if os.path.exists(e_filename) and not force:
+        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+    else:
+        print "%s_e%s_m%s : E BED file : start" % (lib_id, exp_id, map_id)
+        open(e_filename, "wt").close() # touch E BED (processing)
+        e = pybio.data.Bedgraph()
+        e.overlay(polyadb_filename, r_filename, start=-100, stop=25)
+        e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
+
+def bed_expression_aseq(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
@@ -331,6 +409,7 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     polyadb_filename = apa.path.polyadb_filename(poly_id)
 
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    e_filename_norm = apa.path.e_filename_norm(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
         print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
@@ -341,6 +420,8 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False):
         # TODO
         e.overlay(polyadb_filename, r_filename, start=-5, stop=5)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
+        e.norm()
+        e.save(e_filename_norm, track_id="%s_e%s_m1" % (lib_id, exp_id), db_save="cpm")
 
 def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]

@@ -458,17 +458,22 @@ def process(comps_id, surr=200):
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
 
-        if abs(proximal_pos-distal_pos)<pair_dist:
-            r = f.readline()
-            continue
+        # gene selection is done with fisher & pc
+        if comps.site_selection in ["APA", "CLIP"]:
+            if abs(proximal_pos-distal_pos)<pair_dist:
+                r = f.readline()
+                continue
+            proximal_reg = None
+            if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
+                proximal_reg = "e"
+            if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
+                proximal_reg = "r"
+            if abs(pc)<pc_thr and fisher>fisher_thr:
+                proximal_reg = "c_up" if pc>0 else "c_down"
 
-        proximal_reg = None
-        if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
-            proximal_reg = "e"
-        if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
-            proximal_reg = "r"
-        if abs(pc)<pc_thr and fisher>fisher_thr:
-            proximal_reg = "c_up" if pc>0 else "c_down"
+        # gene selection is done with DEXSeq
+        if comps.site_selection=="DEX":
+            proximal_reg = data["gene_class"]
 
         # also set reg_distal accordingly to reg_proximal
         distal_reg = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}[proximal_reg]

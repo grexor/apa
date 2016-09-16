@@ -40,7 +40,7 @@ class Comps:
         self.exp_data = {}
         self.polya_db = ""
         self.poly_type = ["strong", "weak"] # strong, weak, less, noclass
-        self.site_selection = "CLIP" # CLIP / APA
+        self.site_selection = "CLIP" # CLIP / APA / DEX
         self.choose_function = "sum" # how are sites evaluated from iCLIP data, by "sum" in the clip_interval or by "closest" in the "clip_interval"
         self.deepbind = None
         self.clip_interval = (-100, 100) # interval around sites for binding data
@@ -241,7 +241,7 @@ def process_comps(comps_id, map_id=1):
     poly_filter = {}
     polydb = pybio.data.Bedgraph()
     for poly_type in comps.poly_type:
-        polydb.load(apa.path.polyadb_filename(comps.polya_db, poly_type=poly_type, filetype="bed"))
+        polydb.load(apa.path.polyadb_filename(comps.polya_db, poly_type=poly_type, filetype="bed"), meta=poly_type)
 
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
@@ -264,6 +264,9 @@ def process_comps(comps_id, map_id=1):
     beds_folder = os.path.join(apa.path.comps_folder, comps_id, "beds")
     if not os.path.exists(beds_folder):
         os.makedirs(beds_folder)
+    dex_folder = os.path.join(apa.path.comps_folder, comps_id, "dex")
+    if not os.path.exists(dex_folder):
+        os.makedirs(dex_folder)
     for (rshort, rlong) in replicates:
         fname = os.path.join(beds_folder, "%s.%s.bed" % (comps_id, rshort))
         expression[rshort].save(fname, track_id="%s.%s" % (comps_id, rshort), genome=comps.species)
@@ -494,12 +497,14 @@ def process_comps(comps_id, map_id=1):
     # expression site level
     gene_sites = {}
     fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
+    dex_files = {}
     f_sites = open(fname, "wt")
     header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_interval"]
     for clip_name in comps.CLIP:
         header.append("clip:%s" % clip_name)
     header.append("cDNA_sum")
     for (rshort, rlong) in replicates:
+        dex_files[rshort] = open(os.path.join(dex_folder, "dex_%s_%s.tab" % (comps_id, rshort)), "wt")
         header.append(rlong)
     f_sites.write("\t".join(header)+"\n")
     for gene_id, sites in gsites.items():
@@ -519,16 +524,27 @@ def process_comps(comps_id, map_id=1):
             cDNA_sum = 0
             for (rshort, rlong) in replicates:
                 val = site_data.get(rshort, 0)
+                if len(sites)>1:
+                    dex_files[rshort].write("%s_%s%s:%s\t%s\n" % (gene_id, gene["gene_strand"], gene["gene_name"], site_pos, val))
                 row_2.append(val)
                 cDNA_sum += val
             row = row_1 + [cDNA_sum] + row_2
             f_sites.write("\t".join([str(x) for x in row]) + "\n")
     f_sites.close()
+    for (rshort, rlong) in replicates:
+        dex_files[rshort].close()
 
     # voom analysis
-    expression_sites_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
-    R_file = os.path.join(apa.path.root_folder, "comps", "comps_voom.R")
-    command = "R --vanilla --args %s %s %s %s %s < %s" % (os.path.join(apa.path.comps_folder, comps_id), comps_id, expression_sites_fname, len(comps.control), len(comps.test), R_file)
+    #expression_sites_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
+    #R_file = os.path.join(apa.path.root_folder, "comps", "comps_voom.R")
+    #command = "R --vanilla --args %s %s %s %s %s < %s" % (os.path.join(apa.path.comps_folder, comps_id), comps_id, expression_sites_fname, len(comps.control), len(comps.test), R_file)
+    #print command
+    #pybio.utils.Cmd(command).run()
+
+    # dexseq analysis
+    R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
+    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
+    command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()
 
@@ -569,10 +585,23 @@ def process_comps(comps_id, map_id=1):
     header.append("distal.test")
     header.append("distal_test_sum")
 
+    header += ["proximal_class", "distal_class"]
     header += ["pc", "fisher", "pair_type"]
+
+    if comps.site_selection=="DEX":
+        header.append("proximal_fc")
+        header.append("distal_fc")
+        header.append("gene_class")
+        header.append("proximal_padj")
+        header.append("distal_padj")
 
     bg_selected_sites_control = pybio.data.Bedgraph()
     bg_selected_sites_test = pybio.data.Bedgraph()
+
+    # DEX: this completelly invalidates the site selection, and leaves the decision to DEXseq
+    # see below, next DEX tagh
+    if comps.site_selection=="DEX":
+        dex = dex_select(comps_id)
 
     num_genes = {}
     f_pairs.write("\t".join(header)+"\n")
@@ -663,12 +692,14 @@ def process_comps(comps_id, map_id=1):
         for (rshort, rlong) in replicates:
             for site_data in minor_sites:
                 minor[rshort] += site_data[rshort]
+
         # finally sum up cDNA
         cDNA_sum = 0
         for (rshort, rlong) in replicates:
             cDNA_sum += minor[rshort]
         minor["cDNA_sum"] = cDNA_sum
 
+        # determine proximal and distal site
         if (major["pos"]<minor["pos"] and strand=="+") or (major["pos"]>minor["pos"] and strand=="-"):
             proximal_site = major
             distal_site = minor
@@ -676,7 +707,18 @@ def process_comps(comps_id, map_id=1):
             proximal_site = minor
             distal_site = major
 
-        s1, s2 = get_s1_s2(gene_id, chr, strand, comps.species, proximal_site["pos"], distal_site["pos"], pair_type)
+        proximal_pos, distal_pos  = proximal_site["pos"], distal_site["pos"]
+
+        # DEX: this completelly invalidates the site selection, and leaves the decision to DEXseq
+        if comps.site_selection=="DEX":
+            if gene_id not in dex.keys():
+                continue
+            proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class = dex[gene_id]
+            proximal_site = sites[proximal_pos]
+            distal_site = sites[distal_pos]
+            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_pos, distal_pos)
+
+        s1, s2 = get_s1_s2(gene_id, chr, strand, comps.species, proximal_pos, distal_pos, pair_type)
 
         proximal_control = []
         proximal_test = []
@@ -695,23 +737,23 @@ def process_comps(comps_id, map_id=1):
                 distal_test.append(distal_site[rshort])
 
         # update bedGraph for selected sites
-        bg_selected_sites_control.set_value("chr"+chr, strand, proximal_site["pos"], sum(proximal_control))
-        bg_selected_sites_test.set_value("chr"+chr, strand, proximal_site["pos"], sum(proximal_test))
-        bg_selected_sites_control.set_value("chr"+chr, strand, distal_site["pos"], sum(distal_control))
-        bg_selected_sites_test.set_value("chr"+chr, strand, distal_site["pos"], sum(distal_test))
+        bg_selected_sites_control.set_value("chr"+chr, strand, proximal_pos, sum(proximal_control))
+        bg_selected_sites_test.set_value("chr"+chr, strand, proximal_pos, sum(proximal_test))
+        bg_selected_sites_control.set_value("chr"+chr, strand, distal_pos, sum(distal_control))
+        bg_selected_sites_test.set_value("chr"+chr, strand, distal_pos, sum(distal_test))
 
-        proximal_seq = pybio.genomes.seq(comps.species, chr, strand, proximal_site["pos"], start=-60, stop=100)
-        distal_seq = pybio.genomes.seq(comps.species, chr, strand, distal_site["pos"], start=-60, stop=100)
+        proximal_seq = pybio.genomes.seq(comps.species, chr, strand, proximal_pos, start=-60, stop=100)
+        distal_seq = pybio.genomes.seq(comps.species, chr, strand, distal_pos, start=-60, stop=100)
         _, proximal_vector = pybio.sequence.search(proximal_seq, ["TGT", "GTG"])
         proximal_vector = pybio.sequence.filter(proximal_vector, hw=25, hwt=17)
         _, distal_vector = pybio.sequence.search(distal_seq, ["TGT", "GTG"])
         distal_vector = pybio.sequence.filter(distal_vector, hw=25, hwt=17)
 
         row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
-        row.append(proximal_site["pos"])
+        row.append(proximal_pos)
         row.append(sum(proximal_test+proximal_control))
         row.append(sum(proximal_vector))
-        row.append(distal_site["pos"])
+        row.append(distal_pos)
         row.append(sum(distal_test+distal_control))
         row.append(sum(distal_vector))
 
@@ -731,6 +773,13 @@ def process_comps(comps_id, map_id=1):
             pc = float(sum(proximal_control))/sum(proximal_control + distal_control) - float(sum(proximal_test))/sum(proximal_test + distal_test)
         except:
             pc = 0
+
+        # strong, weak, noclass...
+        proximal_class = polydb.get_value(chr, strand, proximal_pos, db="meta")
+        distal_class = polydb.get_value(chr, strand, distal_pos, db="meta")
+        row.append(proximal_class)
+        row.append(distal_class)
+
         row.append("%.5f" % pc)
 
         f = fisher.pvalue(sum(proximal_control), sum(proximal_test), sum(distal_control), sum(distal_test))
@@ -738,11 +787,26 @@ def process_comps(comps_id, map_id=1):
         row.append("%.5f" % pvalue)
         pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_site["pos"], distal_site["pos"])
         row.append(pair_type)
+
+        # DEX
+        if comps.site_selection=="DEX":
+            row.append("%.2f" % proximal_fc)
+            row.append("%.2f" % distal_fc)
+            row.append(gene_class)
+            row.append("%.5f" % proximal_p)
+            row.append("%.5f" % distal_p)
+
         results.append(row)
 
-    results = sorted(results, key=lambda x: abs(float(x[-3])), reverse=True)
-    results = sorted(results, key=lambda x: float(x[-2]))
-    results = sorted(results, key=lambda x: x[-1], reverse=True)
+    if comps.site_selection=="DEX":
+        results = sorted(results, key=lambda x: abs(float(x[-8])), reverse=True)
+        results = sorted(results, key=lambda x: float(x[-7]))
+        results = sorted(results, key=lambda x: x[-6], reverse=True)
+    else:
+        results = sorted(results, key=lambda x: abs(float(x[-3])), reverse=True)
+        results = sorted(results, key=lambda x: float(x[-2]))
+        results = sorted(results, key=lambda x: x[-1], reverse=True)
+
     for row in results:
         f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
@@ -1111,3 +1175,100 @@ def make_fasta(comps_id):
                 f = open(fasta_filename, "at")
             f.write(">%s.%s\n%s\n" % (reg_key, stats_reg[reg_key], seq))
             f.close()
+
+def dex_select(comps_id):
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id), "rt")
+    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+    r = f.readline()
+    results = {}
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        data = dict(zip(header, r))
+        gene_id = data["groupID"]
+        L = results.get(gene_id, [])
+        # structure of L
+        row = (float(data["padj"]), float(data["log2fold_test_control"]), data["featureID"], data["groupID"])
+        L.append(row)
+        results[gene_id] = L
+        r = f.readline()
+    f.close()
+
+    repressed = 0
+    enhanced = 0
+    c_up = 0
+    c_down = 0
+    for gene_id, L in results.items():
+        gene_class = None
+        gid = gene_id.split("_")[0]
+        L.sort()
+        assert(len(L)>1)
+        if L[0][0]>0.05:
+            L.sort(key=lambda x: x[1])
+            site1 = L[0]
+            site2 = L[-1]
+            site1_pos = int(site1[2][1:])
+            site2_pos = int(site2[2][1:])
+            strand = site1[3].split("_")[1][0]
+            if strand=="+":
+                if site1_pos<site2_pos:
+                    proximal = site1
+                    distal = site2
+                else:
+                    proximal = site2
+                    distal = site1
+            else:
+                if site1_pos<site2_pos:
+                    proximal = site2
+                    distal = site1
+                else:
+                    proximal = site1
+                    distal = site2
+            if proximal[1]>0:
+                c_up += 1
+                gene_class = "c_up"
+            else:
+                c_down += 1
+                gene_class = "c_down"
+        else:
+            L = [x for x in L if x[0]<=0.05]
+            L.sort(key=lambda x: x[1])
+            if len(L)>1:
+                # choose two most significant sites
+                site1 = L[0]
+                site2 = L[-1]
+                site1_pos = int(site1[2][1:])
+                site2_pos = int(site2[2][1:])
+                strand = site1[3].split("_")[1][0]
+                if site1[1]*site2[1]<0: # opposite direction of change
+                    if strand=="+":
+                        if site1_pos<site2_pos:
+                            proximal = site1
+                            distal = site2
+                        else:
+                            proximal = site2
+                            distal = site1
+                    else:
+                        if site1_pos<site2_pos:
+                            proximal = site2
+                            distal = site1
+                        else:
+                            proximal = site1
+                            distal = site2
+
+                    if proximal[1]<0:
+                        gene_class = "e"
+                        enhanced += 1
+                    else:
+                        gene_class = "r"
+                        repressed += 1
+        if gene_class!=None:
+            pc = proximal[1] - distal[1]
+            proximal_pos = int(proximal[2][1:])
+            distal_pos = int(distal[2][1:])
+            proximal_p = proximal[0]
+            distal_p = distal[0]
+            distance = abs(proximal_pos-distal_pos)
+            proximal_fc = proximal[1]
+            distal_fc = distal[1]
+            results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
+    return results
