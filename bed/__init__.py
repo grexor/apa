@@ -145,7 +145,7 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False):
 
     f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
     f_ip.write("%s total processed alignments\n" % a_number)
-    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(max(1, a_number))*100))
     f_ip.close()
 
 def bed_raw_aseq(lib_id, exp_id, map_id, force=False):
@@ -201,7 +201,7 @@ def bed_raw_aseq(lib_id, exp_id, map_id, force=False):
 
     f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
     f_ip.write("%s total processed alignments\n" % a_number)
-    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(max(1, a_number))*100))
     f_ip.close()
 
 def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
@@ -266,7 +266,7 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False):
 
     f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
     f_ip.write("%s total processed alignments\n" % a_number)
-    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(max(1, a_number))*100))
     f_ip.close()
 
 def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
@@ -332,7 +332,7 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False):
 
     f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
     f_ip.write("%s total processed alignments\n" % a_number)
-    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(a_number)*100))
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(max(1, a_number))*100))
     f_ip.close()
 
     return
