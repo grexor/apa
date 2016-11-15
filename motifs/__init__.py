@@ -69,15 +69,26 @@ def process(comps_id):
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
 
-        reg_siteup = None
-        if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
-            reg_siteup = "e"
-        elif pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
-            reg_siteup = "r"
-        elif abs(pc)<control_pc_thr and fisher>control_fisher_thr:
-            reg_siteup = "c"
+        # gene selection is done with fisher & pc
+        if comps.site_selection in ["APA", "CLIP"]:
+            if abs(proximal_pos-distal_pos)<pair_dist:
+                r = f.readline()
+                continue
+            proximal_reg = None
+            if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
+                proximal_reg = "e"
+            if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
+                proximal_reg = "r"
+            if abs(pc)<pc_thr and fisher>fisher_thr:
+                proximal_reg = "c_up" if pc>0 else "c_down"
 
-        if reg_siteup in [None]:
+        # gene selection is done with DEXSeq
+        if comps.site_selection=="DEX":
+            proximal_reg = data["gene_class"]
+            if proximal_reg in ["c_up", "c_down"]:
+                proximal_reg = "c"
+
+        if proximal_reg in [None]:
             r = f.readline()
             continue
 
@@ -85,35 +96,35 @@ def process(comps_id):
             r = f.readline()
             continue
 
-        reg_sitedown = {"e":"r", "r":"e", "c":"c"}[reg_siteup]
-        stats["%s.%s" % (reg_siteup, pair_type)] += 1
-        stats["%s.%s" % (reg_siteup, "all")] += 1
+        distal_reg = {"e":"r", "r":"e", "c":"c", None:None}[proximal_reg]
+        stats["%s.%s" % (proximal_reg, pair_type)] += 1
+        stats["%s.%s" % (proximal_reg, "all")] += 1
 
         seq_up = pybio.genomes.seq(genome, chr, strand, proximal_pos, start=-200, stop=200)
         seq_down = pybio.genomes.seq(genome, chr, strand, distal_pos, start=-200, stop=200)
 
         seq_proximal_distal = pybio.genomes.seq_direct(genome, chr, strand, proximal_pos, distal_pos)
-        fasta_files["%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
-        fasta_files["%s_%s" % ("all", reg_siteup)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
+        fasta_files["%s_%s" % (pair_type, proximal_reg)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
+        fasta_files["%s_%s" % ("all", proximal_reg)].write(">%s:%s %s%s:%s-%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, distal_pos, seq_proximal_distal))
 
-        fasta_files["proximal_%s_%s" % (pair_type, reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
-        fasta_files["proximal_%s_%s" % ("all", reg_siteup)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
-        fasta_files["distal_%s_%s" % (pair_type, reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
-        fasta_files["distal_%s_%s" % ("all", reg_sitedown)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
+        fasta_files["proximal_%s_%s" % (pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
+        fasta_files["proximal_%s_%s" % ("all", proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, seq_up))
+        fasta_files["distal_%s_%s" % (pair_type, distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
+        fasta_files["distal_%s_%s" % ("all", distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, seq_down))
 
         tab_files_index["proximal_%s" % pair_type] = tab_files_index.setdefault("proximal_%s" % pair_type, 0) + 1
         tab_files_index["proximal_%s" % "all"] = tab_files_index.setdefault("proximal_%s" % "all", 0) + 1
         tab_files_index["distal_%s" % pair_type] = tab_files_index.setdefault("distal_%s" % pair_type, 0) + 1
         tab_files_index["distal_%s" % "all"] = tab_files_index.setdefault("distal_%s" % "all", 0) + 1
 
-        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, proximal_pos, reg_siteup]]
+        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, proximal_pos, proximal_reg]]
         tab_files["proximal_%s" % pair_type].write("\t".join(row)+"\n")
-        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, distal_pos, reg_sitedown]]
+        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, distal_pos, distal_reg]]
         tab_files["distal_%s" % pair_type].write("\t".join(row)+"\n")
 
-        row = [str(el) for el in [tab_files_index["proximal_%s" % "all"], chr, strand, proximal_pos, reg_siteup]]
+        row = [str(el) for el in [tab_files_index["proximal_%s" % "all"], chr, strand, proximal_pos, proximal_reg]]
         tab_files["proximal_%s" % "all"].write("\t".join(row)+"\n")
-        row = [str(el) for el in [tab_files_index["distal_%s" % "all"], chr, strand, distal_pos, reg_sitedown]]
+        row = [str(el) for el in [tab_files_index["distal_%s" % "all"], chr, strand, distal_pos, distal_reg]]
         tab_files["distal_%s" % "all"].write("\t".join(row)+"\n")
 
         r = f.readline()

@@ -275,7 +275,7 @@ def polyadb_class_histogram(poly_id):
         if data["pas_type"] not in ["noclass"]:
             y[data["pas_type"]].append(int(data["cs_loci"]))
         else:
-            y[data["pas_type"]].append(0) # just for counting by len
+            y[data["pas_type"]].append(0) # just for counting by len, no drawing
         r = f.readline()
     f.close()
 
@@ -300,7 +300,7 @@ def polyadb_class_histogram(poly_id):
        return s
 
     P.figure(figsize=(12,3))
-    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"], []], bins=np.arange(-30, 30+1)-0.5, color=["#FFAEAE", 'lightgreen', "lightblue", "#f1f1f1"], label=["strong (%s)" % format(int(len(y["strong"])), ","), "weak (%s)" % format(int(len(y["weak"])), ","), "PAS-less (%s)" % format(int(len(y["less"])), ","), "no class (%s)" % format(int(len(y["noclass"])), ",")], histtype="barstacked", edgecolor="none")
+    n, bins, patches = P.hist([y["strong"], y["weak"], y["less"], []], bins=np.arange(-30, 30+1)-0.5, color=["#FFAEAE", 'lightgreen', "lightblue", "#f1f1f1"], label=["strong (%s)" % format(int(len(y["strong"])), ","), "weak (%s)" % format(int(len(y["weak"])), ","), "PAS-less (%s)" % format(int(len(y["less"])), ","), "PAS-less (no predicted CS) (%s)" % format(int(len(y["noclass"])), ",")], histtype="barstacked", edgecolor="none")
     P.title("distribution of predicted polyAR cleavage sites around %s cleavage sites" % poly_id)
     P.ylim(bottom=0)
     P.xlabel("distance from cleavage site [nt]")

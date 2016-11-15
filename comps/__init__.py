@@ -601,7 +601,7 @@ def process_comps(comps_id, map_id=1):
     # DEX: this completelly invalidates the site selection, and leaves the decision to DEXseq
     # see below, next DEX tagh
     if comps.site_selection=="DEX":
-        dex = dex_select(comps_id)
+        dex = dex_select2(comps_id)
 
     num_genes = {}
     f_pairs.write("\t".join(header)+"\n")
@@ -1270,5 +1270,134 @@ def dex_select(comps_id):
             distance = abs(proximal_pos-distal_pos)
             proximal_fc = proximal[1]
             distal_fc = distal[1]
+            results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
+    return results
+
+def dex_select2(comps_id):
+
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id), "rt")
+    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+    r = f.readline()
+    results = {}
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        data = dict(zip(header, r))
+        gene_id = data["groupID"]
+        L = results.get(gene_id, [])
+        gene_expression = 0
+        for el in r[11:]:
+            gene_expression += int(el)
+        strand = data["groupID"].split("_")[1][0]
+        pos = int(data["featureID"][1:])
+        row = {"padj": float(data["padj"]), "fc": float(data["log2fold_test_control"]), "featureID": data["featureID"], "groupID": data["groupID"], "gene_expression": gene_expression, "strand": strand, "pos": pos}
+        L.append(row)
+        results[gene_id] = L
+        r = f.readline()
+    f.close()
+
+    repressed = 0
+    enhanced = 0
+    c_up = 0
+    c_down = 0
+    for gene_id, L in results.items():
+        gene_class = None
+        gid = gene_id.split("_")[0]
+        L.sort(key=lambda x: x["padj"])
+        assert(len(L)>1)
+        # cound number of significant polyA sites in gene
+        sig_sites = len([x for x in L if x["padj"]<=0.05])
+        if sig_sites==0:
+            L.sort(key=lambda x: x["gene_expression"], reverse=True)
+            site1, site2 = L[0], L[1]
+            site1_pos, site2_pos = site1["pos"], site2["pos"]
+            strand = site1["strand"]
+            if strand=="+":
+                if site1_pos<site2_pos:
+                    proximal = site1
+                    distal = site2
+                else:
+                    proximal = site2
+                    distal = site1
+            else:
+                if site1_pos<site2_pos:
+                    proximal = site2
+                    distal = site1
+                else:
+                    proximal = site1
+                    distal = site2
+            if proximal["fc"]>0:
+                c_up += 1
+                gene_class = "c_up"
+            else:
+                c_down += 1
+                gene_class = "c_down"
+        if sig_sites==1:
+            site1 = L[0]
+            assert(site1["padj"]<=0.05)
+            assert(L[1]["padj"]>0.05)
+            del L[0]
+            L.sort(key=lambda x: x["gene_expression"], reverse=True)
+            site2 = L[0]
+            site1_pos, site2_pos = site1["pos"], site2["pos"]
+            strand = site1["strand"]
+            if strand=="+":
+                if site1_pos<site2_pos:
+                    proximal = site1
+                    distal = site2
+                else:
+                    proximal = site2
+                    distal = site1
+            else:
+                if site1_pos<site2_pos:
+                    proximal = site2
+                    distal = site1
+                else:
+                    proximal = site1
+                    distal = site2
+            if proximal["fc"]<0:
+                gene_class = "e"
+                enhanced += 1
+            else:
+                gene_class = "r"
+                repressed += 1
+        if sig_sites>=2:
+            L = [x for x in L if x["padj"]<=0.05]
+            L.sort(key=lambda x: x["padj"])
+            #L.sort(key=lambda x: x["fc"])
+            # choose two most significant sites
+            #site1, site2 = L[0], L[-1]
+            site1, site2 = L[0], L[1]
+            site1_pos, site2_pos = site1["pos"], site2["pos"]
+            strand = site1["strand"]
+            if site1["fc"]*site2["fc"]<0: # opposite direction of change
+                if strand=="+":
+                    if site1_pos<site2_pos:
+                        proximal = site1
+                        distal = site2
+                    else:
+                        proximal = site2
+                        distal = site1
+                else:
+                    if site1_pos<site2_pos:
+                        proximal = site2
+                        distal = site1
+                    else:
+                        proximal = site1
+                        distal = site2
+                if proximal["fc"]<0:
+                    gene_class = "e"
+                    enhanced += 1
+                else:
+                    gene_class = "r"
+                    repressed += 1
+        if gene_class!=None:
+            pc = proximal["fc"] - distal["fc"]
+            proximal_pos = proximal["pos"]
+            distal_pos = distal["pos"]
+            proximal_p = proximal["padj"]
+            distal_p = distal["padj"]
+            distance = abs(proximal_pos-distal_pos)
+            proximal_fc = proximal["fc"]
+            distal_fc = distal["fc"]
             results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
     return results

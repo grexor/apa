@@ -19,4 +19,6 @@ The APA proximal/distal categories are:
 
 We also show the **splice-site 1 (s1)** and **splice-site 2 (s2)** positions relative to the proximal and distal sites.
 
+Additionally, we show all 3 categories together in **combined** maps.
+
 These 4 loci in each gene (proximal, distal, splice-site 1, splice-site 2) are used to draw :ref:`RNA-maps <rnamap>`.

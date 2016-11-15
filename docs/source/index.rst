@@ -1,9 +1,9 @@
-.. title:: apaExpress
+.. title:: expressRNA
 
-**apaExpress** is a research platform for the analysis of alternative polyadenylation with the help of 3' targeted next-generation sequencing data. It is composed of a python analytical software (**apa**) and an interactive web application.
+**expressRNA** is a web application integrating apa2 for alternative polyadenylation with the help of 3' targeted next-generation sequencing data with several other bioinformatics platforms.
 
 .. toctree::
    :maxdepth: 3
 
-   apaExpress
+   expressrna
    apa_python

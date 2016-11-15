@@ -34,7 +34,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'apaExpress'
+project = u'expressRNA'
 copyright = u'2016, University of Zurich, Zurich, Switzerland'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -102,10 +102,10 @@ html_theme = "pyramid"
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = "apaExpress docs"
+html_title = "expressRNA docs"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = "apaExpress docs"
+html_short_title = "expressRNA docs"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -157,7 +157,7 @@ html_static_path = ['_static']
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'apaExpress'
+htmlhelp_basename = 'expressRNA'
 
 
 # -- Options for LaTeX output --------------------------------------------------
