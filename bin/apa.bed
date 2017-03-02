@@ -10,6 +10,10 @@ parser.add_argument('-poly_id', action="store", dest="poly_id", default=None)
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
 parser.add_argument('-force', action="store_true", default=False)
 parser.add_argument('-genome', action="store", default=None)
+parser.add_argument('-upstream', type=int, action="store", default=None)
+parser.add_argument('-downstream', type=int, action="store", default=None)
+parser.add_argument('-ip_filter', action="store_true", dest="ip_filter", default=True)
+parser.add_argument('-no_ip_filter', action="store_false", dest="ip_filter")
 args = parser.parse_args()
 
 if args.lib_id==None:
@@ -25,6 +29,6 @@ else:
 
 for exp_id in e_ids:
     if args.type=="raw":
-        apa.bed.bed_raw(args.lib_id, exp_id, force=args.force, map_id=args.map_id)
+        apa.bed.bed_raw(args.lib_id, exp_id, force=args.force, map_id=args.map_id, ip_filter=args.ip_filter)
     if args.type=="expression":
-        apa.bed.bed_expression(args.lib_id, exp_id, poly_id=args.poly_id, force=args.force, map_id=args.map_id)
+        apa.bed.bed_expression(args.lib_id, exp_id, poly_id=args.poly_id, force=args.force, map_id=args.map_id, upstream=args.upstream, downstream=args.downstream)

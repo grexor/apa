@@ -3,6 +3,7 @@ matplotlib.use("Agg", warn=False)
 import matplotlib.pyplot as plt
 import math
 import gzip
+import copy
 from matplotlib import cm as CM
 import numpy as np
 import matplotlib.patches as mpatches
@@ -246,6 +247,26 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
 
     return
 
+def save_control_binding(cup, cdown, filename, site="proximal", pair_type="tandem"):
+    for reg_type, d in [("cup", cup), ("cdown", cdown)]:
+        if len(d)==0:
+            continue
+        d = DataFrame(d)
+        order = d.sum(axis=1).order(ascending=False).index
+        gene_list = []
+        for x in d.ix[order, 0]:
+            gene_id, gene_name, clip_sum = x[0], x[1], x[2]
+            gene_list.append((gene_id, gene_name, clip_sum))
+
+        # write gene data for this image in the tab file
+        f = open(filename+"_%s.tab" % reg_type, "wt")
+        header = ["gene_id", "gene_name", "clip"]
+        f.write("\t".join(header) + "\n")
+        for (gene_id, gene_name, clip_sum) in gene_list:
+            f.write("\t".join(str(el) for el in [gene_id, gene_name, clip_sum]) + "\n")
+        f.close()
+    return
+
 def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False, title="test", site="proximal", stats=None, pair_type="tandem", ymax=None):
     vpos = DataFrame(vpos)
     vneg = DataFrame(vneg)
@@ -368,11 +389,12 @@ def adjust_len(vector, len_up, len_down, surr):
 def presence_vector(vector, len_up, len_down, surr):
     # P = present, A = absent
     result = [0] * (surr-len_up) + [1]*len(vector) + [0] * (surr-len_down)
+    assert(len(result)==401)
     return result
 
 def process(comps_id, surr=200):
 
-    comps = apa.comps.read_comps(comps_id)
+    comps = apa.comps.Comps(comps_id)
     genome = comps.species
     tab_file = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     rnamap_dest = os.path.join(apa.path.comps_folder, comps_id, "rnamap")
@@ -398,7 +420,6 @@ def process(comps_id, surr=200):
 
     pc_thr = comps.pc_thr
     fisher_thr = comps.fisher_thr
-    pair_dist = comps.pair_dist
 
     # r = repressed, e = enhanced, c = control
     stats = Counter()
@@ -411,7 +432,11 @@ def process(comps_id, surr=200):
     sdata = {}
     pdata = {}
     present = {}
+    adata = {} # all relevant data to store in a json file
+    cgenes = {} # current gene count
     for pair_type in ["tandem", "composite", "skipped", "all"]:
+        cgenes[pair_type] = 0
+        adata[pair_type] = {}
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["r", "e", "c_up", "c_down"]:
                 for clip_name in comps.CLIP:
@@ -422,6 +447,8 @@ def process(comps_id, surr=200):
                 present[(site, reg, pair_type)] = [0] * 401
                 sdata_vectors[(site, reg, pair_type)] = []
                 pdata_vectors[(site, reg, pair_type)] = []
+
+    pair_dist_stat = {}
 
     f = open(tab_file, "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
@@ -445,6 +472,12 @@ def process(comps_id, surr=200):
         gene_name = data["gene_name"]
         proximal_pos = int(data["proximal_pos"])
         distal_pos = int(data["distal_pos"])
+        pair_dist = abs(proximal_pos-distal_pos)
+        if pair_dist<comps.pair_dist:
+            r = f.readline()
+            continue
+        pair_dist_stat[pair_dist] = pair_dist_stat.get(pair_dist, 0) + 1
+
         if data["s1"]=="None":
             s1_pos = None
         else:
@@ -460,9 +493,6 @@ def process(comps_id, surr=200):
 
         # gene selection is done with fisher & pc
         if comps.site_selection in ["APA", "CLIP"]:
-            if abs(proximal_pos-distal_pos)<pair_dist:
-                r = f.readline()
-                continue
             proximal_reg = None
             if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
                 proximal_reg = "e"
@@ -472,7 +502,7 @@ def process(comps_id, surr=200):
                 proximal_reg = "c_up" if pc>0 else "c_down"
 
         # gene selection is done with DEXSeq
-        if comps.site_selection=="DEX":
+        if comps.site_selection in ["DEX", "DEX2", "DEX3", "DEX4"]:
             proximal_reg = data["gene_class"]
 
         # also set reg_distal accordingly to reg_proximal
@@ -486,6 +516,15 @@ def process(comps_id, surr=200):
         if proximal_reg==None:
             r = f.readline()
             continue
+
+        # store adata
+        adata[pair_type][cgenes[pair_type]] = {}
+        adata[pair_type][cgenes[pair_type]]["proximal_reg"] = proximal_reg; adata[pair_type][cgenes[pair_type]]["distal_reg"] = distal_reg; adata[pair_type][cgenes[pair_type]]["s1_reg"] = s1_reg; adata[pair_type][cgenes[pair_type]]["s2_reg"] = s2_reg
+        for site_type in ["proximal", "distal", "s1", "s2"]:
+            adata[pair_type][cgenes[pair_type]][site_type] = {}
+            adata[pair_type][cgenes[pair_type]][site_type]["present"] = None
+            for cindex, _ in enumerate(comps.CLIP):
+                adata[pair_type][cgenes[pair_type]][site_type]["clip%s" % cindex] = []
 
         stats[(proximal_reg, pair_type)] += 1
         stats[(proximal_reg, "all")] += 1
@@ -514,25 +553,27 @@ def process(comps_id, surr=200):
         else:
             s2_seq = "N"
 
-        proximal_seq = adjust_len(proximal_seq, proximal_lenup, proximal_lendown, surr)
-        distal_seq = adjust_len(distal_seq, distal_lenup, distal_lendown, surr)
-        s1_seq = adjust_len(s1_seq, s1_lenup, s1_lendown, surr)
-        s2_seq = adjust_len(s2_seq, s2_lenup, s2_lendown, surr)
-
         # count presence
         proximal_pre = presence_vector(proximal_seq, proximal_lenup, proximal_lendown, surr)
         distal_pre = presence_vector(distal_seq, distal_lenup, distal_lendown, surr)
         s1_pre = presence_vector(s1_seq, s1_lenup, s1_lendown, surr)
         s2_pre = presence_vector(s2_seq, s2_lenup, s2_lendown, surr)
 
+        proximal_seq = adjust_len(proximal_seq, proximal_lenup, proximal_lendown, surr)
+        distal_seq = adjust_len(distal_seq, distal_lenup, distal_lendown, surr)
+        s1_seq = adjust_len(s1_seq, s1_lenup, s1_lendown, surr)
+        s2_seq = adjust_len(s2_seq, s2_lenup, s2_lendown, surr)
+
+        adata[pair_type][cgenes[pair_type]]["proximal"]["present"] = proximal_pre; adata[pair_type][cgenes[pair_type]]["distal"]["present"] = distal_pre; adata[pair_type][cgenes[pair_type]]["s1"]["present"] = s1_pre; adata[pair_type][cgenes[pair_type]]["s2"]["present"] = s2_pre
+
         present[("proximal", proximal_reg, pair_type)] = [x+y for x,y in zip(present[("proximal", proximal_reg, pair_type)], proximal_pre)]
         present[("proximal", proximal_reg, "all")] = [x+y for x,y in zip(present[("proximal", proximal_reg, "all")], proximal_pre)]
-        present[("distal", distal_reg, pair_type)] = [x+y for x,y in zip(present[("distal", distal_reg, pair_type)], proximal_pre)]
-        present[("distal", distal_reg, "all")] = [x+y for x,y in zip(present[("distal", distal_reg, "all")], proximal_pre)]
-        present[("s1", s1_reg, pair_type)] = [x+y for x,y in zip(present[("s1", s1_reg, pair_type)], proximal_pre)]
-        present[("s1", s1_reg, "all")] = [x+y for x,y in zip(present[("s1", s1_reg, "all")], proximal_pre)]
-        present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], proximal_pre)]
-        present[("s2", s2_reg, "all")] = [x+y for x,y in zip(present[("s2", s2_reg, "all")], proximal_pre)]
+        present[("distal", distal_reg, pair_type)] = [x+y for x,y in zip(present[("distal", distal_reg, pair_type)], distal_pre)]
+        present[("distal", distal_reg, "all")] = [x+y for x,y in zip(present[("distal", distal_reg, "all")], distal_pre)]
+        present[("s1", s1_reg, pair_type)] = [x+y for x,y in zip(present[("s1", s1_reg, pair_type)], s1_pre)]
+        present[("s1", s1_reg, "all")] = [x+y for x,y in zip(present[("s1", s1_reg, "all")], s1_pre)]
+        present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], s2_pre)]
+        present[("s2", s2_reg, "all")] = [x+y for x,y in zip(present[("s2", s2_reg, "all")], s2_pre)]
 
         if proximal_reg in ["e", "r"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
@@ -541,14 +582,11 @@ def process(comps_id, surr=200):
             fasta_files[("distal", "all", distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
 
         # CLIP
-        for clip_name in comps.CLIP:
+        for cindex, clip_name in enumerate(comps.CLIP):
             for (site, reg, pos, len_up, len_down) in [("proximal", proximal_reg, proximal_pos, proximal_lenup, proximal_lendown), ("distal", distal_reg, distal_pos, distal_lenup, distal_lendown), ("s1", s1_reg, s1_pos, s1_lenup, s1_lendown), ("s2", s2_reg, s2_pos, s2_lenup, s2_lendown)]:
+                adata[pair_type][cgenes[pair_type]][site]["reg"] = reg
                 z = []
                 if pos!=None:
-                    # TODO: the for loop is incorrect, since it doesnt consider strand when providing len_up and len_down
-                    #for index, x in enumerate(range(pos-len_up, pos+len_down+1)):
-                    #    # all CLIP data is in UCSC genomic format of chromosome names?
-                    #    z.append(clip[clip_name].get_value("chr"+chr, strand, x, db="raw"))
                     z = clip[clip_name].get_vector("chr"+chr, strand, pos, -len_up, len_down)
                 else:
                     z = [0]
@@ -563,9 +601,43 @@ def process(comps_id, surr=200):
                 cdata_vectors[(clip_name, site, reg, "all")].append(z_vector)
                 assert(len(cdata[(clip_name, site, reg, pair_type)])==401)
                 assert(len(cdata[(clip_name, site, reg, "all")])==401)
+                adata[pair_type][cgenes[pair_type]][site]["clip%s" % cindex] = z
 
+        cgenes[pair_type] += 1
         r = f.readline()
     f.close() # end of reading gene data
+
+    # save all data
+
+    #print cdata[("peaks_id80654_rnd100_flank3_fdr0.05_group_5207_TARDBP-LC-flag-GFP-IP-group_sum_S_hg19--ensembl59_from_5158-5159_bedGraph-cDNA.bed.gz_lowFDR_clusters.bed.gz", "proximal", "r", "tandem")][:30]
+    #print present[("proximal", "r", "tandem")][:30]
+
+    temp = {}
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s_pair_distances.tab" % comps_id), "wt")
+    dtemp = [0, 100, 450, 1000, 5000, 10000]
+    for dist, count in pair_dist_stat.items():
+        for x1, x2 in zip(dtemp, dtemp[1:]):
+            if x1<=dist<x2:
+                k = "%s..%s" % (x1, x2)
+                temp[k] = temp.get(k, 0) + count
+        if dist>10000:
+            temp[">10000"] = temp.get(">10000", 0) + count
+    for leq in ["0..100", "100..450", "450..1000", "1000..5000", "5000..10000", ">10000"]:
+        f.write("%s nt\t%s pairs\n" % (leq, temp.get(leq, 0)))
+    f.close()
+
+    print "save adata.pickle"
+    f = open(os.path.join(rnamap_dest, "adata.pickle"), "wb")
+    f.write(cPickle.dumps(adata, protocol=-1))
+    f.close()
+
+    f = open(os.path.join(rnamap_dest, "stats.pickle"), "wb")
+    f.write(cPickle.dumps(stats, protocol=-1))
+    f.close()
+
+    f = open(os.path.join(rnamap_dest, "stats_bysite.pickle"), "wb")
+    f.write(cPickle.dumps(stats_bysite, protocol=-1))
+    f.close()
 
     present_pairs = list(set([pair_type for (reg, pair_type) in stats.keys()]))
     sorted_present_pairs = []
@@ -579,15 +651,18 @@ def process(comps_id, surr=200):
         sorted_present_pairs.append("all")
     present_pairs = sorted_present_pairs
 
-    print stats.items()
+    #print stats.items()
     print "---"
-    print stats_bysite.items()
+    #print stats_bysite.items()
+    for cat in [("proximal", "r", "tandem"), ("proximal", "e", "tandem"), ("proximal", "r", "composite"), ("proximal", "e", "composite"), ("proximal", "r", "skipped"), ("proximal", "e", "skipped")]:
+        print cat, stats_bysite.get(cat, 0)
     print "---"
 
     for f in fasta_files.values():
         f.close()
 
     # normalize with nt resolution
+    print "normalization with nucleotide resolution"
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["e", "r", "c_up", "c_down"]:
@@ -598,6 +673,7 @@ def process(comps_id, surr=200):
                 for clip_name in comps.CLIP:
                     cdata[(clip_name, site, reg, pair_type)] = [e/max(1.0, float(z)) for e,z in zip(cdata[(clip_name, site, reg, pair_type)], n)]
 
+    print "getting max values"
     cmax = {}
     fmax = {}
     for clip_name in comps.CLIP:
@@ -614,6 +690,7 @@ def process(comps_id, surr=200):
                 smax[pair_type] = max(smax[pair_type], max(sdata[(site, reg, pair_type)]))
                 pmax[pair_type] = max(pmax[pair_type], max(pdata[(site, reg, pair_type)]))
 
+    print "saving figures"
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             # clip
@@ -622,6 +699,7 @@ def process(comps_id, surr=200):
                     rnamap_area(cdata[(clip_name, site, "e", pair_type)], cdata[(clip_name, site, "r", pair_type)], cdata[(clip_name, site, "c_up", pair_type)], cdata[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s.%s.%s" % (clip_index, pair_type, site)), title="%s.%s" % (pair_type, site), ymax=cmax[clip_name][pair_type], site=site, pair_type=pair_type, stats=stats)
                     rnamap_freq(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], cdata_vectors[(clip_name, site, "c_up", pair_type)], cdata_vectors[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s_freq.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, ymax=fmax[clip_name][pair_type])
                     rnamap_heat(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id)
+                    save_control_binding(cdata_vectors[(clip_name, site, "c_up", pair_type)], cdata_vectors[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), site=site, pair_type=pair_type)
 
     # save gene lists (.tab files)
     for pair_type in present_pairs:
@@ -743,7 +821,7 @@ a:visited {
     <br>
     fisher threshold = """ + str(fisher_thr) + """
     <br>
-    pair distance at least = """ + str(pair_dist) + """
+    pair distance at least = """ + str(comps.pair_dist) + """
     <br>
     """
 
@@ -806,6 +884,7 @@ a:visited {
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>CLIP</b> dataset:&nbsp;
     <select id="cmb_clip" name="cmb_clip" style="width:300px;" onchange="javascript:change_clip();">
     """
+    nocache = str(random.randint(0, 1000000))
     for index, clip_name in enumerate(comps.CLIP):
         body += "<option value=" + str(index) + ">" + clip_name
         if index==0:
@@ -822,41 +901,46 @@ function change_clip()
   sites = ["tandem", "composite", "skipped", "all"];
   for (var i=0; i<sites.length; i++)
   {
-    $("#" + sites[i]+"_c00_img").attr("src", "clip" + index + "." + sites[i] + ".proximal.png");
-    $("#" + sites[i]+"_c00_link").attr("href", "clip" + index + "." + sites[i] + ".proximal.png");
-    $("#" + sites[i]+"_c01_img").attr("src", "clip" + index + "." + sites[i] + ".distal.png");
-    $("#" + sites[i]+"_c01_link").attr("href", "clip" + index + "." + sites[i] + ".distal.png");
-    $("#" + sites[i]+"_c02_img").attr("src", "clip" + index + "." + sites[i] + ".s1.png");
-    $("#" + sites[i]+"_c02_link").attr("href", "clip" + index + "." + sites[i] + ".s1.png");
-    $("#" + sites[i]+"_c03_img").attr("src", "clip" + index + "." + sites[i] + ".s2.png");
-    $("#" + sites[i]+"_c03_link").attr("href", "clip" + index + "." + sites[i] + ".s2.png");
+"""
 
-    $("#" + sites[i]+"_c10_img").attr("src", "clip" + index + "_freq." + sites[i] + ".proximal.png");
-    $("#" + sites[i]+"_c10_link").attr("href", "clip" + index + "_freq." + sites[i] + ".proximal.png");
-    $("#" + sites[i]+"_c11_img").attr("src", "clip" + index + "_freq." + sites[i] + ".distal.png");
-    $("#" + sites[i]+"_c11_link").attr("href", "clip" + index + "_freq." + sites[i] + ".distal.png");
-    $("#" + sites[i]+"_c12_img").attr("src", "clip" + index + "_freq." + sites[i] + ".s1.png");
-    $("#" + sites[i]+"_c12_link").attr("href", "clip" + index + "_freq." + sites[i] + ".s1.png");
-    $("#" + sites[i]+"_c13_img").attr("src", "clip" + index + "_freq." + sites[i] + ".s2.png");
-    $("#" + sites[i]+"_c13_link").attr("href", "clip" + index + "_freq." + sites[i] + ".s2.png");
+    body += '$("#" + sites[i]+"_c00_img").attr("src", "clip" + index + "." + sites[i] + ".proximal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c00_link").attr("href", "clip" + index + "." + sites[i] + ".proximal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c01_img").attr("src", "clip" + index + "." + sites[i] + ".distal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c01_link").attr("href", "clip" + index + "." + sites[i] + ".distal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c02_img").attr("src", "clip" + index + "." + sites[i] + ".s1.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c02_link").attr("href", "clip" + index + "." + sites[i] + ".s1.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c03_img").attr("src", "clip" + index + "." + sites[i] + ".s2.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c03_link").attr("href", "clip" + index + "." + sites[i] + ".s2.png?nocache=%s");' % nocache
 
-    $("#" + sites[i]+"_c20_img").attr("src", "clip" + index + "_heat." + sites[i] + ".proximal_pos.png");
-    $("#" + sites[i]+"_c20_link").attr("href", "clip" + index + "_heat." + sites[i] + ".proximal_pos.png");
-    $("#" + sites[i]+"_c21_img").attr("src", "clip" + index + "_heat." + sites[i] + ".distal_pos.png");
-    $("#" + sites[i]+"_c21_link").attr("href", "clip" + index + "_heat." + sites[i] + ".distal_pos.png");
-    $("#" + sites[i]+"_c22_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s1_pos.png");
-    $("#" + sites[i]+"_c22_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s1_pos.png");
-    $("#" + sites[i]+"_c23_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s2_pos.png");
-    $("#" + sites[i]+"_c23_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s2_pos.png");
+    body += '$("#" + sites[i]+"_c10_img").attr("src", "clip" + index + "_freq." + sites[i] + ".proximal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c10_link").attr("href", "clip" + index + "_freq." + sites[i] + ".proximal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c11_img").attr("src", "clip" + index + "_freq." + sites[i] + ".distal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c11_link").attr("href", "clip" + index + "_freq." + sites[i] + ".distal.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c12_img").attr("src", "clip" + index + "_freq." + sites[i] + ".s1.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c12_link").attr("href", "clip" + index + "_freq." + sites[i] + ".s1.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c13_img").attr("src", "clip" + index + "_freq." + sites[i] + ".s2.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c13_link").attr("href", "clip" + index + "_freq." + sites[i] + ".s2.png?nocache=%s");' % nocache
 
-    $("#" + sites[i]+"_c30_img").attr("src", "clip" + index + "_heat." + sites[i] + ".proximal_neg.png");
-    $("#" + sites[i]+"_c30_link").attr("href", "clip" + index + "_heat." + sites[i] + ".proximal_neg.png");
-    $("#" + sites[i]+"_c31_img").attr("src", "clip" + index + "_heat." + sites[i] + ".distal_neg.png");
-    $("#" + sites[i]+"_c31_link").attr("href", "clip" + index + "_heat." + sites[i] + ".distal_neg.png");
-    $("#" + sites[i]+"_c32_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s1_neg.png");
-    $("#" + sites[i]+"_c32_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s1_neg.png");
-    $("#" + sites[i]+"_c33_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s2_neg.png");
-    $("#" + sites[i]+"_c33_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s2_neg.png");
+    body += '$("#" + sites[i]+"_c20_img").attr("src", "clip" + index + "_heat." + sites[i] + ".proximal_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c20_link").attr("href", "clip" + index + "_heat." + sites[i] + ".proximal_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c21_img").attr("src", "clip" + index + "_heat." + sites[i] + ".distal_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c21_link").attr("href", "clip" + index + "_heat." + sites[i] + ".distal_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c22_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s1_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c22_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s1_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c23_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s2_pos.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c23_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s2_pos.png?nocache=%s");' % nocache
+
+    body += '$("#" + sites[i]+"_c30_img").attr("src", "clip" + index + "_heat." + sites[i] + ".proximal_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c30_link").attr("href", "clip" + index + "_heat." + sites[i] + ".proximal_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c31_img").attr("src", "clip" + index + "_heat." + sites[i] + ".distal_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c31_link").attr("href", "clip" + index + "_heat." + sites[i] + ".distal_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c32_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s1_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c32_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s1_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c33_img").attr("src", "clip" + index + "_heat." + sites[i] + ".s2_neg.png?nocache=%s");' % nocache
+    body += '$("#" + sites[i]+"_c33_link").attr("href", "clip" + index + "_heat." + sites[i] + ".s2_neg.png?nocache=%s");' % nocache
+
+    body += """
+
   }
 }
 </script>
@@ -866,35 +950,37 @@ function change_clip()
     f.write("<table style='border-collapse: collapse; border-spacing: 0px;'>")
 
     if len(comps.CLIP)>0:
+        class_str = {"skipped":"skipped-exon", "composite":"composite-exon", "tandem":"same-exon", "all":"combined"}
         for t in present_pairs:
-            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td><td align=center>%s: s1</td><td align=center>%s: s2</td></tr>\n" % (t, t, t, t))
+            ts = class_str[t]
+            f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td><td align=center>%s: s1</td><td align=center>%s: s2</td></tr>\n" % (ts, ts, ts, ts))
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s, rep=%s, con=%s</td>" % (t, stats[("e", t)], stats[("r", t)], stats[("c_up", t)]+stats[("c_down", t)]))
-            f.write("<td align=right valign=center><a id=%s_c00_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c00_img src=%s width=300px></a></td>" % (t, "clip0.%s.proximal.png" % t, t, "clip0.%s.proximal.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c01_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c01_img src=%s width=300px></a></td>" % (t, "clip0.%s.distal.png" % t, t, "clip0.%s.distal.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c02_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c02_img src=%s width=300px></a></td>" % (t, "clip0.%s.s1.png" % t, t, "clip0.%s.s1.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c03_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c03_img src=%s width=300px></a></td>" % (t, "clip0.%s.s2.png" % t, t, "clip0.%s.s2.png" % t))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s, rep=%s, con=%s</td>" % (ts, stats[("e", t)], stats[("r", t)], stats[("c_up", t)]+stats[("c_down", t)]))
+            f.write("<td align=right valign=center><a id=%s_c00_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c00_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.proximal.png?nocache=%s" % (t, nocache), t, "clip0.%s.proximal.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c01_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c01_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.distal.png?nocache=%s" % (t, nocache), t, "clip0.%s.distal.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c02_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c02_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.s1.png?nocache=%s" % (t, nocache), t, "clip0.%s.s1.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c03_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c03_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.s2.png?nocache=%s" % (t, nocache), t, "clip0.%s.s2.png?nocache=%s" % (t, nocache)))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>targets</td>" % t)
-            f.write("<td align=right valign=center><a id=%s_c10_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c10_img src=%s width=300px></a></td>" % (t, "clip0_freq.%s.proximal.png" % t, t, "clip0_freq.%s.proximal.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c11_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c11_img src=%s width=300px></a></td>" % (t, "clip0_freq.%s.distal.png" % t, t, "clip0_freq.%s.distal.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c12_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c12_img src=%s width=300px></a></td>" % (t, "clip0_freq.%s.s1.png" % t, t, "clip0_freq.%s.s1.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c13_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c13_img src=%s width=300px></a></td>" % (t, "clip0_freq.%s.s2.png" % t, t, "clip0_freq.%s.s2.png" % t))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>targets</td>" % ts)
+            f.write("<td align=right valign=center><a id=%s_c10_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c10_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_freq.%s.proximal.png?nocache=%s" % (t, nocache), t, "clip0_freq.%s.proximal.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c11_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c11_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_freq.%s.distal.png?nocache=%s" % (t, nocache), t, "clip0_freq.%s.distal.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c12_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c12_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_freq.%s.s1.png?nocache=%s" % (t, nocache), t, "clip0_freq.%s.s1.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c13_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c13_img src=%s onerror=\"this.style.display='none'\"width=300px></a></td>" % (t, "clip0_freq.%s.s2.png?nocache=%s" % (t, nocache), t, "clip0_freq.%s.s2.png?nocache=%s" % (t, nocache)))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh</td>" % t)
-            f.write("<td align=right valign=center><a id=%s_c20_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c20_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.proximal_pos.png" % t, t, "clip0_heat.%s.proximal_pos.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c21_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c21_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.distal_pos.png" % t, t, "clip0_heat.%s.distal_pos.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c22_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c22_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.s1_pos.png" % t, t, "clip0_heat.%s.s1_pos.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c23_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c23_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.s2_pos.png" % t, t, "clip0_heat.%s.s2_pos.png" % t))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh</td>" % ts)
+            f.write("<td align=right valign=center><a id=%s_c20_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c20_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.proximal_pos.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.proximal_pos.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c21_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c21_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.distal_pos.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.distal_pos.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c22_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c22_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.s1_pos.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.s1_pos.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c23_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c23_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.s2_pos.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.s2_pos.png?nocache=%s" % (t, nocache)))
             f.write("</tr>")
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>rep</td>" % t)
-            f.write("<td align=right valign=center><a id=%s_c30_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c30_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.proximal_neg.png" % t, t, "clip0_heat.%s.proximal_neg.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c31_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c31_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.distal_neg.png" % t, t, "clip0_heat.%s.distal_neg.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c32_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c32_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.s1_neg.png" % t, t, "clip0_heat.%s.s1_neg.png" % t))
-            f.write("<td align=right valign=center><a id=%s_c33_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c33_img src=%s width=300px></a></td>" % (t, "clip0_heat.%s.s2_neg.png" % t, t, "clip0_heat.%s.s2_neg.png" % t))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>rep</td>" % ts)
+            f.write("<td align=right valign=center><a id=%s_c30_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c30_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.proximal_neg.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.proximal_neg.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c31_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c31_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.distal_neg.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.distal_neg.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c32_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c32_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0_heat.%s.s1_neg.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.s1_neg.png?nocache=%s" % (t, nocache)))
+            f.write("<td align=right valign=center><a id=%s_c33_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c33_img src=%s onerror=\"this.style.display='none'\"width=300px></a></td>" % (t, "clip0_heat.%s.s2_neg.png?nocache=%s" % (t, nocache), t, "clip0_heat.%s.s2_neg.png?nocache=%s" % (t, nocache)))
             f.write("</tr>")
             f.write("<tr><td><br><br></td><td><br><br></td><td><br><br></td><td><br><br></td><td><br><br></td></tr>")
             f.write("\n")

@@ -11,7 +11,7 @@ def process(comps_id):
     tab_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder, "tab")
 
     if comps_id!=None:
-        comps = apa.comps.read_comps(comps_id)
+        comps = apa.comps.Comps(comps_id)
         genome = comps.species
         tab_file = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
         dest_folder = os.path.join(apa.path.comps_folder, comps_id, name_folder)
@@ -42,13 +42,6 @@ def process(comps_id):
                 fname = os.path.join(fasta_folder, k+".fasta")
                 fasta_files[k] = open(fname, "wt")
 
-    pc_thr = 0.1
-    fisher_thr = 0.1
-    pair_dist = 450
-    control_pc_thr = 0.1
-    control_fisher_thr = 0.1
-
-    # r = repressed, e = enhanced, c = control
     stats = Counter()
 
     f = open(tab_file, "rt")
@@ -69,30 +62,15 @@ def process(comps_id):
         fisher = float(data["fisher"])
         pair_type = data["pair_type"]
 
-        # gene selection is done with fisher & pc
-        if comps.site_selection in ["APA", "CLIP"]:
-            if abs(proximal_pos-distal_pos)<pair_dist:
-                r = f.readline()
-                continue
-            proximal_reg = None
-            if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
-                proximal_reg = "e"
-            if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
-                proximal_reg = "r"
-            if abs(pc)<pc_thr and fisher>fisher_thr:
-                proximal_reg = "c_up" if pc>0 else "c_down"
-
-        # gene selection is done with DEXSeq
-        if comps.site_selection=="DEX":
-            proximal_reg = data["gene_class"]
-            if proximal_reg in ["c_up", "c_down"]:
-                proximal_reg = "c"
+        proximal_reg = data["gene_class"]
+        if proximal_reg in ["c_up", "c_down"]:
+            proximal_reg = "c"
 
         if proximal_reg in [None]:
             r = f.readline()
             continue
 
-        if abs(proximal_pos-distal_pos)<pair_dist:
+        if abs(proximal_pos-distal_pos)<comps.pair_dist:
             r = f.readline()
             continue
 

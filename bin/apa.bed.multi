@@ -13,6 +13,10 @@ parser.add_argument('-type', action="store", dest="type", default="raw") # raw o
 parser.add_argument('-lib_id', action="store", dest="lib_id", default=None)
 parser.add_argument('-poly_id', action="store", dest="poly_id", default=None)
 parser.add_argument('-map_id', action="store", dest="map_id", type=int, default=1)
+parser.add_argument('-upstream', type=int, action="store", default=None)
+parser.add_argument('-downstream', type=int, action="store", default=None)
+parser.add_argument('-ip_filter', action="store_true", dest="ip_filter", default=True)
+parser.add_argument('-no_ip_filter', action="store_false", dest="ip_filter")
 args = parser.parse_args()
 
 num_worker_threads = 40
@@ -27,10 +31,21 @@ def worker():
 # get experiments
 e_ids = apa.annotation.libs[args.lib_id].experiments.keys()
 
-# raw
 tasks = []
 for e_id in e_ids:
-    tasks.append("apa.bed -type %s -lib_id %s -exp %s -force -poly_id %s -map_id %s" % (args.type, args.lib_id, e_id, args.poly_id, args.map_id))
+    pars = []
+    pars.append("-type %s" % args.type)
+    pars.append("-lib_id %s" % args.lib_id)
+    pars.append("-force")
+    pars.append("-exp %s" % e_id)
+    pars.append("-poly_id %s" % args.poly_id)
+    pars.append("-map_id %s" % args.map_id)
+    pars.append({True:"-ip_filter", False:"-no_ip_filter"}[args.ip_filter])
+    if args.upstream!=None:
+        pars.append("-upstream %s" % args.upstream)
+    if args.downstream!=None:
+        pars.append("-downstream %s" % args.downstream)
+    tasks.append("apa.bed %s" % " ".join(pars))
     print tasks[-1] # print the last added task
 
 for i in range(num_worker_threads):

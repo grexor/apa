@@ -11,7 +11,7 @@ args = parser.parse_args()
 
 if args.comps_id!=None:
     comps_id = args.comps_id
-    comps = apa.comps.read_comps(comps_id)
+    comps = apa.comps.Comps(comps_id)
     for site in ["proximal", "distal"]:
         for pt in ["tandem", "composite", "skipped", "all"]:
             rnamotifs_id = "%s_%s_%s" % (comps_id, site, pt)

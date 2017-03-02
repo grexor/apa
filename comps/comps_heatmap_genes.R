@@ -17,7 +17,8 @@ df <- read.csv(file=input_fname, header=T, quote="$", sep="\t");
 subset.df <- df[1:100, ];
 
 subset.data <- as.matrix(subset.df[, 10:(10+num_control+num_test-1)]);
-norm.data <- log2(subset.data / rowMeans(subset.data));
+#norm.data <- log2(subset.data / rowMeans(subset.data));
+norm.data <- subset.data / rowMeans(subset.data);
 rownames(norm.data) <- subset.df$gene_name;
 
 norm.dist <- Dist(norm.data, method="pearson");

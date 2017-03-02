@@ -42,7 +42,7 @@ def get_species(poly_id):
         species = species.pop()
     return species
 
-def process(poly_id, map_id=1):
+def process(poly_id, map_id=1, min_distance=25):
     """
     Creates polyA database.
     It loads multiple experiments (T files). Scales each experiment individually and adds up the raw counts and the scaled values.
@@ -89,7 +89,8 @@ def process(poly_id, map_id=1):
             bed.load(t_filename, meta=meta)
             print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
 
-    bed.filter(min_distance=125) # construct main poly-A sites
+    #bed.filter(min_distance=25) # Gregor: alternative: -25..25 (201702 test)
+    bed.filter(min_distance=125)
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
     annotate(poly_id)
 
@@ -135,6 +136,7 @@ def annotate(poly_id):
         r = f.readline()
     f.close()
 
+    # at least cDNA 10 to accept polyA database position
     cDNA_filter = {"hg19_derti":0, "hg19_tian":0}.get(poly_id, 10)
     accepted = {}
     for key, (cDNA, gid, gid_interval) in db.items():

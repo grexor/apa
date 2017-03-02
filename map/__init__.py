@@ -5,7 +5,7 @@ import pybio
 import shutil
 import commands
 
-def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1):
+def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1, minlen=0.66):
     exp_id = int(exp_id)
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
     map_folder = apa.path.map_folder(lib_id, exp_id, map_id = map_id)
@@ -23,7 +23,7 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
 
     print "%s_e%s : MAP : %s" % (lib_id, exp_id, map_folder)
     if mapper=="star":
-        pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
+        pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu, minlen=minlen)
     if mapper=="sege":
         pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
     if mapper=="bowtie":

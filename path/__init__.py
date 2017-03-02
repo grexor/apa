@@ -25,6 +25,16 @@ def r_filename(lib_id, exp_id, map_id=1):
     """
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.raw.bed" % (lib_id, exp_id, map_id))
 
+def bam_filename(lib_id, exp_id, map_id=1):
+    """
+    Returns constructed path to :ref:`R bedGraph file <r_bedgraph_method>` from lib_id, exp_id and map_id:
+
+    .. code-block:: bash
+
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.bam
+    """
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+
 def t_filename(lib_id, exp_id, map_id=1):
     """
     Returns constructed path to :ref:`tail bedGraph file <t_bedgraph_method>` from lib_id, exp_id and map_id:
