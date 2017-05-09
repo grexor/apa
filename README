@@ -1,6 +1,6 @@
-apaExpress python source
+expressRNA Python source
 
-Research platform for the analysis of NGS 3'-end targeted data.
+Post-transcriptional analysis platform
 
 Dependencies
 
@@ -9,3 +9,10 @@ Dependencies
 * scikit-learn: http://scikit-learn.org/0.11/install.html
 * polyar (http://cub.comsats.edu.pk/polyapredict.htm)
 * python regex (easy_install regex)
+
+Please cite:
+
+Rot, G., Wang, Z., Huppertz, I., Modic, M., Lenče, T., Hallegger, M., Haberman, N., Curk, T., von Mering, C., Ule, J., 2017
+High-Resolution RNA Maps Suggest Common Principles of Splicing and Polyadenylation Regulation by TDP-43
+Cell Rep. 19, 1056–1067
+doi:10.1016/j.celrep.2017.04.028
