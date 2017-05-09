@@ -220,7 +220,7 @@ class Comps:
 def process_comps(comps_id, map_id=1):
 
     if not os.path.exists(os.path.join(apa.path.comps_folder, comps_id, "%s.config" % comps_id)):
-        print "%s.config missing, quitting" % (comps_id)
+        print "%s.config missing, exiting" % (comps_id)
         sys.exit(1)
 
     # clean
@@ -332,7 +332,7 @@ def process_comps(comps_id, map_id=1):
                 num_genes.add(gene_id)
                 sites = gsites.get(gene_id, {})
                 expression_vector = []
-                site_data = {"pos":pos, "gene_interval":list(gene_interval)} # store position and gene_interval (start, stop, exon/intron), clip binding
+                site_data = {"chr":chr, "strand":strand, "pos":pos, "gene_interval":list(gene_interval)} # store position and gene_interval (start, stop, exon/intron), clip binding
 
                 # get clip data
                 for clip_name in comps.CLIP:
@@ -370,6 +370,12 @@ def process_comps(comps_id, map_id=1):
         for pos, site_data in list(sites.items()): # python3 safe
             if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
                 del sites[pos]
+            # REMOVE
+            #v = nam.get_vector(site_data["chr"], site_data["strand"], pos, -50, 50)
+            #print gene_id, site_data["chr"], site_data["strand"], pos, sum(v[45:55+1])
+            #if sum(v[45:55+1])==0:
+            #    if sites.get(pos, None)!=None:
+            #        del sites[pos]
 
     num_sites_per_gene = {}
     for gene_id, sites in gsites.items():
@@ -429,9 +435,9 @@ def process_comps(comps_id, map_id=1):
     for x1 in sorted(num_sites_per_gene.keys()):
         if x1>1:
             number_moresites += num_sites_per_gene[x1]
-        if x1<10:
+        if x1<10 and x1!=0:
             y[x1] += num_sites_per_gene[x1]
-        else:
+        if x1>=10:
             y[10] += num_sites_per_gene[x1]
         total_sites += num_sites_per_gene[x1] * x1
         total_genes += num_sites_per_gene[x1]
@@ -553,12 +559,12 @@ def process_comps(comps_id, map_id=1):
     pybio.utils.Cmd(command).run()
 
     # heatmap of differentially expressed genes
-    R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_genes.R")
-    input_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap_genes" % comps_id)
-    command = "R --vanilla --args %s %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
-    print command
-    pybio.utils.Cmd(command).run()
+    #R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_genes.R")
+    #input_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
+    #output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap_genes" % comps_id)
+    #command = "R --vanilla --args %s %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+    #print command
+    #pybio.utils.Cmd(command).run()
 
     # pairs_de file
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
