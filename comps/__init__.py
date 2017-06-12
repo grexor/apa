@@ -41,7 +41,7 @@ class Comps:
         self.exp_data = {}
         self.polya_db = ""
         self.poly_type = ["strong", "weak"] # strong, weak, less, noclass
-        self.site_selection = "CLIP" # CLIP / APA / DEX
+        self.site_selection = "DEX4" # CLIP / APA / DEX
         self.choose_function = "sum" # how are sites evaluated from iCLIP data, by "sum" in the clip_interval or by "closest" in the "clip_interval"
         self.deepbind = None
         self.clip_interval = (-100, 100) # interval around sites for binding data
@@ -535,13 +535,6 @@ def process_comps(comps_id, map_id=1):
     for (rshort, rlong) in replicates:
         dex_files[rshort].close()
 
-    # dexseq analysis
-    R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
-    command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
-    print command
-    pybio.utils.Cmd(command).run()
-
     # differential gene expression with edgeR
     R_file = os.path.join(apa.path.root_folder, "comps", "comps_edgeR.R")
     input_fname = apa.path.comps_expression_filename(comps_id)
@@ -555,6 +548,13 @@ def process_comps(comps_id, map_id=1):
     input_fname = apa.path.comps_expression_filename(comps_id)
     output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes.svg" % comps_id)
     command = "R --vanilla --args %s %s %s %s '%s (gene level)' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+    print command
+    pybio.utils.Cmd(command).run()
+
+    # dexseq analysis
+    R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
+    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
+    command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()
 
@@ -593,15 +593,8 @@ def process_comps(comps_id, map_id=1):
     bg_selected_sites_test = pybio.data.Bedgraph()
 
     # DEX: this completelly invalidates the site selection, and leaves the decision to DEXseq
-    # see below, next DEX tag
-    if comps.site_selection=="DEX":
-        dex = dex_select(comps_id)
-    elif comps.site_selection=="DEX2":
-        dex = dex_select2(comps_id)
-    elif comps.site_selection=="DEX3":
-        dex = dex_select3(comps_id)
-    elif comps.site_selection=="DEX4":
-        dex = dex_select4(comps_id)
+    if comps.site_selection.upper().find("DEX")!=-1:
+        dex = dex_final(comps_id)
 
     f_pairs.write("\t".join(header)+"\n")
 
@@ -644,10 +637,10 @@ def process_comps(comps_id, map_id=1):
                 distal_test.append(distal_site[rshort])
 
         # update bedGraph for selected sites
-        bg_selected_sites_control.set_value("chr"+chr, strand, proximal_pos, sum(proximal_control))
-        bg_selected_sites_test.set_value("chr"+chr, strand, proximal_pos, sum(proximal_test))
-        bg_selected_sites_control.set_value("chr"+chr, strand, distal_pos, sum(distal_control))
-        bg_selected_sites_test.set_value("chr"+chr, strand, distal_pos, sum(distal_test))
+        bg_selected_sites_control.set_value(chr, strand, proximal_pos, sum(proximal_control))
+        bg_selected_sites_test.set_value(chr, strand, proximal_pos, sum(proximal_test))
+        bg_selected_sites_control.set_value(chr, strand, distal_pos, sum(distal_control))
+        bg_selected_sites_test.set_value(chr, strand, distal_pos, sum(distal_test))
 
         proximal_seq = pybio.genomes.seq(comps.species, chr, strand, proximal_pos, start=-60, stop=100)
         distal_seq = pybio.genomes.seq(comps.species, chr, strand, distal_pos, start=-60, stop=100)
@@ -1072,104 +1065,7 @@ def make_fasta(comps_id):
             f.write(">%s.%s\n%s\n" % (reg_key, stats_reg[reg_key], seq))
             f.close()
 
-def dex_select(comps_id, thr=0.05, thr_fc=0):
-    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id), "rt")
-    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    r = f.readline()
-    results = {}
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        data = dict(zip(header, r))
-        gene_id = data["groupID"]
-        L = results.get(gene_id, [])
-        gene_expression = 0
-        for el in r[11:]:
-            gene_expression += int(el)
-        strand = data["groupID"].split("_")[1][0]
-        pos = int(data["featureID"][1:])
-        # DEXseq: https://support.bioconductor.org/p/45879/
-        # if count < 10 accross all samples, exon is excluded from analysis
-        # just as a precaution we also check if we have NA here
-        if data["padj"]=="NA" or data["log2fold_test_control"]=="NA":
-            r = f.readline()
-            continue
-        row = {"padj": float(data["padj"]), "fc": float(data["log2fold_test_control"]), "featureID": data["featureID"], "groupID": data["groupID"], "gene_expression": gene_expression, "strand": strand, "pos": pos}
-        L.append(row)
-        results[gene_id] = L
-        r = f.readline()
-    f.close()
-
-    repressed = 0; enhanced = 0; c_up = 0; c_down = 0
-    for gene_id, L in results.items():
-        gene_class = None
-        gid = gene_id.split("_")[0]
-        L.sort(key=lambda x: x["padj"])
-        assert(len(L)>1)
-
-        sig_sites = len([x for x in L if x["padj"]<=thr]) # cound number of significant polyA sites in gene
-
-        if sig_sites==0:
-            L.sort(key=lambda x: x["gene_expression"], reverse=True)
-            site1, site2 = L[0], L[1]
-            site1_pos, site2_pos = site1["pos"], site2["pos"]
-
-        if sig_sites==1:
-            site1 = L[0]
-            assert(site1["padj"]<=thr)
-            assert(L[1]["padj"]>thr)
-            del L[0]
-            L.sort(key=lambda x: x["gene_expression"], reverse=True)
-            site2 = L[0]
-            site1_pos, site2_pos = site1["pos"], site2["pos"]
-
-        if sig_sites>=2:
-            L = [x for x in L if x["padj"]<=thr]
-            L = sorted(L, key=lambda x: x["fc"]) # sort by fc
-            site1, site2 = L[0], L[-1]
-            site1_pos, site2_pos = site1["pos"], site2["pos"]
-
-        strand = site1["strand"]
-        if strand=="+":
-            if site1_pos<site2_pos:
-                proximal = site1
-                distal = site2
-            else:
-                proximal = site2
-                distal = site1
-        else:
-            if site1_pos<site2_pos:
-                proximal = site2
-                distal = site1
-            else:
-                proximal = site1
-                distal = site2
-        if sig_sites==0:
-            if proximal["fc"]>0:
-                c_up += 1
-                gene_class = "c_up"
-            else:
-                c_down += 1
-                gene_class = "c_down"
-        else:
-            if site1["fc"]*site2["fc"]<0 and abs(site1["fc"])>=thr_fc and abs(site2["fc"])>=thr_fc: # opposite direction of change
-                if proximal["fc"]<0:
-                    gene_class = "e"
-                    enhanced += 1
-                else:
-                    gene_class = "r"
-                    repressed += 1
-        if gene_class!=None:
-            proximal_pos = proximal["pos"]
-            distal_pos = distal["pos"]
-            proximal_p = proximal["padj"]
-            distal_p = distal["padj"]
-            distance = abs(proximal_pos-distal_pos)
-            proximal_fc = proximal["fc"]
-            distal_fc = distal["fc"]
-            results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
-    return results
-
-def dex_select4(comps_id, thr=0.05):
+def dex_final(comps_id, thr=0.05):
     comps = Comps(comps_id) # study data
     f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id), "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
@@ -1184,7 +1080,12 @@ def dex_select4(comps_id, thr=0.05):
         for el in r[11:]:
             gene_expression += int(el)
         strand = data["groupID"].split("_")[1][0]
-        pos = int(data["featureID"][1:])
+        try:
+            pos = int(data["featureID"][1:])
+        except:
+            print "Could not recover position from: %s" % data["featureID"]
+            r = f.readline()
+            continue
         if data["padj"]=="NA" or data["log2fold_test_control"]=="NA":
             r = f.readline()
             continue
