@@ -237,6 +237,8 @@ def process_comps(comps_id, map_id=1):
     comps = Comps(comps_id) # study data
     pybio.genomes.load(comps.species)
 
+    flog = open(os.path.join(apa.path.comps_folder, comps_id, "%s.log" % comps_id), "wt")
+
     # load CLIP data if available
     clip = {}
     for clip_name in comps.CLIP:
@@ -353,8 +355,13 @@ def process_comps(comps_id, map_id=1):
                         test_sum += cDNA
                     site_data[rshort] = cDNA
 
-                # filter lowly expressed sites
-                if (control_sum<10) and (test_sum<10): # paper version
+                # re-added 20170612, not included in the paper version of analysis
+                expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
+                if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
+                    continue
+
+                # filter lowly expressed sites, paper version
+                if (control_sum<10) and (test_sum<10):
                     continue
 
                 site_data["cDNA_sum"] = int(cDNA_sum)
@@ -542,14 +549,18 @@ def process_comps(comps_id, map_id=1):
     command = "R --vanilla --args %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), R_file)
     print command
     pybio.utils.Cmd(command).run()
+    flog.write(command+"\n")
+    flog.flush()
 
     # replicates cluster analysis
     R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
     input_fname = apa.path.comps_expression_filename(comps_id)
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes.svg" % comps_id)
+    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
     command = "R --vanilla --args %s %s %s %s '%s (gene level)' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()
+    flog.write(command+"\n")
+    flog.flush()
 
     # dexseq analysis
     R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
@@ -557,6 +568,8 @@ def process_comps(comps_id, map_id=1):
     command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
     print command
     pybio.utils.Cmd(command).run()
+    flog.write(command+"\n")
+    flog.flush()
 
     # heatmap of differentially expressed genes
     #R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_genes.R")
@@ -769,6 +782,8 @@ def process_comps(comps_id, map_id=1):
 
     bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % comps_id)
     bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % comps_id)
+
+    flog.close()
 
 def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type):
     pybio.genomes.load(genome)

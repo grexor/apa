@@ -17,8 +17,21 @@ d <- Dist(z, method="spearman")
 hc <- hclust(d, method="ward.D")
 
 require(graphics)
-svg(output_filename, width=10, height=7, pointsize=10, bg="transparent")
+
+svg(paste(output_filename, ".svg", sep=""), width=40, height=31, pointsize=9, bg="transparent")
 op <- par(mar = par("mar") + c(1,1,1,12))
 #op <- par(mai = c(1,1,1,6), xpd = NA)
+plot(as.dendrogram(hc), main=comps_id, horiz=T)
+dev.off()
+
+png(paste(output_filename, ".png", sep=""), width=2048, height=2048, units = "px", pointsize = 9, bg="transparent")
+op <- par(mar = par("mar") + c(1,1,1,12))
+#op <- par(mai = c(1,1,1,6), xpd = NA)
+plot(as.dendrogram(hc), main=comps_id, horiz=T)
+dev.off()
+
+# pointsize for cairo_pdf doesnt really work
+cairo_pdf(paste(output_filename, ".pdf", sep=""), width=70, height=70, pointsize = 20)
+op <- par(mar = par("mar") + c(1,1,1,12))
 plot(as.dendrogram(hc), main=comps_id, horiz=T)
 dev.off()
