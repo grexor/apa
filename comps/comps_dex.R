@@ -8,7 +8,7 @@ num_control = as.numeric(args[3]);
 num_test = as.numeric(args[4]);
 comps_id = args[5];
 
-BPPARAM = MulticoreParam(workers=20)
+BPPARAM = MulticoreParam(workers=12)
 inDir = system.file(input_folder)
 
 countFiles = c()

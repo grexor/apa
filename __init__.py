@@ -23,6 +23,8 @@ import model
 import motifs
 import warnings
 
+version = "1.1"
+
 apa.path.init() # inicialize paths
 apa.annotation.init() # read annotations
 
