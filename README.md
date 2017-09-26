@@ -9,11 +9,11 @@ The inclusive nature of the framework, together with novel integrative solutions
 + identification of genes that undergo alternative polyadenylation (DEXSeq) in control vs. test experimental setups,
 + identification of motifs influencing polyA site choice (RNAmotifs2),
 + integration with iCLIP (RNA-protein binding) and computing RNA-maps,
-+ and others.
++ and other.
 
 ## Authors
 
-[apa][https://github.com/grexor/apa] is developed and supported by [Gregor Rot](http://rotlab.info) in collaboration with the laboratory of [Jernej Ule](http://ulelab.info).
+[apa](https://github.com/grexor/apa) is developed and supported by [Gregor Rot](http://rotlab.info) in collaboration with the laboratory of [Jernej Ule](http://ulelab.info).
 
 The development started in 2009 when Tomaž Curk and Gregor Rot wrote the first prototype of [apa](https://github.com/grexor/apa). In 2013, Gregor Rot refactored and further developed the code, also establishing [expressRNA](http://expressRNA.org), a web application for exploring results of alternative polyadenylation analysis.
 
