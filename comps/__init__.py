@@ -592,6 +592,8 @@ def process_comps(comps_id, map_id=1):
     # DEX: this completelly invalidates the site selection, and leaves the decision to DEXseq
     if comps.site_selection.upper()=="DEXSEQ":
         selected_sites = dexseq(comps_id)
+    else:
+        selected_sites = dexseq(comps_id) # for now there is no alternative
 
     f_pairs.write("\t".join(header)+"\n")
 
