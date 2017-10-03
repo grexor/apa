@@ -25,17 +25,19 @@ if args.comps_id!=None:
             fname2 = os.path.join(apa.path.rnamotifs_folder, "comps", rnamotifs_id, rnamotifs_id+".tab")
             os.system("perl -pe 's/r\n/s\n/g' %s > %s" % (fname1, fname2))
             fname_config = os.path.join(apa.path.rnamotifs_folder, "comps", rnamotifs_id, rnamotifs_id+".config")
+            print fname_config
             f = open(fname_config, "wt")
             f.write("data_type=apa\n")
             f.write("hw=15\n")
             f.write("flanking=100\n")
             f.write("genome=%s\n" % comps.species)
             f.write('regions=[("r1", -80, -40), ("r2", 0, 40), ("r3", 40, 80)]\n')
+            f.write("cores=4\n")
             if args.fdr:
                 f.write("use_FDR=True\n")
             else:
                 f.write("use_FDR=False\n")
             f.close()
 
-            os.system("rnamotifs2 -comps %s" % rnamotifs_id)
-            os.system("rnamotifs2.draw_apa -comps %s" % rnamotifs_id)
+            #os.system("rnamotifs2 -comps %s" % rnamotifs_id)
+            #os.system("rnamotifs2.draw_apa -comps %s" % rnamotifs_id)

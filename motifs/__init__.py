@@ -27,7 +27,7 @@ def process(comps_id):
     tab_files = {}
 
     for pair_type in ["tandem", "composite", "skipped", "all"]:
-        for reg in ["r", "e", "c"]:
+        for reg in ["repressed", "enhanced", "control"]:
             k = "%s_%s" % (pair_type, reg)
             fname = os.path.join(fasta_folder, k+"_intersite.fasta")
             fasta_files[k] = open(fname, "wt")
@@ -37,7 +37,7 @@ def process(comps_id):
             fname = os.path.join(tab_folder, "%s_%s_%s.tab" % (comps_id, site, pair_type))
             tab_files["%s_%s" % (site, pair_type)] = open(fname, "wt")
             tab_files["%s_%s" % (site, pair_type)].write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
-            for reg in ["r", "e", "c"]:
+            for reg in ["repressed", "enhanced", "control"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
                 fname = os.path.join(fasta_folder, k+".fasta")
                 fasta_files[k] = open(fname, "wt")
@@ -58,13 +58,11 @@ def process(comps_id):
         proximal_pos = int(data["proximal_pos"])
         distal_pos = int(data["distal_pos"])
 
-        pc = float(data["pc"])
-        fisher = float(data["fisher"])
         pair_type = data["pair_type"]
 
         proximal_reg = data["gene_class"]
-        if proximal_reg in ["c_up", "c_down"]:
-            proximal_reg = "c"
+        if proximal_reg in ["control_up", "control_down"]:
+            proximal_reg = "control"
 
         if proximal_reg in [None]:
             r = f.readline()
@@ -74,7 +72,7 @@ def process(comps_id):
             r = f.readline()
             continue
 
-        distal_reg = {"e":"r", "r":"e", "c":"c", None:None}[proximal_reg]
+        distal_reg = {"enhanced":"repressed", "repressed":"enhanced", "control":"control", None:None}[proximal_reg]
         stats["%s.%s" % (proximal_reg, pair_type)] += 1
         stats["%s.%s" % (proximal_reg, "all")] += 1
 
@@ -95,14 +93,14 @@ def process(comps_id):
         tab_files_index["distal_%s" % pair_type] = tab_files_index.setdefault("distal_%s" % pair_type, 0) + 1
         tab_files_index["distal_%s" % "all"] = tab_files_index.setdefault("distal_%s" % "all", 0) + 1
 
-        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, proximal_pos, proximal_reg]]
+        row = [str(el) for el in [tab_files_index["proximal_%s" % pair_type], chr, strand, proximal_pos, {"repressed":"r", "enhanced":"e", "control":"c"}[proximal_reg]]]
         tab_files["proximal_%s" % pair_type].write("\t".join(row)+"\n")
-        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, distal_pos, distal_reg]]
+        row = [str(el) for el in [tab_files_index["distal_%s" % pair_type], chr, strand, distal_pos, {"repressed":"r", "enhanced":"e", "control":"c"}[distal_reg]]]
         tab_files["distal_%s" % pair_type].write("\t".join(row)+"\n")
 
-        row = [str(el) for el in [tab_files_index["proximal_%s" % "all"], chr, strand, proximal_pos, proximal_reg]]
+        row = [str(el) for el in [tab_files_index["proximal_%s" % "all"], chr, strand, proximal_pos, {"repressed":"r", "enhanced":"e", "control":"c"}[proximal_reg]]]
         tab_files["proximal_%s" % "all"].write("\t".join(row)+"\n")
-        row = [str(el) for el in [tab_files_index["distal_%s" % "all"], chr, strand, distal_pos, distal_reg]]
+        row = [str(el) for el in [tab_files_index["distal_%s" % "all"], chr, strand, distal_pos, {"repressed":"r", "enhanced":"e", "control":"c"}[distal_reg]]]
         tab_files["distal_%s" % "all"].write("\t".join(row)+"\n")
 
         r = f.readline()
@@ -115,10 +113,9 @@ def process(comps_id):
         f.close()
 
     f_stats = open(os.path.join(dest_folder, "site_stats.tab"), "wt")
-    f_stats.write("# r = repressed, e = enhanced, c = control\n")
     f_stats.write("# relative to proximal site; if proximal site = r, distal = e, and vice-versa; if proximal = c, distal is also c\n")
     for pair_type in ["tandem", "composite", "skipped", "all"]:
-        for reg in ["r", "e", "c"]:
+        for reg in ["repressed", "enhanced", "control"]:
             f_stats.write("%s\t%s\t%s\n" % (pair_type, reg, stats["%s.%s" % (reg, pair_type)]))
     f_stats.close()
     #dreme(comps_id)
