@@ -243,11 +243,6 @@ def classify_polya(poly_id):
         pas_type, pas_offset, cs_offset = polyar_results[(chr, strand, pos)]
         if pas_type=="":
             pas_type="noclass"
-            # search for top 12 hexamers in -30..-10 around CS
-            #for h in PAS_hexamers:
-            #    if seq[70:90].find(h)!=-1:
-            #        pas_type="p31"
-            #        break
         r[-4], r[-3], r[-2] = pas_type, pas_offset, cs_offset
     	f_tab.write("\t".join([str(e) for e in r])+"\n")
         bed_row = [chr, pos, pos+1, cDNA]
@@ -259,9 +254,9 @@ def classify_polya(poly_id):
         f.close()
 
     os.system("cp %s.tab %s" % (poly_id, polyadb_tab))
-    os.system("rm %s.res" % poly_id)
-    os.system("rm %s.fasta" % poly_id)
-    os.system("rm %s.tab" % poly_id)
+    #os.system("rm %s.res" % poly_id)
+    #os.system("rm %s.fasta" % poly_id)
+    #os.system("rm %s.tab" % poly_id)
     return
 
 def polyadb_class_histogram(poly_id):
@@ -322,12 +317,12 @@ def polyadb_class_histogram(poly_id):
     P.tight_layout()
     P.savefig(polyadb_image)
 
-def annotate_pair(species, chr, strand, pos1, pos2):
+def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
     # keep positions in positive orientation
     if pos1>pos2:
         pos1, pos2 = pos2, pos1
-    _, gid1, _, interval1 = annotate_position(species, chr, strand, pos1)
-    _, gid2, _, interval2 = annotate_position(species, chr, strand, pos2)
+    _, gid1, _, interval1 = pybio.genomes.annotate(species, chr, strand, pos1, extension=extension)
+    _, gid2, _, interval2 = pybio.genomes.annotate(species, chr, strand, pos2, extension=extension)
 
     assert(gid1==gid2) # pair needs to be in the same gene
     # intervals are always in the positive orientation: index0, index1, index2...regardless of strand
@@ -358,9 +353,11 @@ def annotate_pair(species, chr, strand, pos1, pos2):
     return "other"
 
 # distinct function from pybio: assign intergenic positions within downstream extenstion to upstream gene
+# DELETE
 def annotate_position(species, chr, strand, pos, extension=5000):
     strand_os = "-" if strand=="+" else "+" # opposite strand
     gid_up, gid, gid_down, gid_interval = pybio.genomes.annotate(species, chr, strand, pos)
+    print gid_up, gid, gid_down, gid_interval
     default = (gid_up, gid, gid_down, gid_interval)
     if gid==None: # try to find gene, max upstream 5KB or middle of next gene on either strand
         new_pos = pos # in case checks fail, new position is old position

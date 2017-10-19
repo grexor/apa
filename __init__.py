@@ -19,7 +19,7 @@ import bed
 import polya
 import comps
 import rnamap
-import model
+#import model # update this module in version 2
 import motifs
 import warnings
 

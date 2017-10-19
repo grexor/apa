@@ -305,7 +305,7 @@ def process_comps(comps_id, map_id=1):
             pos_set = list(pos_set)
             for pos in pos_set:
                 num_sites += 1
-                gene_up, gene_id, gene_down, gene_interval = apa.polya.annotate_position(comps.species, chr, strand, pos)
+                (gene_up, gene_id, gene_down, gene_interval) = pybio.genomes.annotate(comps.species, chr, strand, pos)
                 if gene_id==None: # only consider polya sites inside genes
                     continue
                 num_sites_genes += 1
@@ -755,9 +755,9 @@ https://docs.google.com/drawings/d/1_m4iZ1c9YwKI-NOWMSCSdg2IzEGedj-NaMTIlHqirc0
 def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type):
     pybio.genomes.load(genome)
     gene = apa.polya.get_gene(genome, gene_id)
-    _, _, _, gene_interval = apa.polya.annotate_position(genome, chr, strand, proximal_pos)
+    _, _, _, gene_interval = pybio.genomes.annotate(genome, chr, strand, proximal_pos)
     proximal_site = {"pos":proximal_pos, "gene_interval":list(gene_interval)}
-    _, _, _, gene_interval = apa.polya.annotate_position(genome, chr, strand, distal_pos)
+    _, _, _, gene_interval = pybio.genomes.annotate(genome, chr, strand, distal_pos)
     distal_site = {"pos":distal_pos, "gene_interval":list(gene_interval)}
 
     s1, s2 = None, None

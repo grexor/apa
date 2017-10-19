@@ -3,7 +3,7 @@ import os
 import sys
 import pybio
 import json
-from orangecontrib.bio import go
+#from orangecontrib.bio import go
 
 def is_sorted(l):
     return all(l[i] <= l[i+1] for i in xrange(len(l)-1))
