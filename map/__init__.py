@@ -93,6 +93,7 @@ def stats(lib_id, map_id=1):
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id)
         bam_file = os.path.join(map_folder, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+        print fastq_file, bam_file
         # not fastq or bam perhaps? (bedgraph data)
         if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
             continue

@@ -3,6 +3,7 @@
 import apa
 import sys
 import glob
+import pybio
 from Queue import *
 from threading import *
 import os
@@ -17,6 +18,10 @@ parser.add_argument('-workers', action="store", dest="workers", default=2, type=
 parser.add_argument('-minlen', action="store", dest="minlen", default=0.66, type=float)
 args = parser.parse_args()
 
+#genome = apa.annotation.libs[args.lib_id].experiments[1]["map_to"]
+#version = pybio.genomes.get_latest_version(genome)
+#genome_folder = os.path.join(pybio.path.genomes_folder, "%s.assembly.%s.star" % (genome, version))
+
 num_worker_threads = args.workers
 q = Queue()
 
@@ -28,7 +33,8 @@ def worker():
 
 # STEP1: process all study data
 tasks = []
-for exp_id in apa.annotation.libs[args.lib_id].experiments.keys():
+#for exp_id in apa.annotation.libs[args.lib_id].experiments.keys():
+for exp_id in range(223, 232):
     tasks.append("apa.map -lib_id %s -exp_id %s -force -mapper %s -cpu %s -map_id %s -minlen %s" % (args.lib_id, exp_id, args.mapper, args.cpu, args.map_id, args.minlen))
 
 for i in range(num_worker_threads):
@@ -43,3 +49,6 @@ q.join()
 
 # finish with mapping stats
 apa.map.stats(args.lib_id, map_id=args.map_id)
+
+# remove genome from memory
+#os.system("STAR --genomeLoad Remove %s" % genome_folder)

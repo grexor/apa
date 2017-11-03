@@ -106,7 +106,7 @@ class Comps:
                 r = f.readline()
                 continue
             if r[0].startswith("presence_thr:"):
-                self.presence_thr = int(r[0].split("presence_thr:")[1])
+                self.presence_thr = float(r[0].split("presence_thr:")[1])
                 r = f.readline()
                 continue
             if r[0].startswith("control_name:"):
@@ -336,6 +336,7 @@ def process_comps(comps_id, map_id=1):
                 # re-added 20170612, not included in the paper version of analysis
                 expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
                 if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
+                    print "presence thr: %s %s" % (sum(expression_vector), len(expression_vector)/comps.presence_thr)
                     continue
 
                 # filter lowly expressed sites, paper version
@@ -981,7 +982,7 @@ def apa_plot(comps_id):
         data = dict(zip(header, r))
         plot_data[data["gene_class"]]["x"].append(float(data["proximal_fc"]))
         plot_data[data["gene_class"]]["y"].append(float(data["distal_fc"]))
-        plot_data[data["gene_class"]]["gene_id"].append(data["gene_id"])
+        plot_data[data["gene_class"]]["gene_id"].append("%s: %s" % (data["gene_id"], data["gene_name"]))
         r = f.readline()
     f.close()
 
@@ -999,7 +1000,7 @@ def apa_plot(comps_id):
 
 <body>
 
-  <div id="myDiv" style="width: 1000px; height: 1000px;"></div>
+  <div id="myDiv" style="width: 100%%; 100%%;"></div>
   <script>
 
       var data_e = {{

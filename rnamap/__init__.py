@@ -107,9 +107,9 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     plt.grid(alpha=0.2)
     print "saving", filename
     if site=="proximal":
-        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("e", pair_type)], stats[("r", pair_type)], stats[("c_up", pair_type)]+stats[("c_down", pair_type)])
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("enhanced", pair_type)], stats[("repressed", pair_type)], stats[("control_up", pair_type)]+stats[("control_down", pair_type)])
     if site=="distal":
-        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("r", pair_type)], stats[("e", pair_type)], stats[("c_up", pair_type)]+stats[("c_down", pair_type)])
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("repressed", pair_type)], stats[("enhanced", pair_type)], stats[("control_up", pair_type)]+stats[("control_down", pair_type)])
     plt.title(title)
     plt.savefig(filename+".png", dpi=100, transparent=True)
     if save_pdf:
@@ -123,10 +123,10 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     tab_data["cup"] = list(vcon_up)
     tab_data["cdown"] = list(vcon_down)
     tab_data["ymax"] = ymax
-    tab_data["num_r"] = stats[("r", pair_type)]
-    tab_data["num_e"] = stats[("e", pair_type)]
-    tab_data["num_cup"] = stats[("c_up", pair_type)]
-    tab_data["num_cdown"] = stats[("c_down", pair_type)]
+    tab_data["num_r"] = stats[("repressed", pair_type)]
+    tab_data["num_e"] = stats[("enhanced", pair_type)]
+    tab_data["num_cup"] = stats[("control_up", pair_type)]
+    tab_data["num_cdown"] = stats[("control_down", pair_type)]
 
     f = open(filename+".tab", "wt")
     f.write(json.dumps(tab_data))
@@ -177,7 +177,8 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         if len(d)==0:
             continue
         d = DataFrame(d)
-        order = d.sum(axis=1).order(ascending=False).index
+        #order = d.sum(axis=1).order(ascending=False).index
+        order = d.sum(axis=1).sort_values(ascending=False).index
         vals = [x[2] for x in d.ix[order, 0]]
         s = sum(vals)
         c = 0
@@ -252,7 +253,8 @@ def save_control_binding(cup, cdown, filename, site="proximal", pair_type="tande
         if len(d)==0:
             continue
         d = DataFrame(d)
-        order = d.sum(axis=1).order(ascending=False).index
+        #order = d.sum(axis=1).order(ascending=False).index
+        order = d.sum(axis=1).sort_values(ascending=False).index
         gene_list = []
         for x in d.ix[order, 0]:
             gene_id, gene_name, clip_sum = x[0], x[1], x[2]
@@ -326,9 +328,9 @@ def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False
     plt.gca().add_patch(p)
     plt.xticks([0,25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400], [-200,-175,-150,-125,-100,-75,-50,-25,0,25,50,75,100,125,150,175,200])
     if site=="proximal":
-        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("e", pair_type)], stats[("r", pair_type)], stats[("c_up", pair_type)]+stats[("c_down", pair_type)])
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("enhanced", pair_type)], stats[("repressed", pair_type)], stats[("control_up", pair_type)]+stats[("control_down", pair_type)])
     if site=="distal":
-        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("r", pair_type)], stats[("e", pair_type)], stats[("c_up", pair_type)]+stats[("c_down", pair_type)])
+        title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("repressed", pair_type)], stats[("enhanced", pair_type)], stats[("control_up", pair_type)]+stats[("control_down", pair_type)])
     plt.title(title)
     plt.savefig(filename+".png", dpi=100, transparent=True)
     if save_pdf:
@@ -413,13 +415,10 @@ def process(comps_id, surr=200):
     fasta_files = {}
     for site in ["proximal", "distal"]:
         for pair_type in ["tandem", "composite", "skipped", "all"]:
-            for reg in ["r", "e"]:
+            for reg in ["repressed", "enhanced"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
                 fname = os.path.join(rnamap_dest, k+".fasta")
                 fasta_files[(site, pair_type, reg)] = open(fname, "wt")
-
-    pc_thr = comps.pc_thr
-    fisher_thr = comps.fisher_thr
 
     # r = repressed, e = enhanced, c = control
     stats = Counter()
@@ -438,7 +437,7 @@ def process(comps_id, surr=200):
         cgenes[pair_type] = 0
         adata[pair_type] = {}
         for site in ["proximal", "distal", "s1", "s2"]:
-            for reg in ["r", "e", "c_up", "c_down"]:
+            for reg in ["repressed", "enhanced", "control_up", "control_down"]:
                 for clip_name in comps.CLIP:
                     cdata[(clip_name, site, reg, pair_type)] = [0] * 401
                     cdata_vectors[(clip_name, site, reg, pair_type)] = []
@@ -487,26 +486,14 @@ def process(comps_id, surr=200):
         else:
             s2_pos = int(data["s2"])
 
-        pc = float(data["pc"])
-        fisher = float(data["fisher"])
         pair_type = data["pair_type"]
-
-        # gene selection is done with fisher & pc
-        if comps.site_selection in ["APA", "CLIP"]:
-            proximal_reg = None
-            if pc>0 and abs(pc)>pc_thr and fisher<fisher_thr:
-                proximal_reg = "e"
-            if pc<0 and abs(pc)>pc_thr and fisher<fisher_thr:
-                proximal_reg = "r"
-            if abs(pc)<pc_thr and fisher>fisher_thr:
-                proximal_reg = "c_up" if pc>0 else "c_down"
 
         # gene selection is done with DEXSeq
         if comps.site_selection in ["DEX", "DEX2", "DEX3", "DEX4"]:
             proximal_reg = data["gene_class"]
 
         # also set reg_distal accordingly to reg_proximal
-        distal_reg = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}[proximal_reg]
+        distal_reg = {"enhanced":"repressed", "repressed":"enhanced", "control_up":"control_down", "control_down":"control_up", None:None}[proximal_reg]
         if pair_type in ["tandem", "composite"]:
             s1_reg = s2_reg = distal_reg
         elif pair_type=="skipped":
@@ -528,8 +515,8 @@ def process(comps_id, surr=200):
 
         stats[(proximal_reg, pair_type)] += 1
         stats[(proximal_reg, "all")] += 1
-        gene_list.setdefault((proximal_reg, pair_type), []).append((gene_id, gene_name, pc, fisher))
-        gene_list.setdefault((proximal_reg, "all"), []).append((gene_id, gene_name, pc, fisher))
+        gene_list.setdefault((proximal_reg, pair_type), []).append((gene_id, gene_name))
+        gene_list.setdefault((proximal_reg, "all"), []).append((gene_id, gene_name))
         stats_bysite[("proximal", proximal_reg, pair_type)] += 1
         stats_bysite[("proximal", proximal_reg, "all")] += 1
         stats_bysite[("distal", distal_reg, pair_type)] += 1
@@ -575,7 +562,7 @@ def process(comps_id, surr=200):
         present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], s2_pre)]
         present[("s2", s2_reg, "all")] = [x+y for x,y in zip(present[("s2", s2_reg, "all")], s2_pre)]
 
-        if proximal_reg in ["e", "r"]:
+        if proximal_reg in ["enhanced", "repressed"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
             fasta_files[("proximal", "all", proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
             fasta_files[("distal", pair_type, distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
@@ -654,7 +641,7 @@ def process(comps_id, surr=200):
     #print stats.items()
     print "---"
     #print stats_bysite.items()
-    for cat in [("proximal", "r", "tandem"), ("proximal", "e", "tandem"), ("proximal", "r", "composite"), ("proximal", "e", "composite"), ("proximal", "r", "skipped"), ("proximal", "e", "skipped")]:
+    for cat in [("proximal", "repressed", "tandem"), ("proximal", "enhanced", "tandem"), ("proximal", "repressed", "composite"), ("proximal", "enhanced", "composite"), ("proximal", "repressed", "skipped"), ("proximal", "enhanced", "skipped")]:
         print cat, stats_bysite.get(cat, 0)
     print "---"
 
@@ -665,9 +652,9 @@ def process(comps_id, surr=200):
     print "normalization with nucleotide resolution"
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
-            for reg in ["e", "r", "c_up", "c_down"]:
+            for reg in ["enhanced", "repressed", "control_up", "control_down"]:
                 n = present[(site, reg, pair_type)]
-                if reg not in ["c_up", "c_down"]:
+                if reg not in ["control_up", "control_down"]:
                     sdata[(site, reg, pair_type)] = [e/max(1.0, float(z)) for e,z in zip(sdata[(site, reg, pair_type)], n)]
                     pdata[(site, reg, pair_type)] = [e/max(1.0, float(z)) for e,z in zip(pdata[(site, reg, pair_type)], n)]
                 for clip_name in comps.CLIP:
@@ -683,10 +670,10 @@ def process(comps_id, surr=200):
     pmax = {"tandem":0, "composite":0, "skipped":0, "all":0}
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
-            for reg in ["e", "r", "c_up", "c_down"]:
+            for reg in ["enhanced", "repressed", "control_up", "control_down"]:
                 for clip_name in comps.CLIP:
                     cmax[clip_name][pair_type] = max(cmax[clip_name][pair_type], max(cdata[(clip_name, site, reg, pair_type)]))
-                    fmax[clip_name][pair_type] = max(fmax[clip_name][pair_type], rnamap_freq(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], cdata_vectors[(clip_name, site, "c_up", pair_type)], cdata_vectors[(clip_name, site, "c_down", pair_type)], return_ymax=True))
+                    fmax[clip_name][pair_type] = max(fmax[clip_name][pair_type], rnamap_freq(cdata_vectors[(clip_name, site, "enhanced", pair_type)], cdata_vectors[(clip_name, site, "repressed", pair_type)], cdata_vectors[(clip_name, site, "control_up", pair_type)], cdata_vectors[(clip_name, site, "control_down", pair_type)], return_ymax=True))
                 smax[pair_type] = max(smax[pair_type], max(sdata[(site, reg, pair_type)]))
                 pmax[pair_type] = max(pmax[pair_type], max(pdata[(site, reg, pair_type)]))
 
@@ -696,33 +683,33 @@ def process(comps_id, surr=200):
             # clip
             if len(comps.CLIP)>0:
                 for clip_index, clip_name in enumerate(comps.CLIP):
-                    rnamap_area(cdata[(clip_name, site, "e", pair_type)], cdata[(clip_name, site, "r", pair_type)], cdata[(clip_name, site, "c_up", pair_type)], cdata[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s.%s.%s" % (clip_index, pair_type, site)), title="%s.%s" % (pair_type, site), ymax=cmax[clip_name][pair_type], site=site, pair_type=pair_type, stats=stats)
-                    rnamap_freq(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], cdata_vectors[(clip_name, site, "c_up", pair_type)], cdata_vectors[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s_freq.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, ymax=fmax[clip_name][pair_type])
-                    rnamap_heat(cdata_vectors[(clip_name, site, "e", pair_type)], cdata_vectors[(clip_name, site, "r", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id)
-                    save_control_binding(cdata_vectors[(clip_name, site, "c_up", pair_type)], cdata_vectors[(clip_name, site, "c_down", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), site=site, pair_type=pair_type)
+                    rnamap_area(cdata[(clip_name, site, "enhanced", pair_type)], cdata[(clip_name, site, "repressed", pair_type)], cdata[(clip_name, site, "control_up", pair_type)], cdata[(clip_name, site, "control_down", pair_type)], os.path.join(rnamap_dest, "clip%s.%s.%s" % (clip_index, pair_type, site)), title="%s.%s" % (pair_type, site), ymax=cmax[clip_name][pair_type], site=site, pair_type=pair_type, stats=stats)
+                    rnamap_freq(cdata_vectors[(clip_name, site, "enhanced", pair_type)], cdata_vectors[(clip_name, site, "repressed", pair_type)], cdata_vectors[(clip_name, site, "control_up", pair_type)], cdata_vectors[(clip_name, site, "control_down", pair_type)], os.path.join(rnamap_dest, "clip%s_freq.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, ymax=fmax[clip_name][pair_type])
+                    rnamap_heat(cdata_vectors[(clip_name, site, "enhanced", pair_type)], cdata_vectors[(clip_name, site, "repressed", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), pair_type=pair_type, stats=stats, site=site, title=comps_id)
+                    save_control_binding(cdata_vectors[(clip_name, site, "control_up", pair_type)], cdata_vectors[(clip_name, site, "control_down", pair_type)], os.path.join(rnamap_dest, "clip%s_heat.%s.%s" % (clip_index, pair_type, site)), site=site, pair_type=pair_type)
 
     # save gene lists (.tab files)
     for pair_type in present_pairs:
         f = open(os.path.join(rnamap_dest, "data_%s.tab" % pair_type), "wt")
         header = ["gene_id", "gene_name", "pair_type", "proximal_reg", "distal_reg", "pc", "fisher"]
         f.write("\t".join(header) + "\n")
-        rev = {"e":"r", "r":"e", "c_up":"c_down", "c_down":"c_up", None:None}
-        for proximal_reg in ["e", "r", "c_up", "c_down"]:
+        rev = {"enhanced":"repressed", "repressed":"enhanced", "control_up":"control_down", "control_down":"control_up", None:None}
+        for proximal_reg in ["enhanced", "repressed", "control_up", "control_down"]:
             if gene_list.get((proximal_reg, pair_type), None)!=None:
-                for gene_id, gene_name, pc, fisher in gene_list[(proximal_reg, pair_type)]:
-                    f.write("\t".join([gene_id, gene_name, pair_type, proximal_reg, rev[proximal_reg], "%.5f" % pc, "%.5f" % fisher])+"\n")
+                for gene_id, gene_name in gene_list[(proximal_reg, pair_type)]:
+                    f.write("\t".join([gene_id, gene_name, pair_type, proximal_reg, rev[proximal_reg]])+"\n")
         # write python list of gene names
-        if gene_list.get(("r", pair_type), None)!=None:
-            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("r", pair_type)]]
+        if gene_list.get(("repressed", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name in gene_list[("repressed", pair_type)]]
             f.write("genes_repressed=[%s]" % (",".join(L))+"\n")
-        if gene_list.get(("e", pair_type), None)!=None:
-            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("e", pair_type)]]
+        if gene_list.get(("enhanced", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name in gene_list[("enhanced", pair_type)]]
             f.write("genes_enhanced=[%s]" % (",".join(L))+"\n")
-        if gene_list.get(("c_up", pair_type), None)!=None:
-            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("c_up", pair_type)]]
+        if gene_list.get(("control_up", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name in gene_list[("control_up", pair_type)]]
             f.write("genes_controls_up=[%s]" % (",".join(L))+"\n")
-        if gene_list.get(("c_down", pair_type), None)!=None:
-            L = ['"%s"' % gene_name for gene_id, gene_name, pc, fisher in gene_list[("c_down", pair_type)]]
+        if gene_list.get(("control_down", pair_type), None)!=None:
+            L = ['"%s"' % gene_name for gene_id, gene_name in gene_list[("control_down", pair_type)]]
             f.write("genes_controls_down=[%s]" % (",".join(L))+"\n")
         f.close()
 
@@ -817,10 +804,6 @@ a:visited {
     <br>
     Parameters
     <div style="font-size: 12px; padding-left: 10px;">
-    pc threshold = """ + str(pc_thr) + """
-    <br>
-    fisher threshold = """ + str(fisher_thr) + """
-    <br>
     pair distance at least = """ + str(comps.pair_dist) + """
     <br>
     """
@@ -955,7 +938,7 @@ function change_clip()
             ts = class_str[t]
             f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td><td align=center>%s: s1</td><td align=center>%s: s2</td></tr>\n" % (ts, ts, ts, ts))
             f.write("<tr>")
-            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s, rep=%s, con=%s</td>" % (ts, stats[("e", t)], stats[("r", t)], stats[("c_up", t)]+stats[("c_down", t)]))
+            f.write("<td align=right valign=center>%s<br>iCLIP<br>enh=%s, rep=%s, con=%s</td>" % (ts, stats[("enhanced", t)], stats[("repressed", t)], stats[("control_up", t)]+stats[("control_down", t)]))
             f.write("<td align=right valign=center><a id=%s_c00_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c00_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.proximal.png?nocache=%s" % (t, nocache), t, "clip0.%s.proximal.png?nocache=%s" % (t, nocache)))
             f.write("<td align=right valign=center><a id=%s_c01_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c01_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.distal.png?nocache=%s" % (t, nocache), t, "clip0.%s.distal.png?nocache=%s" % (t, nocache)))
             f.write("<td align=right valign=center><a id=%s_c02_link href=%s class='highslide' onclick='return hs.expand(this)'><img id=%s_c02_img src=%s onerror=\"this.style.display='none'\" width=300px></a></td>" % (t, "clip0.%s.s1.png?nocache=%s" % (t, nocache), t, "clip0.%s.s1.png?nocache=%s" % (t, nocache)))

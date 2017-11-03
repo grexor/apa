@@ -19,6 +19,8 @@ mpl.rcParams['legend.fontsize'] = 9
 
 PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
 
+PAS_gruber = ['AATAAA', 'ATTAAA', 'TATAAA', 'AGTAAA', 'AATACA', 'CATAAA', 'AATATA', 'GATAAA', 'AATGAA', 'AAGAAA', 'ACTAAA', 'AATAGA', 'AATAAT', 'AACAAA', 'ATTACA', 'ATTATA', 'AACAAG', 'AATAAG']
+
 # coordinates are 0-based
 
 def get_species(poly_id):
@@ -93,6 +95,7 @@ def process(poly_id, map_id=1, min_distance=25):
     bed.filter(min_distance=125)
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
     annotate(poly_id)
+    annotate_pas(poly_id)
 
 def get_gene(species, gid):
     # only used by apa.sition
@@ -146,7 +149,7 @@ def annotate(poly_id):
     ftab = open(polyadb_tab, "wt")
     ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "pas_loci", "cs_loci", "seq_-100_100"]) + "\n")
     fbed = open(polyadb_bed, "wt")
-    fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"" % (poly_id, poly_id))
+    fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"\n" % (poly_id, poly_id))
 
     # store upstream sequences for polyar to classify weak/strong/other poly-A sites
     ffasta = open(polyadb_fasta, "wt")
@@ -232,7 +235,7 @@ def classify_polya(poly_id):
     f = open(polyadb_tab, "rt")
     files = {}
     f_tab = open("%s.tab" % poly_id, "wt")
-    for poly_type in ["tab", "strong", "weak", "less", "noclass", "p31"]:
+    for poly_type in ["tab", "strong", "weak", "less", "noclass"]:
         files[poly_type] = open(apa.path.polyadb_filename(poly_id, poly_type=poly_type, filetype="bed"), "wt")
     header = f.readline()
     f_tab.write(header)
@@ -568,3 +571,34 @@ def pas_db(poly_id, map_id=1):
         r = f.readline()
     f.close()
     b.save(name_db+".bed")
+
+def annotate_pas(poly_id):
+    polyadb_temp = apa.path.polyadb_filename(poly_id, filetype="temp")
+    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
+    f = open(polyadb_tab, "rt")
+    fout = open(polyadb_temp, "wt")
+    header = f.readline()
+    header = header.replace("\r", "").replace("\n", "").split("\t")
+    header[-1] = "PAS_upstreamloc_PASindex"
+    fout.write("\t".join(header)+"\n")
+    fpas = open(apa.path.polyadb_filename(poly_id, poly_type="withPAS", filetype="bed"), "wt")
+    fpas.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"\n" % (poly_id, "only polyA sites with PAS"))
+    r = f.readline()
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        seq = r[-1][70:100]
+        pas_found = ""
+        for index, pas in enumerate(PAS_gruber):
+            seq_loc = seq.find(pas)
+            if seq_loc!=-1:
+                pas_found = "%s_%s_PAS%s" % (pas, (30-seq_loc), index)
+                break
+        r[-1] = pas_found
+        fout.write("\t".join(r) + "\n")
+        if r[-1]!="":
+            fpas.write("\t".join([r[0], r[2], str(int(r[2])+1), "%d" % float(r[6])]) + "\n")
+        r = f.readline()
+    os.rename(polyadb_temp, polyadb_tab)
+    f.close()
+    fout.close()
+    fpas.close()

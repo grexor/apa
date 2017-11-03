@@ -8,6 +8,8 @@ def init():
     apa.annotation.libs = {}
     files = glob.glob(os.path.join(apa.path.data_folder, "*"))
     for filename in files:
+        if not os.path.isdir(filename):
+            continue
         lib_id = filename.split("/")[-1]
         apa.annotation.libs[lib_id] = apa.annotation.read(filename)
 

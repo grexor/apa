@@ -262,6 +262,7 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False, ip_filter=True):
             if ip(check_seq):
                 ip_number += 1
                 continue
+
         save(dataT, key, pos_end, read_id)
 
     write_bed(dataR, r_filename)
