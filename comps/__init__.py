@@ -195,22 +195,23 @@ class Comps:
         f.close()
         return True
 
-def process_comps(comps_id, map_id=1):
+def process_comps(comps_id, map_id=1, clean=True):
 
     if not os.path.exists(os.path.join(apa.path.comps_folder, comps_id, "%s.config" % comps_id)):
         print "%s.config missing, exiting" % (comps_id)
         sys.exit(1)
 
     # clean
-    assert(len(apa.path.comps_folder)>0)
-    files = glob.glob(os.path.join(apa.path.comps_folder, comps_id, "*"))
-    for f in files:
-        if not f.endswith(".config") and not f.startswith("docs") and not f==".htaccess":
-            print "removing: %s" % f
-            if os.path.isdir(f):
-                shutil.rmtree(f)
-            else:
-                os.remove(f)
+    if clean:
+        assert(len(apa.path.comps_folder)>0)
+        files = glob.glob(os.path.join(apa.path.comps_folder, comps_id, "*"))
+        for f in files:
+            if not f.endswith(".config") and not f.startswith("docs") and not f==".htaccess":
+                print "removing: %s" % f
+                if os.path.isdir(f):
+                    shutil.rmtree(f)
+                else:
+                    os.remove(f)
 
     comps = Comps(comps_id) # study data
     pybio.genomes.load(comps.species)
@@ -293,7 +294,6 @@ def process_comps(comps_id, map_id=1):
 
     # organize polya sites / pas signals inside genes
     gsites = {}
-
     num_sites = 0
     num_sites_genes = 0
     num_genes = set()
@@ -356,12 +356,6 @@ def process_comps(comps_id, map_id=1):
         for pos, site_data in list(sites.items()): # python3 safe
             if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
                 del sites[pos]
-            # REMOVE
-            #v = nam.get_vector(site_data["chr"], site_data["strand"], pos, -50, 50)
-            #print gene_id, site_data["chr"], site_data["strand"], pos, sum(v[45:55+1])
-            #if sum(v[45:55+1])==0:
-            #    if sites.get(pos, None)!=None:
-            #        del sites[pos]
 
     num_sites_per_gene = {}
     for gene_id, sites in gsites.items():
@@ -515,59 +509,66 @@ def process_comps(comps_id, map_id=1):
     for (rshort, rlong) in replicates:
         dex_files[rshort].close()
 
-    # differential gene expression with edgeR
-    R_file = os.path.join(apa.path.root_folder, "comps", "comps_edgeR.R")
-    input_fname = apa.path.comps_expression_filename(comps_id)
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
-    command = "R --vanilla --args %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), R_file)
-    print command
-    pybio.utils.Cmd(command).run()
-    flog.write(command+"\n")
-    flog.flush()
+    if clean:
+        
+        # differential gene expression with edgeR
+        R_file = os.path.join(apa.path.root_folder, "comps", "comps_edgeR.R")
+        input_fname = apa.path.comps_expression_filename(comps_id)
+        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
+        command = "R --vanilla --args %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), R_file)
+        print command
+        pybio.utils.Cmd(command).run()
+        flog.write(command+"\n")
+        flog.flush()
 
-    # replicates cluster analysis
-    R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
-    input_fname = apa.path.comps_expression_filename(comps_id)
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
-    command = "R --vanilla --args %s %s %s %s '%s (gene level)' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
-    print command
-    pybio.utils.Cmd(command).run()
-    flog.write(command+"\n")
-    flog.flush()
+        # replicates cluster analysis
+        R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
+        input_fname = apa.path.comps_expression_filename(comps_id)
+        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
+        command = "R --vanilla --args %s %s %s %s '%s (gene level)' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+        print command
+        pybio.utils.Cmd(command).run()
+        flog.write(command+"\n")
+        flog.flush()
 
-    # dexseq analysis
-    R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
-    output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
-    command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
-    print command
-    pybio.utils.Cmd(command).run()
-    flog.write(command+"\n")
-    flog.flush()
+        # dexseq analysis
+        R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
+        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
+        command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+        print command
+        pybio.utils.Cmd(command).run()
+        flog.write(command+"\n")
+        flog.flush()
 
-    # edgeR normalize site expression file
-    R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
-    input_fname = apa.path.comps_expression_filename(comps_id, filetype="genes")
-    output_fname = apa.path.comps_expression_filename(comps_id, filetype="genes_norm")
-    command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
-    print command
-    pybio.utils.Cmd(command).run()
-    flog.write(command+"\n")
-    flog.flush()
+        # edgeR normalize site expression file
+        R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
+        input_fname = apa.path.comps_expression_filename(comps_id, filetype="genes")
+        output_fname = apa.path.comps_expression_filename(comps_id, filetype="genes_norm")
+        command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
+        print command
+        pybio.utils.Cmd(command).run()
+        flog.write(command+"\n")
+        flog.flush()
 
-    # edgeR normalize site expression file
-    R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
-    input_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
-    output_fname = apa.path.comps_expression_filename(comps_id, filetype="sites_norm")
-    command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
-    print command
-    pybio.utils.Cmd(command).run()
-    flog.write(command+"\n")
-    flog.flush()
+        # edgeR normalize site expression file
+        R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
+        input_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
+        output_fname = apa.path.comps_expression_filename(comps_id, filetype="sites_norm")
+        command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
+        print command
+        pybio.utils.Cmd(command).run()
+        flog.write(command+"\n")
+        flog.close()
 
-    # pairs_de file
+    pairs_de(comps_id, gsites, replicates, polydb)
+
+def pairs_de(comps_id, gsites, replicates, polydb):
+    comps = Comps(comps_id) # study data
+    beds_folder = os.path.join(apa.path.comps_folder, comps_id, "beds")
+    polydb_annotated = apa.polya.read_polydb(comps.polya_db)
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "polyA_sites_in_gene", "proximal_pos", "proximal_exp", "distal_pos", "distal_exp", "s1", "s2"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "polyA_sites_in_gene", "proximal_pos", "proximal_pas", "proximal_exp", "distal_pos", "distal_pas", "distal_exp", "s1", "s2"]
     header.append("proximal_control")
     header.append("proximal_control_sum")
     header.append("distal_control")
@@ -643,8 +644,12 @@ def process_comps(comps_id, map_id=1):
 
         row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
         row.append(proximal_pos)
+        proximal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("PAS_upstreamloc_PASindex", "")
+        row.append(proximal_hex)
         row.append(sum(proximal_test+proximal_control))
         row.append(distal_pos)
+        distal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("PAS_upstreamloc_PASindex", "")
+        row.append(distal_hex)
         row.append(sum(distal_test+distal_control))
 
         row.append(s1)
@@ -680,65 +685,12 @@ def process_comps(comps_id, map_id=1):
     results = sorted(results, key=lambda x: x[-1], reverse=True)
     results = sorted(results, key=lambda x: x[-2], reverse=True)
 
-    for row in results:
-        f_pairs.write("\t".join([str(x) for x in row]) + "\n")
+    # write in this order
+    for pt in ["same", "skipped", "composite"]:
+        for row in results:
+            if row[-2]==pt:
+                f_pairs.write("\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
-
-    # write expression_proximal file
-    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.expression_proximal.tab" % comps_id), "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "proximal_pos", "proximal_exp"]
-    i = 0
-    for (rshort, _) in replicates:
-        if rshort.startswith("c"):
-            i += 1
-            header.append("c%s" % i)
-    i = 0
-    for (rshort, _) in replicates:
-        if rshort.startswith("t"):
-            i += 1
-            header.append("t%s" % i)
-    header.append("control_sum")
-    header.append("test_sum")
-    header.append("pair_type")
-    f.write("\t".join(header)+"\n")
-    for row in results:
-        r = row[:9]
-        r = r + row[15].split(";")
-        r = r + row[19].split(";")
-        r.append(row[16])
-        r.append(row[20])
-        r.append(row[-1])
-        f.write("\t".join([str(x) for x in r]) + "\n")
-    f.close()
-
-    # write expression_distal file
-    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.expression_distal.tab" % comps_id), "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "num_sites", "distal_pos", "distal_exp"]
-    i = 0
-    for (rshort, _) in replicates:
-        if rshort.startswith("c"):
-            i += 1
-            header.append("c%s" % i)
-    i = 0
-    for (rshort, _) in replicates:
-        if rshort.startswith("t"):
-            i += 1
-            header.append("t%s" % i)
-    header.append("control_sum")
-    header.append("test_sum")
-    header.append("pair_type")
-    f.write("\t".join(header)+"\n")
-    for row in results:
-        r = row[:7]
-        r.append(row[10])
-        r.append(row[11])
-        r = r + row[17].split(";")
-        r = r + row[21].split(";")
-        r.append(row[18])
-        r.append(row[22])
-        r.append(row[-1])
-        f.write("\t".join([str(x) for x in r]) + "\n")
-    f.close()
 
     # save selected sites bedGraphs
     bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed" % comps_id)
@@ -747,7 +699,6 @@ def process_comps(comps_id, map_id=1):
     bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % comps_id)
     bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % comps_id)
 
-    flog.close()
 
 """
 Get splice sites related to polyA sites.
@@ -763,7 +714,7 @@ def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type)
 
     s1, s2 = None, None
 
-    if pair_type=="tandem":
+    if pair_type=="same":
         interval = proximal_site["gene_interval"]
         intervals = gene["gene_intervals"]
         interval_index = intervals.index(interval)
@@ -891,7 +842,9 @@ def dexseq(comps_id, thr=0.05):
         gene_class = None
         pair_type = None
         gid = gene_id.split("_")[0]
-        assert(len(L)>1)
+        # assert(len(L)>1) # no longer valid, since if the expression accross replicates is too low, DEXseq returns NA for certain sites and it could be that certain genes have only 1 polyA site
+        if len(L)<2:
+            continue
         sig_sites = [x for x in L if x["padj"]<=thr]
         control_sites = [x for x in L if x["padj"]>thr]
 

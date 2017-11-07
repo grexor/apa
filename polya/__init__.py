@@ -344,8 +344,8 @@ def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
     if strand=="-":
         itypes = itypes[::-1] # reverse string
     #if itypes.find("io")==-1 and itypes.find("oi")==-1:
-    if itypes=="o": # tandem sites need to be in the same exon
-        return "tandem"
+    if itypes=="o": # same sites need to be in the same exon
+        return "same"
     if itypes.count("io")!=-1:
         # check upstream interval of upstream site
         if upint==None:
@@ -602,3 +602,22 @@ def annotate_pas(poly_id):
     f.close()
     fout.close()
     fpas.close()
+
+def read_polydb(poly_id):
+    db = {}
+    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
+    if not os.path.exists(polyadb_tab):
+        return db
+    f = open(polyadb_tab)
+    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+    r = f.readline()
+    while r:
+        r = r.replace("\n", "").replace("\r", "").split("\t")
+        data = dict(zip(header, r))
+        chr = data["chr"]
+        strand = data["strand"]
+        pos = data["pos"]
+        db["%s_%s_%s" % (chr, strand, pos)] = data
+        r = f.readline()
+    f.close()
+    return db
