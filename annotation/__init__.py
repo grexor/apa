@@ -11,7 +11,9 @@ def init():
         if not os.path.isdir(filename):
             continue
         lib_id = filename.split("/")[-1]
-        apa.annotation.libs[lib_id] = apa.annotation.read(filename)
+        annotation_tab = os.path.join(apa.path.data_folder, lib_id, "annotation.tab")
+        if os.path.exists(annotation_tab):
+            apa.annotation.libs[lib_id] = apa.annotation.read(lib_id)
 
 def aremoved(lib_id, read_id):
     filename = os.path.join(apa.path.data_folder, lib_id, "%s.aremoved.bin" % (lib_if))

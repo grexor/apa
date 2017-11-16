@@ -336,7 +336,7 @@ def process_comps(comps_id, map_id=1, clean=True):
                 # re-added 20170612, not included in the paper version of analysis
                 expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
                 if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
-                    print "presence thr: %s %s" % (sum(expression_vector), len(expression_vector)/comps.presence_thr)
+                    #print "presence thr: %s %s" % (sum(expression_vector), len(expression_vector)/comps.presence_thr)
                     continue
 
                 # filter lowly expressed sites, paper version
@@ -510,7 +510,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         dex_files[rshort].close()
 
     if clean:
-        
+
         # differential gene expression with edgeR
         R_file = os.path.join(apa.path.root_folder, "comps", "comps_edgeR.R")
         input_fname = apa.path.comps_expression_filename(comps_id)
@@ -665,8 +665,10 @@ def pairs_de(comps_id, gsites, replicates, polydb):
         row.append(sum(distal_test))
 
         # strong, weak, noclass...
-        proximal_class = polydb.get_value(chr, strand, proximal_pos, db="meta")
-        distal_class = polydb.get_value(chr, strand, distal_pos, db="meta")
+        #proximal_class = polydb.get_value(chr, strand, proximal_pos, db="meta")
+        #distal_class = polydb.get_value(chr, strand, distal_pos, db="meta")
+        proximal_class = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("pas_type", "")
+        distal_class = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("pas_type", "")
         row.append(proximal_class)
         row.append(distal_class)
 
@@ -953,7 +955,7 @@ def apa_plot(comps_id):
 
 <body>
 
-  <div id="myDiv" style="width: 100%%; 100%%;"></div>
+  <div id="myDiv" style="width: 100%; height: 100%;"></div>
   <script>
 
       var data_e = {{
