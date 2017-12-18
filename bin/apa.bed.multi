@@ -19,7 +19,7 @@ parser.add_argument('-ip_filter', action="store_true", dest="ip_filter", default
 parser.add_argument('-no_ip_filter', action="store_false", dest="ip_filter")
 args = parser.parse_args()
 
-num_worker_threads = 3
+num_worker_threads = 7
 q = Queue()
 
 def worker():

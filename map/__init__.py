@@ -11,11 +11,11 @@ from Queue import *
 from threading import *
 from multiprocessing import Process # http://stackoverflow.com/questions/4496680/python-threads-all-executing-on-a-single-core
 
-def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1, minlen=0.66):
+def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1, minlen=0.66, append=""):
     exp_id = int(exp_id)
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
-    map_folder = apa.path.map_folder(lib_id, exp_id, map_id = map_id)
-    fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
+    map_folder = apa.path.map_folder(lib_id, exp_id, map_id = map_id, append=append)
+    fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
     if os.path.exists(map_folder) and force==False:
         print "%s_e%s : MAP : skip (already mapped) or currently mapping" % (lib_id, exp_id)
         return
@@ -29,11 +29,11 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
 
     print "%s_e%s : MAP : %s" % (lib_id, exp_id, map_folder)
     if mapper=="star":
-        pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu, minlen=minlen)
+        pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu, minlen=minlen)
     if mapper=="sege":
-        pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
+        pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
     if mapper=="bowtie":
-        pybio.map.bowtie(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s" % (lib_id, exp_id, map_id), cpu=cpu)
+        pybio.map.bowtie(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
 
 def preprocess_lexfwd(lib_id):
     threads = []
@@ -82,17 +82,17 @@ def preprocess_lexfwd_thread(exp_id, lib_id):
     f.close()
     return
 
-def stats(lib_id, map_id=1):
-    fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s.stats.tab" % (lib_id, map_id))
+def stats(lib_id, map_id=1, append=""):
+    fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.tab" % (lib_id, map_id, append))
     print "writting to: %s" % fname
     f = open(fname, "wt")
     header = ["exp_id", "tissue", "condition", "replicate", "#reads [M]", "#mapped [M]" , "mapped [%]"]
     print "\t".join(header)
     f.write("\t".join(header) + "\n")
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
-        fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
-        map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id)
-        bam_file = os.path.join(map_folder, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+        fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
+        map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
+        bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
         print fastq_file, bam_file
         # not fastq or bam perhaps? (bedgraph data)
         if not os.path.exists(fastq_file) or not os.path.exists(bam_file):

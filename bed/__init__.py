@@ -10,7 +10,9 @@ import regex
 # http://www.cgat.org/~andreas/documentation/pysam/api.html
 # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
-PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
+#PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
+# Gruber
+PAS_hexamers = ['AATAAA', 'ATTAAA', 'TATAAA', 'AGTAAA', 'AATACA', 'CATAAA', 'AATATA', 'GATAAA', 'AATGAA', 'AAGAAA', 'ACTAAA', 'AATAGA', 'AATAAT', 'AACAAA', 'ATTACA', 'ATTATA', 'AACAAG', 'AATAAG']
 
 """
 25201104=D. Zheng and B. Tian, Systems Biology of RNA binding proteins. 2014
@@ -21,10 +23,10 @@ internal priming candidate if there are 6 continuous As or more than 7 As in
 a 10 nt window within this region"
 """
 def ip(s):
-    if s.count("AAAAAA")>0:
+    if s.count("AAAAAAA")>0:
         return True
     for i in range(0, len(s)):
-        if s[i:i+10].count("A")>=7:
+        if s[i:i+10].count("A")>=8:
             return True
     return False
 
@@ -33,6 +35,15 @@ def match_pas(seq):
         if seq.find(hexamer)!=-1:
             return True
     return False
+
+def ip_check(genome, chr, strand, pos):
+    internal_priming = False
+    check_seq = pybio.genomes.seq(genome, chr, strand, pos, start=-30, stop=10)
+    if ip(check_seq[20:]): # check -10..10 region
+        internal_priming = True
+        if match_pas(check_seq[:-10]): # check -30..0 region
+            internal_priming = False
+    return internal_priming
 
 def save(data, key, pos_end, read_id):
     level_1 = data.get(key, {})
@@ -134,11 +145,9 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
         save(dataR, key, pos_end, read_id)
 
         # internal priming
-        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-        if ip_filter:
-            if ip(check_seq):
-                ip_number += 1
-                continue
+        if ip_check(genome, chr, strand, pos_end):
+            ip_number += 1
+            continue
         save(dataT, key, pos_end, read_id)
 
     write_bed(dataR, r_filename)
@@ -191,11 +200,11 @@ def bed_raw_aseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
         key = "%s:%s" % (chr, strand)
         save(dataR, key, pos_end, read_id)
-        check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-        if ip_filter:
-            if ip(check_seq):
-                ip_number += 1
-                continue
+
+        # internal priming
+        if ip_check(genome, chr, strand, pos_end):
+            ip_number += 1
+            continue
         save(dataT, key, pos_end, read_id)
 
     write_bed(dataR, r_filename)
@@ -258,11 +267,9 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
         # internal priming
         if ip_filter:
-            check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-            if ip(check_seq):
+            if ip_check(genome, chr, strand, pos_end):
                 ip_number += 1
                 continue
-
         save(dataT, key, pos_end, read_id)
 
     write_bed(dataR, r_filename)
@@ -296,19 +303,21 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
     dataR = {}
     dataT = {}
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
-    bam_file = pysam.Samfile(bam_filename)
+    tail_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s_tail" % map_id, "%s_e%s_m%s_tail.bam" % (lib_id, exp_id, map_id))
+    tail_bam_file = pysam.Samfile(tail_bam_filename)
+    raw_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+    raw_bam_file = pysam.Samfile(raw_bam_filename)
 
     a_number = 0
-    ip_number = 0
-    for a in bam_file.fetch():
+    """
+    for a in tail_bam_file.fetch():
 
         a_number += 1
         if a_number%100000==0:
-            print "%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(bam_filename), ip_filter)
+            print "%s_e%s_m%s_tail : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(tail_bam_filename), ip_filter)
 
         read_id = a.qname
-        chr = bam_file.getrname(a.tid)
+        chr = tail_bam_file.getrname(a.tid)
         strand = "+" if not a.is_reverse else "-"
         # we use the reference positions of the aligned read (aend, pos)
         # relative positions are stored in qend, qstart
@@ -321,12 +330,39 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
         key = "%s:%s" % (chr, strand)
 
+        # internal priming
+        if ip_filter:
+            if ip_check(genome, chr, strand, pos_end):
+                continue
+        save(dataT, key, pos_end, read_id)
+    """
+
+    a_number = 0
+    ip_number = 0
+    for a in raw_bam_file.fetch():
+
+        a_number += 1
+        if a_number%100000==0:
+            print "%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(raw_bam_filename), ip_filter)
+
+        read_id = a.qname
+        chr = raw_bam_file.getrname(a.tid)
+        strand = "+" if not a.is_reverse else "-"
+        # we use the reference positions of the aligned read (aend, pos)
+        # relative positions are stored in qend, qstart
+        if strand=="+":
+            pos_end = a.aend - 1 # aend points to one past the last aligned residue, also see a.positions
+            assert(pos_end==a.positions[-1])
+        else:
+            pos_end = a.pos
+            assert(pos_end==a.positions[0])
+
+        key = "%s:%s" % (chr, strand)
         save(dataR, key, pos_end, read_id)
 
         # internal priming
         if ip_filter:
-            check_seq = pybio.genomes.seq(genome, chr, strand, pos_end, start=-10, stop=10)
-            if ip(check_seq):
+            if ip_check(genome, chr, strand, pos_end):
                 ip_number += 1
                 continue
         save(dataT, key, pos_end, read_id)

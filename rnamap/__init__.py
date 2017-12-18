@@ -52,7 +52,7 @@ def freq(data, all_genes):
     temp = [e/float(all_genes)*100 for e in temp] # show percentage of genes (/all_genes, * 100)
     return temp
 
-def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", pair_type="tandem", ymax=None, stats=None):
+def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="proximal", pair_type="same", ymax=None, stats=None):
     """
     Draw RNA maps
     """
@@ -132,7 +132,7 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     f.write(json.dumps(tab_data))
     f.close()
 
-def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="tandem", alpha=0.8):
+def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None, pair_type="same", alpha=0.8):
     """
     Draw RNA heatmaps
     """
@@ -248,7 +248,7 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
 
     return
 
-def save_control_binding(cup, cdown, filename, site="proximal", pair_type="tandem"):
+def save_control_binding(cup, cdown, filename, site="proximal", pair_type="same"):
     for reg_type, d in [("cup", cup), ("cdown", cdown)]:
         if len(d)==0:
             continue
@@ -269,7 +269,7 @@ def save_control_binding(cup, cdown, filename, site="proximal", pair_type="tande
         f.close()
     return
 
-def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False, title="test", site="proximal", stats=None, pair_type="tandem", ymax=None):
+def rnamap_freq(vpos, vneg, vcon_up, vcon_down, filename=None, return_ymax=False, title="test", site="proximal", stats=None, pair_type="same", ymax=None):
     vpos = DataFrame(vpos)
     vneg = DataFrame(vneg)
     vcon_up = DataFrame(vcon_up)
@@ -414,7 +414,7 @@ def process(comps_id, surr=200):
 
     fasta_files = {}
     for site in ["proximal", "distal"]:
-        for pair_type in ["tandem", "composite", "skipped", "all"]:
+        for pair_type in ["same", "composite", "skipped", "all"]:
             for reg in ["repressed", "enhanced"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
                 fname = os.path.join(rnamap_dest, k+".fasta")
@@ -433,7 +433,7 @@ def process(comps_id, surr=200):
     present = {}
     adata = {} # all relevant data to store in a json file
     cgenes = {} # current gene count
-    for pair_type in ["tandem", "composite", "skipped", "all"]:
+    for pair_type in ["same", "composite", "skipped", "all"]:
         cgenes[pair_type] = 0
         adata[pair_type] = {}
         for site in ["proximal", "distal", "s1", "s2"]:
@@ -494,7 +494,7 @@ def process(comps_id, surr=200):
 
         # also set reg_distal accordingly to reg_proximal
         distal_reg = {"enhanced":"repressed", "repressed":"enhanced", "control_up":"control_down", "control_down":"control_up", None:None}[proximal_reg]
-        if pair_type in ["tandem", "composite"]:
+        if pair_type in ["same", "composite"]:
             s1_reg = s2_reg = distal_reg
         elif pair_type=="skipped":
             s1_reg = proximal_reg
@@ -596,8 +596,8 @@ def process(comps_id, surr=200):
 
     # save all data
 
-    #print cdata[("peaks_id80654_rnd100_flank3_fdr0.05_group_5207_TARDBP-LC-flag-GFP-IP-group_sum_S_hg19--ensembl59_from_5158-5159_bedGraph-cDNA.bed.gz_lowFDR_clusters.bed.gz", "proximal", "r", "tandem")][:30]
-    #print present[("proximal", "r", "tandem")][:30]
+    #print cdata[("peaks_id80654_rnd100_flank3_fdr0.05_group_5207_TARDBP-LC-flag-GFP-IP-group_sum_S_hg19--ensembl59_from_5158-5159_bedGraph-cDNA.bed.gz_lowFDR_clusters.bed.gz", "proximal", "r", "same")][:30]
+    #print present[("proximal", "r", "same")][:30]
 
     temp = {}
     f = open(os.path.join(apa.path.comps_folder, comps_id, "%s_pair_distances.tab" % comps_id), "wt")
@@ -628,8 +628,8 @@ def process(comps_id, surr=200):
 
     present_pairs = list(set([pair_type for (reg, pair_type) in stats.keys()]))
     sorted_present_pairs = []
-    if "tandem" in present_pairs:
-        sorted_present_pairs.append("tandem")
+    if "same" in present_pairs:
+        sorted_present_pairs.append("same")
     if "composite" in present_pairs:
         sorted_present_pairs.append("composite")
     if "skipped" in present_pairs:
@@ -641,7 +641,7 @@ def process(comps_id, surr=200):
     #print stats.items()
     print "---"
     #print stats_bysite.items()
-    for cat in [("proximal", "repressed", "tandem"), ("proximal", "enhanced", "tandem"), ("proximal", "repressed", "composite"), ("proximal", "enhanced", "composite"), ("proximal", "repressed", "skipped"), ("proximal", "enhanced", "skipped")]:
+    for cat in [("proximal", "repressed", "same"), ("proximal", "enhanced", "same"), ("proximal", "repressed", "composite"), ("proximal", "enhanced", "composite"), ("proximal", "repressed", "skipped"), ("proximal", "enhanced", "skipped")]:
         print cat, stats_bysite.get(cat, 0)
     print "---"
 
@@ -664,10 +664,10 @@ def process(comps_id, surr=200):
     cmax = {}
     fmax = {}
     for clip_name in comps.CLIP:
-        cmax[clip_name] = {"tandem":0, "composite":0, "skipped":0, "all":0}
-        fmax[clip_name] = {"tandem":0, "composite":0, "skipped":0, "all":0}
-    smax = {"tandem":0, "composite":0, "skipped":0, "all":0}
-    pmax = {"tandem":0, "composite":0, "skipped":0, "all":0}
+        cmax[clip_name] = {"same":0, "composite":0, "skipped":0, "all":0}
+        fmax[clip_name] = {"same":0, "composite":0, "skipped":0, "all":0}
+    smax = {"same":0, "composite":0, "skipped":0, "all":0}
+    pmax = {"same":0, "composite":0, "skipped":0, "all":0}
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["enhanced", "repressed", "control_up", "control_down"]:
@@ -725,13 +725,13 @@ def process(comps_id, surr=200):
 
     head += "<title>" + comps_id + "</title>" + """
 
-<script type="text/javascript" src="https://apa-db.org/software/highslide/highslide/highslide.js"></script>
-<link rel="stylesheet" type="text/css" href="https://apa-db.org/software/highslide/highslide/highslide.css" />
+<script type="text/javascript" src="https://expressrna.org/software/highslide/highslide/highslide.js"></script>
+<link rel="stylesheet" type="text/css" href="https://expressrna.org/software/highslide/highslide/highslide.css" />
 
 <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
 
 <script type="text/javascript">
-    hs.graphicsDir = 'https://apa-db.org/software/highslide/highslide/graphics/';
+    hs.graphicsDir = 'https://expressrna.org/software/highslide/highslide/graphics/';
     hs.showCredits = false;
 </script>
 
@@ -881,7 +881,7 @@ a:visited {
 function change_clip()
 {
   index = $('#cmb_clip option:selected').val();
-  sites = ["tandem", "composite", "skipped", "all"];
+  sites = ["same", "composite", "skipped", "all"];
   for (var i=0; i<sites.length; i++)
   {
 """
@@ -933,7 +933,7 @@ function change_clip()
     f.write("<table style='border-collapse: collapse; border-spacing: 0px;'>")
 
     if len(comps.CLIP)>0:
-        class_str = {"skipped":"skipped-exon", "composite":"composite-exon", "tandem":"same-exon", "all":"combined"}
+        class_str = {"skipped":"skipped-exon", "composite":"composite-exon", "same":"same-exon", "all":"combined"}
         for t in present_pairs:
             ts = class_str[t]
             f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td><td align=center>%s: s1</td><td align=center>%s: s2</td></tr>\n" % (ts, ts, ts, ts))

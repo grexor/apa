@@ -229,6 +229,7 @@ def process_comps(comps_id, map_id=1, clean=True):
     polydb = pybio.data.Bedgraph()
     for poly_type in comps.poly_type:
         polydb.load(apa.path.polyadb_filename(comps.polya_db, poly_type=poly_type, filetype="bed"), meta=poly_type)
+    polydb_annotated = apa.polya.read_polydb(comps.polya_db)
 
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
@@ -305,14 +306,14 @@ def process_comps(comps_id, map_id=1, clean=True):
             pos_set = list(pos_set)
             for pos in pos_set:
                 num_sites += 1
-                (gene_up, gene_id, gene_down, gene_interval) = pybio.genomes.annotate(comps.species, chr, strand, pos)
+                (gene_up, gene_id, gene_down, gene_interval, gene_feature) = pybio.genomes.annotate(comps.species, chr, strand, pos)
                 if gene_id==None: # only consider polya sites inside genes
                     continue
                 num_sites_genes += 1
                 num_genes.add(gene_id)
                 sites = gsites.get(gene_id, {})
                 expression_vector = []
-                site_data = {"chr":chr, "strand":strand, "pos":pos, "gene_interval":list(gene_interval)} # store position and gene_interval (start, stop, exon/intron), clip binding
+                site_data = {"chr":chr, "strand":strand, "pos":pos, "gene_interval":list(gene_interval), "gene_feature":gene_feature} # store position and gene_interval (start, stop, exon/intron), clip binding
 
                 # get clip data
                 for clip_name in comps.CLIP:
@@ -336,7 +337,6 @@ def process_comps(comps_id, map_id=1, clean=True):
                 # re-added 20170612, not included in the paper version of analysis
                 expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
                 if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
-                    #print "presence thr: %s %s" % (sum(expression_vector), len(expression_vector)/comps.presence_thr)
                     continue
 
                 # filter lowly expressed sites, paper version
@@ -344,6 +344,8 @@ def process_comps(comps_id, map_id=1, clean=True):
                     continue
 
                 site_data["cDNA_sum"] = int(cDNA_sum)
+                site_data["site_hex"] = polydb_annotated.get("%s_%s_%s" % (chr, strand, pos), {}).get("PAS_upstreamloc_PASindex", "")
+
                 sites[pos] = site_data
                 gsites[gene_id] = sites
                 num_sites_genes_expressed += 1
@@ -474,7 +476,7 @@ def process_comps(comps_id, map_id=1, clean=True):
     fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
     dex_files = {}
     f_sites = open(fname, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "gene_interval"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "site_pos", "site_pas", "gene_feature", "gene_interval"]
     for clip_name in comps.CLIP:
         header.append("clip:%s" % clip_name)
     header.append("cDNA_sum")
@@ -490,7 +492,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         gene_stop = gene["gene_stop"]
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         for site_pos, site_data in sites.items():
-            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["gene_interval"]]
+            row_1 = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], site_pos, site_data["site_hex"], site_data["gene_feature"], site_data["gene_interval"]]
             for clip_name in comps.CLIP:
                 # TODO
                 #row_1.append(site_data[clip_name])
@@ -558,9 +560,23 @@ def process_comps(comps_id, map_id=1, clean=True):
         print command
         pybio.utils.Cmd(command).run()
         flog.write(command+"\n")
+
+        # write the pairs_de file
+        pairs_de(comps_id, gsites, replicates, polydb)
+
+        # heatmap from pairs_de
+        prepare_heatmap_data(comps_id)
+        R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_pairsde.R")
+        input_fname = apa.path.comps_expression_filename(comps_id)
+        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
+        command = "R --vanilla --args %s %s %s < %s" % (comps_id, len(comps.control), len(comps.test), R_file)
+        print command
+        pybio.utils.Cmd(command).run()
+        flog.write(command+"\n")
+        flog.flush()
+
         flog.close()
 
-    pairs_de(comps_id, gsites, replicates, polydb)
 
 def pairs_de(comps_id, gsites, replicates, polydb):
     comps = Comps(comps_id) # study data
@@ -568,7 +584,7 @@ def pairs_de(comps_id, gsites, replicates, polydb):
     polydb_annotated = apa.polya.read_polydb(comps.polya_db)
     pairs_filename = os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id)
     f_pairs = open(pairs_filename, "wt")
-    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "polyA_sites_in_gene", "proximal_pos", "proximal_pas", "proximal_exp", "distal_pos", "distal_pas", "distal_exp", "s1", "s2"]
+    header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype", "polyA_sites_in_gene", "proximal_pos", "proximal_pas", "proximal_feature", "proximal_exp", "distal_pos", "distal_pas", "distal_feature", "distal_exp", "s1", "s2"]
     header.append("proximal_control")
     header.append("proximal_control_sum")
     header.append("distal_control")
@@ -646,10 +662,12 @@ def pairs_de(comps_id, gsites, replicates, polydb):
         row.append(proximal_pos)
         proximal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("PAS_upstreamloc_PASindex", "")
         row.append(proximal_hex)
+        row.append(proximal_site["gene_feature"])
         row.append(sum(proximal_test+proximal_control))
         row.append(distal_pos)
         distal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("PAS_upstreamloc_PASindex", "")
         row.append(distal_hex)
+        row.append(distal_site["gene_feature"])
         row.append(sum(distal_test+distal_control))
 
         row.append(s1)
@@ -709,10 +727,10 @@ https://docs.google.com/drawings/d/1_m4iZ1c9YwKI-NOWMSCSdg2IzEGedj-NaMTIlHqirc0
 def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type):
     pybio.genomes.load(genome)
     gene = apa.polya.get_gene(genome, gene_id)
-    _, _, _, gene_interval = pybio.genomes.annotate(genome, chr, strand, proximal_pos)
-    proximal_site = {"pos":proximal_pos, "gene_interval":list(gene_interval)}
-    _, _, _, gene_interval = pybio.genomes.annotate(genome, chr, strand, distal_pos)
-    distal_site = {"pos":distal_pos, "gene_interval":list(gene_interval)}
+    _, _, _, gene_interval, gene_feature = pybio.genomes.annotate(genome, chr, strand, proximal_pos)
+    proximal_site = {"pos":proximal_pos, "gene_interval":list(gene_interval), "gene_feature":gene_feature}
+    _, _, _, gene_interval, gene_feature = pybio.genomes.annotate(genome, chr, strand, distal_pos)
+    distal_site = {"pos":distal_pos, "gene_interval":list(gene_interval), "gene_feature":gene_feature}
 
     s1, s2 = None, None
 
@@ -737,7 +755,6 @@ def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type)
             else:
                 s1 = interval_upstream[1]
                 s2 = interval_upstream[0]
-
     if pair_type=="composite":
         interval = proximal_site["gene_interval"]
         assert(interval[-1]=="i")
@@ -747,7 +764,6 @@ def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type)
         else:
             s1 = interval[1]
             s2 = interval[0]
-
     if pair_type=="skipped":
         if strand=="+":
             s1 = proximal_site["gene_interval"][0]
@@ -755,7 +771,6 @@ def get_s1_s2(gene_id, chr, strand, genome, proximal_pos, distal_pos, pair_type)
         else:
             s1 = proximal_site["gene_interval"][1]
             s2 = distal_site["gene_interval"][1]
-
     return s1, s2
 
 """
@@ -955,7 +970,7 @@ def apa_plot(comps_id):
 
 <body>
 
-  <div id="myDiv" style="width: 100%; height: 100%;"></div>
+  <div id="myDiv" style="width: 100%%; 100%%;"></div>
   <script>
 
       var data_e = {{
@@ -1030,3 +1045,70 @@ def apa_plot(comps_id):
 
     final_text = html_text.format(title=comps_id, enhanced_x=plot_data["enhanced"]["x"], enhanced_y=plot_data["enhanced"]["y"], enhanced_gene_id=plot_data["enhanced"]["gene_id"], enhanced_num=len(plot_data["enhanced"]["gene_id"]), repressed_x=plot_data["repressed"]["x"], repressed_y=plot_data["repressed"]["y"], repressed_gene_id=plot_data["repressed"]["gene_id"], repressed_num=len(plot_data["repressed"]["gene_id"]), control_up_x=plot_data["control_up"]["x"], control_up_y=plot_data["control_up"]["y"], control_up_gene_id=plot_data["control_up"]["gene_id"], control_up_num=len(plot_data["control_up"]["gene_id"]), control_down_x=plot_data["control_down"]["x"], control_down_y=plot_data["control_down"]["y"], control_down_gene_id=plot_data["control_down"]["gene_id"], control_down_num=len(plot_data["control_down"]["gene_id"]))
     open(html_filename, "wt").write(final_text)
+
+def prepare_heatmap_data(comps_id):
+    f = open("/home/gregor/apa/data.comps/%s/%s.pairs_de.tab" % (comps_id, comps_id), "rt")
+    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+    r = f.readline()
+    ntest = None
+    ncontrol = None
+    ngenes = 0
+    results = []
+
+    comps = apa.comps.Comps(comps_id)
+
+    while r:
+        r = r.replace("\n", "").replace("\r", "").split("\t")
+        data = dict(zip(header, r))
+        pcontrol = data["proximal_control"].split(";")
+        pcontrol = [float(x) for x in pcontrol]
+        ptest = data["proximal_test"].split(";")
+        ptest = [float(x) for x in ptest]
+        dcontrol = data["distal_control"].split(";")
+        dcontrol = [float(x) for x in dcontrol]
+        dtest = data["distal_test"].split(";")
+        dtest = [float(x) for x in dtest]
+
+        assert(len(dtest)==len(ptest))
+        assert(len(dcontrol)==len(pcontrol))
+
+        if ncontrol==None:
+            ncontrol = len(pcontrol)
+        if ntest==None:
+            ntest = len(ptest)
+
+        row = ["%s %s" % (data["gene_name"], data["gene_class"])]
+        for i in range(0, ncontrol):
+            dv = pcontrol[i]+dcontrol[i]
+            if dv==0:
+                dv = 1
+            row.append(int(pcontrol[i]/dv*100))
+        for i in range(0, ntest):
+            dv = ptest[i]+dtest[i]
+            if dv==0:
+                dv = 1
+            row.append(int(ptest[i]/dv*100))
+        average_control = sum(row[1:1+ncontrol])/ncontrol
+        average_test = sum(row[ncontrol:])/ntest
+        dPSI = abs(average_control - average_test)
+
+        if data["gene_class"] in ["repressed", "enhanced"]: # and data["pair_type"] in ["tandem"]:
+            results.append((dPSI, row))
+            ngenes += 1
+
+        r = f.readline()
+    f.close()
+
+    fout = open("/home/gregor/apa/data.comps/%s/%s.heatmap.tab" % (comps_id, comps_id), "wt")
+    header2 = ["gene_name"]
+    for i in range(0, ncontrol):
+        header2.append(comps.control[i][2])
+    for i in range(0, ntest):
+        header2.append(comps.test[i][2])
+
+    fout.write("\t".join(header2)+"\n")
+
+    results.sort(reverse=True)
+    for (dPSI, row) in results[:50]:
+        fout.write("\t".join(str(x) for x in row) + "\n")
+    fout.close()

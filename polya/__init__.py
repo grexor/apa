@@ -86,12 +86,10 @@ def process(poly_id, map_id=1, min_distance=25):
         num_read += 1
         meta = ["%s_e%s" % (lib_id, exp_id)] # list of metadata
         t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
-        print t_filename
         if os.path.exists(t_filename):
             bed.load(t_filename, meta=meta)
-            print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
+            print "%s:%s: %s %s %s %s %.2fM" % (lib_id, num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
 
-    #bed.filter(min_distance=25) # Gregor: alternative: -25..25 (201702 test)
     bed.filter(min_distance=125)
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
     annotate(poly_id)
@@ -324,8 +322,8 @@ def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
     # keep positions in positive orientation
     if pos1>pos2:
         pos1, pos2 = pos2, pos1
-    _, gid1, _, interval1 = pybio.genomes.annotate(species, chr, strand, pos1, extension=extension)
-    _, gid2, _, interval2 = pybio.genomes.annotate(species, chr, strand, pos2, extension=extension)
+    _, gid1, _, interval1, _ = pybio.genomes.annotate(species, chr, strand, pos1, extension=extension)
+    _, gid2, _, interval2, _ = pybio.genomes.annotate(species, chr, strand, pos2, extension=extension)
 
     assert(gid1==gid2) # pair needs to be in the same gene
     # intervals are always in the positive orientation: index0, index1, index2...regardless of strand
@@ -359,12 +357,11 @@ def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
 # DELETE
 def annotate_position(species, chr, strand, pos, extension=5000):
     strand_os = "-" if strand=="+" else "+" # opposite strand
-    gid_up, gid, gid_down, gid_interval = pybio.genomes.annotate(species, chr, strand, pos)
-    print gid_up, gid, gid_down, gid_interval
+    gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
     default = (gid_up, gid, gid_down, gid_interval)
     if gid==None: # try to find gene, max upstream 5KB or middle of next gene on either strand
         new_pos = pos # in case checks fail, new position is old position
-        gid_up_os, gid_os, gid_down_os, gid_interval_os = pybio.genomes.annotate(species, chr, strand_os, pos) # os = opposite strand
+        gid_up_os, gid_os, gid_down_os, gid_interval_os, _ = pybio.genomes.annotate(species, chr, strand_os, pos) # os = opposite strand
         if strand=="+":
             if gid_up==None or gid_os!=None: # no upstream gene OR gene on opposite strand present
                 return default
@@ -399,7 +396,7 @@ def annotate_position(species, chr, strand, pos, extension=5000):
             else: # downstream gene
                 if abs(pos_up-pos) <= abs(pos_down_max-pos_up)/2: # allow up to middle of downstream gene on either strand
                     new_pos = get_gene(species, gid_up)["gene_intervals"][0][0] # start of first interval
-        gid_up, gid, gid_down, gid_interval = pybio.genomes.annotate(species, chr, strand, new_pos)
+        gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, new_pos)
     return gid_up, gid, gid_down, gid_interval
 
 def pas_db(poly_id, map_id=1):

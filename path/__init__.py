@@ -23,7 +23,7 @@ def r_filename(lib_id, exp_id, map_id=1):
 
         ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.raw.bg
     """
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.raw.bed" % (lib_id, exp_id, map_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.raw.bed.gz" % (lib_id, exp_id, map_id))
 
 def bam_filename(lib_id, exp_id, map_id=1):
     """
@@ -41,9 +41,9 @@ def t_filename(lib_id, exp_id, map_id=1):
 
     .. code-block:: bash
 
-        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.tail.bed
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}.tail.bed.gz
     """
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.tail.bed" % (lib_id, exp_id, map_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.tail.bed.gz" % (lib_id, exp_id, map_id))
 
 def e_filename(lib_id, exp_id, map_id=1, poly_id=""):
     """
@@ -51,11 +51,11 @@ def e_filename(lib_id, exp_id, map_id=1, poly_id=""):
 
     .. code-block:: bash
 
-        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}_db-${poly_id}.exp.bed
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}_db-${poly_id}.exp.bed.gz
     """
     if poly_id=="":
         poly_id = lib_id
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp.bed" % (lib_id, exp_id, map_id, poly_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp.bed.gz" % (lib_id, exp_id, map_id, poly_id))
 
 def e_filename_norm(lib_id, exp_id, map_id=1, poly_id=""):
     """
@@ -63,11 +63,11 @@ def e_filename_norm(lib_id, exp_id, map_id=1, poly_id=""):
 
     .. code-block:: bash
 
-        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}_db-${poly_id}.exp_norm.bed
+        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}_db-${poly_id}.exp_norm.bed.gz
     """
     if poly_id=="":
         poly_id = lib_id
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp_norm.bed" % (lib_id, exp_id, map_id, poly_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp_norm.bed.gz" % (lib_id, exp_id, map_id, poly_id))
 
 def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s.lock" % lock)
@@ -76,11 +76,11 @@ def lock_filename(lib_id, exp_id, lock="bed", map_id=1):
 def polyadb_filename(poly_id, poly_type=None, filetype="bed"):
     if filetype=="bed":
         if poly_type!=None:
-            return os.path.join(apa.path.polya_folder, "%s_%s.bed" % (poly_id, poly_type))
+            return os.path.join(apa.path.polya_folder, "%s_%s.bed.gz" % (poly_id, poly_type))
         if poly_type==None or poly_type=="all":
-            return os.path.join(apa.path.polya_folder, "%s.bed" % poly_id)
+            return os.path.join(apa.path.polya_folder, "%s.bed.gz" % poly_id)
     if filetype=="pas":
-        return os.path.join(apa.path.polya_folder, "%s_pas.bed" % poly_id)
+        return os.path.join(apa.path.polya_folder, "%s_pas.bed.gz" % poly_id)
     if filetype=="temp":
         return os.path.join(apa.path.polya_folder, "%s.temp" % poly_id)
     if filetype=="complete":
@@ -100,11 +100,11 @@ def polyadb_ann_filename(species):
 def lib_folder(lib_id):
     return os.path.join(apa.path.data_folder, lib_id)
 
-def map_folder(lib_id, exp_id, map_id=1):
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id)
+def map_folder(lib_id, exp_id, map_id=1, append=""):
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s%s" % (map_id, append))
 
-def map_fastq_file(lib_id, exp_id):
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s.fastq.gz" % (lib_id, exp_id))
+def map_fastq_file(lib_id, exp_id, append=""):
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s%s.fastq.gz" % (lib_id, exp_id, append))
 
 def map_fastq_file_raw(lib_id, exp_id):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s_raw.fastq.gz" % (lib_id, exp_id))
