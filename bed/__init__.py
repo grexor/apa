@@ -6,6 +6,7 @@ import time
 import glob
 import sys
 import regex
+import gzip
 
 # http://www.cgat.org/~andreas/documentation/pysam/api.html
 # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
@@ -56,7 +57,7 @@ def write_bed(d, filename):
     """
     Save bedGraph file from dictionary d (chr->strand->position->value) to filename.
     """
-    f = open(filename, "wt")
+    f = gzip.open(filename, "wb")
     for chr_strand, pos_data in d.items():
         chr, strand = chr_strand.split(":")
         positions = [(pos, len(rnd_set)) for pos, rnd_set in pos_data.items()]
@@ -358,14 +359,16 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
             assert(pos_end==a.positions[0])
 
         key = "%s:%s" % (chr, strand)
-        save(dataR, key, pos_end, read_id)
 
         # internal priming
         if ip_filter:
             if ip_check(genome, chr, strand, pos_end):
                 ip_number += 1
                 continue
+
+        # we try this: just IP filter reads
         save(dataT, key, pos_end, read_id)
+        save(dataR, key, pos_end, read_id)
 
     write_bed(dataT, t_filename)
     write_bed(dataR, r_filename)
@@ -398,6 +401,7 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None, upstream
 
     upstream_defaults = {"pAseq":100, "paseq":100, "aseq":100, "lexrev":5, "lexfwd":100}
     downstream_defaults = {"pAseq":25, "paseq":25, "aseq":25, "lexrev":5, "lexfwd":25}
+
     if upstream==None:
         upstream = upstream_defaults[exp_data["method"]]
     if downstream==None:
@@ -487,7 +491,7 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
         print "%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
     else:
         print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
-        open(e_filename, "wt").close() # touch E BED (processing)
+        open(e_filename, "wb").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
         #e.overlay2(polyadb_filename, bam_filename, start=-upstream, stop=downstream)

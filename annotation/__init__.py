@@ -39,39 +39,13 @@ class Library:
         self.lib_id = lib_id
         self.experiments = {}
         self.fastq_files = {}
-        self.dcode_len = 0 # demultiplex barcode length (first_5), the rest of the read is random barcode
+        self.owner = [];
+        self.access = [];
+        self.name = "";
+        self.notes = "";
+        self.public_only = [];
 
 def read(lib_id):
-    """
-    | Read library annotation, including experiments.
-
-    | This is read from the following tab delimited file:
-    |   :green:`data_folder/lib_id/annotation.tab`
-
-    The structure of the annotation.tab file is the same for all libraries:
-
-    ====== ======= === ====== ======= ======= ======
-    exp_id method  rep tissue cond    species map_to
-    ====== ======= === ====== ======= ======= ======
-    1      lex_fwd 1   HeLa   control Hs      hg19
-    2      lex_fwd 2   HeLa   control Hs      hg19
-    ...
-    ====== ======= === ====== ======= ======= ======
-
-    The description of TAB columns:
-
-    ============= ===========
-    Column        Description
-    ============= ===========
-    exp_id        starts with 1 for each library
-    method        3' end sequencing protocol
-    rep           replicate number
-    tissue        description of tissue the sample was taken from
-    cond          description of the experimental conditions
-    species       sample species
-    map_to        genome assembly for mapping experiment's sequences
-    ============= ===========
-    """
     lib = Library(lib_id)
     data = {}
     filename = os.path.join(apa.path.data_folder, lib_id, "annotation.tab")
@@ -79,28 +53,47 @@ def read(lib_id):
     lib.fastq_files = f.readline().replace("\r", "").replace("\n", "").replace("\t", "").split("&")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
-
-    dcode_len = None
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
         data = dict(zip(header, r))
-        try:
-            dcode = data["first_5"].split(",")[0].split("_")[0] # take exact demulti code
-            # all experiments in the library have the same first_5 code length and random barcode length
-            if dcode_len==None:
-                dcode_len = len(dcode)
-            else:
-                assert(dcode_len == len(dcode))
-        except:
-            dcode = None
-            dcode_len = None
-        try:
-            rcode = data["first_5"].split(",")[1] # take exact random code
-        except:
-            rcode = None
-
-        data["dcode"] = dcode
         lib.experiments[int(data["exp_id"])] = data
         r = f.readline()
-    lib.dcode_len = dcode_len
+
+    filename = os.path.join(apa.path.data_folder, lib_id, "%s.config" % lib_id)
+    if os.path.exists(filename):
+        f = open(filename, "rt")
+        r = f.readline()
+        while r:
+            r = r.replace("\r", "").replace("\n", "")
+            r = r.split(" #")[0] # remove comments
+            r = r.rstrip() # remove whitespace characters from end of string
+            r = r.split("\t")
+            if r==[""]:
+                r = f.readline()
+                continue
+            if r[0].startswith("#"):
+                r = f.readline()
+                continue
+            if r[0].startswith("access:"):
+                lib.access = str(r[0].split("access:")[1]).split(",")
+                r = f.readline()
+                continue
+            if r[0].startswith("public_only:"):
+                lib.public_only = str(r[0].split("public_only:")[1]).split(",")
+                r = f.readline()
+                continue
+            if r[0].startswith("owner:"):
+                lib.owner = str(r[0].split("owner:")[1]).split(",")
+                r = f.readline()
+                continue
+            if r[0].startswith("name:"):
+                lib.name = str(r[0].split("name:")[1])
+                r = f.readline()
+                continue
+            if r[0].startswith("notes:"):
+                lib.notes = str(r[0].split("notes:")[1])
+                r = f.readline()
+                continue
+            r = f.readline()
+        f.close()
     return lib

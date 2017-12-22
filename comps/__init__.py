@@ -30,6 +30,10 @@ class Comps:
         self.control_name = ""
         self.species = ""
         self.CLIP = []
+        self.name = ""
+        self.notes = ""
+        self.access = ""
+        self.authors = ""
         self.cDNA_thr = 5 # at least cDNA
         self.presence_thr = 2.0 # for at least half of experiments
         self.pc_thr = 0.1
@@ -77,6 +81,22 @@ class Comps:
                 r = f.readline()
                 continue
             if r[0].startswith("#"):
+                r = f.readline()
+                continue
+            if r[0].startswith("access:"):
+                self.access = str(r[0].split("access:")[1]).split(",")
+                r = f.readline()
+                continue
+            if r[0].startswith("name:"):
+                self.name = str(r[0].split("name:")[1])
+                r = f.readline()
+                continue
+            if r[0].startswith("notes:"):
+                self.notes = str(r[0].split("notes:")[1])
+                r = f.readline()
+                continue
+            if r[0].startswith("authors:"):
+                self.authors = str(r[0].split("authors:")[1])
                 r = f.readline()
                 continue
             if r[0].startswith("choose_function:"):
@@ -690,8 +710,8 @@ def pairs_de(comps_id, gsites, replicates, polydb):
         row.append(proximal_class)
         row.append(distal_class)
 
-        row.append("%.2f" % proximal_fc)
-        row.append("%.2f" % distal_fc)
+        row.append("%.5f" % proximal_fc)
+        row.append("%.5f" % distal_fc)
 
         row.append("%.2f" % (sum(proximal_control)/float(sum(proximal_control)+sum(proximal_test))))
         row.append("%.2f" % (sum(distal_control)/float(sum(distal_control)+sum(distal_test))))
@@ -706,7 +726,7 @@ def pairs_de(comps_id, gsites, replicates, polydb):
     results = sorted(results, key=lambda x: x[-2], reverse=True)
 
     # write in this order
-    for pt in ["same", "skipped", "composite"]:
+    for pt in ["same", "skipped", "composite", "other"]:
         for row in results:
             if row[-2]==pt:
                 f_pairs.write("\t".join([str(x) for x in row]) + "\n")

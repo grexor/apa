@@ -5,6 +5,7 @@ import os
 import pybio
 import time
 import glob
+import gzip
 import numpy as np
 import shutil
 import matplotlib as mpl
@@ -16,12 +17,6 @@ mpl.rcParams['axes.titlesize'] = 10
 mpl.rcParams['xtick.labelsize'] = 10
 mpl.rcParams['ytick.labelsize'] = 10
 mpl.rcParams['legend.fontsize'] = 9
-
-PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
-
-PAS_gruber = ['AATAAA', 'ATTAAA', 'TATAAA', 'AGTAAA', 'AATACA', 'CATAAA', 'AATATA', 'GATAAA', 'AATGAA', 'AAGAAA', 'ACTAAA', 'AATAGA', 'AATAAT', 'AACAAA', 'ATTACA', 'ATTATA', 'AACAAG', 'AATAAG']
-
-# coordinates are 0-based
 
 def get_species(poly_id):
     if poly_id in ["hg19_tian", "hg19_derti"]:
@@ -86,14 +81,16 @@ def process(poly_id, map_id=1, min_distance=25):
         num_read += 1
         meta = ["%s_e%s" % (lib_id, exp_id)] # list of metadata
         t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
+        print t_filename
         if os.path.exists(t_filename):
             bed.load(t_filename, meta=meta)
-            print "%s:%s: %s %s %s %s %.2fM" % (lib_id, num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
+            print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
 
+    #bed.filter(min_distance=25) # Gregor: alternative: -25..25 (201702 test)
     bed.filter(min_distance=125)
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
+
     annotate(poly_id)
-    annotate_pas(poly_id)
 
 def get_gene(species, gid):
     # only used by apa.sition
@@ -119,7 +116,8 @@ def annotate(poly_id):
     db = {}
     db_values = []
     gene_values = {}
-    f = open(polyadb_temp, "rt")
+    print polyadb_temp
+    f = gzip.open(polyadb_temp)
     r = f.readline()
     r = f.readline()
     while r:
@@ -128,7 +126,7 @@ def annotate(poly_id):
         pos = int(r[1])
         cDNA = float(r[-1])
         strand = "+" if cDNA>=0 else "-"
-        gid_up, gid, gid_down, gid_interval = annotate_position(species, chr, strand, pos)
+        gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
         db[key] = (cDNA, gid, gid_interval)
         db_values.append(abs(cDNA))
@@ -144,14 +142,14 @@ def annotate(poly_id):
         if abs(cDNA)>cDNA_filter:
             accepted[key] = 1
 
-    ftab = open(polyadb_tab, "wt")
+    ftab = gzip.open(polyadb_tab, "wb")
     ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "pas_loci", "cs_loci", "seq_-100_100"]) + "\n")
-    fbed = open(polyadb_bed, "wt")
-    fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"\n" % (poly_id, poly_id))
+    fbed = gzip.open(polyadb_bed, "wb")
+    fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"" % (poly_id, poly_id))
 
     # store upstream sequences for polyar to classify weak/strong/other poly-A sites
     ffasta = open(polyadb_fasta, "wt")
-    f = open(polyadb_temp, "rt")
+    f = gzip.open(polyadb_temp)
     r = f.readline()
     r = f.readline()
     while r:
@@ -162,7 +160,7 @@ def annotate(poly_id):
         strand = "+" if cDNA>=0 else "-"
         # get upstream sequence
         seq = pybio.genomes.seq(species, chr, strand, pos, start=-100, stop=100)
-        gid_up, gid, gid_down, gid_interval = annotate_position(species, chr, strand, pos)
+        gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
         if accepted.get(key, None)!=None:
             if gid==None:
@@ -230,11 +228,11 @@ def classify_polya(poly_id):
                         pas = int(line[3].replace("\t", "").split("PAS:")[1][:5]) - 100 # because sequence is -100, 100, 100 = 0
             polyar_results[(chr, strand, pos)] = (pas_type, pas, cs)
 
-    f = open(polyadb_tab, "rt")
+    f = gzip.open(polyadb_tab)
     files = {}
-    f_tab = open("%s.tab" % poly_id, "wt")
-    for poly_type in ["tab", "strong", "weak", "less", "noclass"]:
-        files[poly_type] = open(apa.path.polyadb_filename(poly_id, poly_type=poly_type, filetype="bed"), "wt")
+    f_tab = gzip.open("%s.tab.gz" % poly_id, "wb")
+    for poly_type in ["tab", "strong", "weak", "less", "noclass", "p31"]:
+        files[poly_type] = gzip.open(apa.path.polyadb_filename(poly_id, poly_type=poly_type, filetype="bed"), "wb")
     header = f.readline()
     f_tab.write(header)
     r = f.readline()
@@ -254,7 +252,7 @@ def classify_polya(poly_id):
     for f in files.values():
         f.close()
 
-    os.system("cp %s.tab %s" % (poly_id, polyadb_tab))
+    os.system("cp %s.tab.gz %s" % (poly_id, polyadb_tab))
     #os.system("rm %s.res" % poly_id)
     #os.system("rm %s.fasta" % poly_id)
     #os.system("rm %s.tab" % poly_id)
@@ -263,7 +261,7 @@ def classify_polya(poly_id):
 def polyadb_class_histogram(poly_id):
 
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
-    f = open(polyadb_tab, "rt")
+    f = gzip.open(polyadb_tab)
     y = {"strong":[], "weak":[], "less":[], "noclass":[]}
     header = f.readline().replace("\n", "").replace("\r", "").split("\t")
     r = f.readline()
@@ -342,7 +340,7 @@ def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
     if strand=="-":
         itypes = itypes[::-1] # reverse string
     #if itypes.find("io")==-1 and itypes.find("oi")==-1:
-    if itypes=="o": # same sites need to be in the same exon
+    if itypes=="o": # tandem sites need to be in the same exon
         return "same"
     if itypes.count("io")!=-1:
         # check upstream interval of upstream site
@@ -352,52 +350,6 @@ def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
             return "composite"
         return "skipped"
     return "other"
-
-# distinct function from pybio: assign intergenic positions within downstream extenstion to upstream gene
-# DELETE
-def annotate_position(species, chr, strand, pos, extension=5000):
-    strand_os = "-" if strand=="+" else "+" # opposite strand
-    gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
-    default = (gid_up, gid, gid_down, gid_interval)
-    if gid==None: # try to find gene, max upstream 5KB or middle of next gene on either strand
-        new_pos = pos # in case checks fail, new position is old position
-        gid_up_os, gid_os, gid_down_os, gid_interval_os, _ = pybio.genomes.annotate(species, chr, strand_os, pos) # os = opposite strand
-        if strand=="+":
-            if gid_up==None or gid_os!=None: # no upstream gene OR gene on opposite strand present
-                return default
-            pos_up = get_gene(species, gid_up).get("gene_stop", None)
-            pos_up_os = get_gene(species, gid_down_os).get("gene_stop", 0)
-            if pos_up_os>pos_up: # there is a gene on the opposite strand before the upstream gene on the same strand?
-                return default
-            if abs(pos-pos_up)>extension:
-                return default
-            pos_down = get_gene(species, gid_down).get("gene_start", ())
-            pos_down_os = get_gene(species, gid_up_os).get("gene_start", ())
-            pos_down_min = min(pos_down, pos_down_os)
-            if pos_down_min==(): # no downstream gene
-                new_pos = get_gene(species, gid_up)["gene_intervals"][-1][1] # end of last interval
-            else: # downstream gene
-                if abs(pos_up-pos) <= abs(pos_down_min-pos_up)/2: # allow up to middle of downstream gene on either strand
-                    new_pos = get_gene(species, gid_up)["gene_intervals"][-1][1] # end of last interval
-        if strand=="-":
-            if gid_up==None or gid_os!=None: # no upstream gene OR gene on opposite strand present
-                return default
-            pos_up = get_gene(species, gid_up).get("gene_start", None)
-            pos_up_os = get_gene(species, gid_down_os).get("gene_start", ())
-            if pos_up_os<pos_up: # there is a gene on the opposite strand before the upstream gene on the same strand?
-                return default
-            if abs(pos-pos_up)>extension:
-                return default
-            pos_down = get_gene(species, gid_down).get("gene_stop", 0)
-            pos_down_os = get_gene(species, gid_up_os).get("gene_stop", 0)
-            pos_down_max = max(pos_down, pos_down_os)
-            if pos_down_max==0: # no downstream gene
-                new_pos = get_gene(species, gid_up)["gene_intervals"][0][0] # start of first interval
-            else: # downstream gene
-                if abs(pos_up-pos) <= abs(pos_down_max-pos_up)/2: # allow up to middle of downstream gene on either strand
-                    new_pos = get_gene(species, gid_up)["gene_intervals"][0][0] # start of first interval
-        gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, new_pos)
-    return gid_up, gid, gid_down, gid_interval
 
 def pas_db(poly_id, map_id=1):
     """
@@ -435,19 +387,18 @@ def pas_db(poly_id, map_id=1):
         fname = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
         b.load(fname)
     name_t = os.path.join(apa.path.polya_folder, "%s.data_t" % poly_id)
-    b.save(name_t+".bed")
+    b.save(name_t+".bed.gz")
 
     b = pybio.data.Bedgraph()
     for (lib_id, exp_id) in experiments:
         fname = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
         b.load(fname)
     name_r = os.path.join(apa.path.polya_folder, "%s.data_r" % poly_id)
-    b.save(name_r+".bed")
+    b.save(name_r+".bed.gz")
 
-    def write_seqs(bed_filename, tab_filename):
+    def write_seqs(tab_filename):
         pybio.genomes.load("hg19")
-        b = pybio.data.Bedgraph(bed_filename, fast=True)
-        f = open(tab_filename, "wt")
+        f = gzip.open(tab_filename, "wb")
         f.write("\t".join(["chr", "strand", "pos", "cDNA", "s_-100_100"]) + "\n")
         for chr, chr_data in b.raw.items():
             for strand, pos_data in chr_data.items():
@@ -457,15 +408,15 @@ def pas_db(poly_id, map_id=1):
         f.close()
 
     pybio.genomes.load(species)
-    write_seqs(name_t+".bed", name_t+".tab")
-    write_seqs(name_r+".bed", name_r+".tab")
+    write_seqs(name_t+".tab.gz")
+    write_seqs(name_r+".tab.gz")
 
     db = pybio.data.Bedgraph()
     db_pas = {}
 
     pas_signals = ["AATAAA", "ATTAAA", "AAATAA", "CAATAA", "AGTAAA", "TTAATA", "TATAAA", "TGAATA", "CATAAA", "GTAATA", "CTAATA", "GATAAA"]
 
-    f = open(name_t+".tab", "rt")
+    f = gzip.open(name_t+".tab.gz")
     header = f.readline()
     r = f.readline()
     all_seqs = 0
@@ -492,10 +443,10 @@ def pas_db(poly_id, map_id=1):
     f.close()
 
     name_db = os.path.join(apa.path.polya_folder, "%s_pas" % poly_id)
-    db.save(name_db+"_temp.bed")
+    db.save(name_db+"_temp.bed.gz")
 
-    f = open(name_db+"_temp.bed")
-    fout = open(name_db+"_temp.tab", "wt")
+    f = gzip.open(name_db+"_temp.bed.gz")
+    fout = gzip.open(name_db+"_temp.tab.gz", "wb")
     r = f.readline() # bed header
     r = f.readline()
     previous = None
@@ -523,8 +474,8 @@ def pas_db(poly_id, map_id=1):
     def write_row(f, row):
         f.write("\t".join(str(el) for el in row) + "\n")
 
-    f = open(name_db+"_temp.tab")
-    fout = open(name_db+"_temp_filtered.tab", "wt")
+    f = gzip.open(name_db+"_temp.tab.gz")
+    fout = gzip.open(name_db+"_temp_filtered.tab.gz", "wb")
     r = f.readline()
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
@@ -558,7 +509,7 @@ def pas_db(poly_id, map_id=1):
 
     b = pybio.data.Bedgraph()
     # add the distances to the new database
-    f = open(name_db+"_temp_filtered.tab")
+    f = gzip.open(name_db+"_temp_filtered.tab.gz")
     r = f.readline()
     while r:
         r = r.replace("\r", "").replace("\n", "").split("\t")
@@ -567,45 +518,14 @@ def pas_db(poly_id, map_id=1):
         b.set_value(chr, strand, pos, cDNA)
         r = f.readline()
     f.close()
-    b.save(name_db+".bed")
-
-def annotate_pas(poly_id):
-    polyadb_temp = apa.path.polyadb_filename(poly_id, filetype="temp")
-    polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
-    f = open(polyadb_tab, "rt")
-    fout = open(polyadb_temp, "wt")
-    header = f.readline()
-    header = header.replace("\r", "").replace("\n", "").split("\t")
-    header[-1] = "PAS_upstreamloc_PASindex"
-    fout.write("\t".join(header)+"\n")
-    fpas = open(apa.path.polyadb_filename(poly_id, poly_type="withPAS", filetype="bed"), "wt")
-    fpas.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"\n" % (poly_id, "only polyA sites with PAS"))
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        seq = r[-1][70:100]
-        pas_found = ""
-        for index, pas in enumerate(PAS_gruber):
-            seq_loc = seq.find(pas)
-            if seq_loc!=-1:
-                pas_found = "%s_%s_PAS%s" % (pas, (30-seq_loc), index)
-                break
-        r[-1] = pas_found
-        fout.write("\t".join(r) + "\n")
-        if r[-1]!="":
-            fpas.write("\t".join([r[0], r[2], str(int(r[2])+1), "%d" % float(r[6])]) + "\n")
-        r = f.readline()
-    os.rename(polyadb_temp, polyadb_tab)
-    f.close()
-    fout.close()
-    fpas.close()
+    b.save(name_db+".bed.gz")
 
 def read_polydb(poly_id):
     db = {}
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
     if not os.path.exists(polyadb_tab):
         return db
-    f = open(polyadb_tab)
+    f = gzip.open(polyadb_tab)
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
     while r:

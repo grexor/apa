@@ -58,13 +58,6 @@ def e_filename(lib_id, exp_id, map_id=1, poly_id=""):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp.bed.gz" % (lib_id, exp_id, map_id, poly_id))
 
 def e_filename_norm(lib_id, exp_id, map_id=1, poly_id=""):
-    """
-    Returns constructed path to :ref:`expression bedGraph file <e_bedgraph_method>` from lib_id, exp_id, poly_id and map_id:
-
-    .. code-block:: bash
-
-        ${data_folder}/${lib_id}/e${exp_id}/m${map_id}/lib_id_e${exp_id}_m${map_id}_db-${poly_id}.exp_norm.bed.gz
-    """
     if poly_id=="":
         poly_id = lib_id
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s_db-%s.exp_norm.bed.gz" % (lib_id, exp_id, map_id, poly_id))
@@ -82,20 +75,20 @@ def polyadb_filename(poly_id, poly_type=None, filetype="bed"):
     if filetype=="pas":
         return os.path.join(apa.path.polya_folder, "%s_pas.bed.gz" % poly_id)
     if filetype=="temp":
-        return os.path.join(apa.path.polya_folder, "%s.temp" % poly_id)
+        return os.path.join(apa.path.polya_folder, "%s.temp.gz" % poly_id)
     if filetype=="complete":
-        return os.path.join(apa.path.polya_folder, "%s_complete.tab" % poly_id)
+        return os.path.join(apa.path.polya_folder, "%s_complete.tab.gz" % poly_id)
     if filetype=="tab":
         if poly_type!=None:
-            return os.path.join(apa.path.polya_folder, "%s_%s.tab" % (poly_id, poly_type))
+            return os.path.join(apa.path.polya_folder, "%s_%s.tab.gz" % (poly_id, poly_type))
         else:
-            return os.path.join(apa.path.polya_folder, "%s.tab" % poly_id)
+            return os.path.join(apa.path.polya_folder, "%s.tab.gz" % poly_id)
     if filetype=="polyar_pdf":
         return os.path.join(apa.path.polya_folder, "%s.pdf" % poly_id)
     return os.path.join(apa.path.polya_folder, "%s.%s" % (poly_id, filetype))
 
 def polyadb_ann_filename(species):
-    return os.path.join(apa.path.polya_folder, "polyadb.%s.tab" % species)
+    return os.path.join(apa.path.polya_folder, "polyadb.%s.tab.gz" % species)
 
 def lib_folder(lib_id):
     return os.path.join(apa.path.data_folder, lib_id)

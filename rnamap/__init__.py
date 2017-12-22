@@ -414,7 +414,7 @@ def process(comps_id, surr=200):
 
     fasta_files = {}
     for site in ["proximal", "distal"]:
-        for pair_type in ["same", "composite", "skipped", "all"]:
+        for pair_type in ["same", "composite", "skipped", "combined"]:
             for reg in ["repressed", "enhanced"]:
                 k = "%s_%s_%s" % (site, pair_type, reg)
                 fname = os.path.join(rnamap_dest, k+".fasta")
@@ -433,7 +433,7 @@ def process(comps_id, surr=200):
     present = {}
     adata = {} # all relevant data to store in a json file
     cgenes = {} # current gene count
-    for pair_type in ["same", "composite", "skipped", "all"]:
+    for pair_type in ["same", "composite", "skipped", "combined"]:
         cgenes[pair_type] = 0
         adata[pair_type] = {}
         for site in ["proximal", "distal", "s1", "s2"]:
@@ -488,21 +488,14 @@ def process(comps_id, surr=200):
 
         pair_type = data["pair_type"]
 
-        # gene selection is done with DEXSeq
-        if comps.site_selection in ["DEX", "DEX2", "DEX3", "DEX4"]:
-            proximal_reg = data["gene_class"]
-
-        # also set reg_distal accordingly to reg_proximal
+        proximal_reg = data["gene_class"]
         distal_reg = {"enhanced":"repressed", "repressed":"enhanced", "control_up":"control_down", "control_down":"control_up", None:None}[proximal_reg]
+
         if pair_type in ["same", "composite"]:
             s1_reg = s2_reg = distal_reg
         elif pair_type=="skipped":
             s1_reg = proximal_reg
             s2_reg = distal_reg
-
-        if proximal_reg==None:
-            r = f.readline()
-            continue
 
         # store adata
         adata[pair_type][cgenes[pair_type]] = {}
@@ -514,17 +507,17 @@ def process(comps_id, surr=200):
                 adata[pair_type][cgenes[pair_type]][site_type]["clip%s" % cindex] = []
 
         stats[(proximal_reg, pair_type)] += 1
-        stats[(proximal_reg, "all")] += 1
+        stats[(proximal_reg, "combined")] += 1
         gene_list.setdefault((proximal_reg, pair_type), []).append((gene_id, gene_name))
-        gene_list.setdefault((proximal_reg, "all"), []).append((gene_id, gene_name))
+        gene_list.setdefault((proximal_reg, "combined"), []).append((gene_id, gene_name))
         stats_bysite[("proximal", proximal_reg, pair_type)] += 1
-        stats_bysite[("proximal", proximal_reg, "all")] += 1
+        stats_bysite[("proximal", proximal_reg, "combined")] += 1
         stats_bysite[("distal", distal_reg, pair_type)] += 1
-        stats_bysite[("distal", distal_reg, "all")] += 1
+        stats_bysite[("distal", distal_reg, "combined")] += 1
         stats_bysite[("s1", s1_reg, pair_type)] += 1
-        stats_bysite[("s1", s1_reg, "all")] += 1
+        stats_bysite[("s1", s1_reg, "combined")] += 1
         stats_bysite[("s2", s2_reg, pair_type)] += 1
-        stats_bysite[("s2", s2_reg, "all")] += 1
+        stats_bysite[("s2", s2_reg, "combined")] += 1
 
         (_, proximal_lenup, proximal_lendown), (_, distal_lenup, distal_lendown), (_, s1_lenup, s1_lendown), (_, s2_lenup, s2_lendown) = coords(strand, proximal_pos, distal_pos, s1_pos, s2_pos)
 
@@ -554,19 +547,19 @@ def process(comps_id, surr=200):
         adata[pair_type][cgenes[pair_type]]["proximal"]["present"] = proximal_pre; adata[pair_type][cgenes[pair_type]]["distal"]["present"] = distal_pre; adata[pair_type][cgenes[pair_type]]["s1"]["present"] = s1_pre; adata[pair_type][cgenes[pair_type]]["s2"]["present"] = s2_pre
 
         present[("proximal", proximal_reg, pair_type)] = [x+y for x,y in zip(present[("proximal", proximal_reg, pair_type)], proximal_pre)]
-        present[("proximal", proximal_reg, "all")] = [x+y for x,y in zip(present[("proximal", proximal_reg, "all")], proximal_pre)]
+        present[("proximal", proximal_reg, "combined")] = [x+y for x,y in zip(present[("proximal", proximal_reg, "combined")], proximal_pre)]
         present[("distal", distal_reg, pair_type)] = [x+y for x,y in zip(present[("distal", distal_reg, pair_type)], distal_pre)]
-        present[("distal", distal_reg, "all")] = [x+y for x,y in zip(present[("distal", distal_reg, "all")], distal_pre)]
+        present[("distal", distal_reg, "combined")] = [x+y for x,y in zip(present[("distal", distal_reg, "combined")], distal_pre)]
         present[("s1", s1_reg, pair_type)] = [x+y for x,y in zip(present[("s1", s1_reg, pair_type)], s1_pre)]
-        present[("s1", s1_reg, "all")] = [x+y for x,y in zip(present[("s1", s1_reg, "all")], s1_pre)]
+        present[("s1", s1_reg, "combined")] = [x+y for x,y in zip(present[("s1", s1_reg, "combined")], s1_pre)]
         present[("s2", s2_reg, pair_type)] = [x+y for x,y in zip(present[("s2", s2_reg, pair_type)], s2_pre)]
-        present[("s2", s2_reg, "all")] = [x+y for x,y in zip(present[("s2", s2_reg, "all")], s2_pre)]
+        present[("s2", s2_reg, "combined")] = [x+y for x,y in zip(present[("s2", s2_reg, "combined")], s2_pre)]
 
         if proximal_reg in ["enhanced", "repressed"]:
             fasta_files[("proximal", pair_type, proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
-            fasta_files[("proximal", "all", proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
+            fasta_files[("proximal", "combined", proximal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, proximal_pos, proximal_seq))
             fasta_files[("distal", pair_type, distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
-            fasta_files[("distal", "all", distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
+            fasta_files[("distal", "combined", distal_reg)].write(">%s:%s %s%s:%s\n%s\n" % (gene_id, gene_name, strand, chr, distal_pos, distal_seq))
 
         # CLIP
         for cindex, clip_name in enumerate(comps.CLIP):
@@ -581,13 +574,13 @@ def process(comps_id, surr=200):
                 if strand=="-":
                     z.reverse()
                 cdata[(clip_name, site, reg, pair_type)] = [x+y for x,y in zip(cdata[(clip_name, site, reg, pair_type)], z)]
-                cdata[(clip_name, site, reg, "all")] = [x+y for x,y in zip(cdata[(clip_name, site, reg, "all")], z)]
+                cdata[(clip_name, site, reg, "combined")] = [x+y for x,y in zip(cdata[(clip_name, site, reg, "combined")], z)]
                 # [(gene_id, gene_name), 0, 0, 1, 1 ....]
                 z_vector = [(gene_id, gene_name, sum(z))] + z
                 cdata_vectors[(clip_name, site, reg, pair_type)].append(z_vector)
-                cdata_vectors[(clip_name, site, reg, "all")].append(z_vector)
+                cdata_vectors[(clip_name, site, reg, "combined")].append(z_vector)
                 assert(len(cdata[(clip_name, site, reg, pair_type)])==401)
-                assert(len(cdata[(clip_name, site, reg, "all")])==401)
+                assert(len(cdata[(clip_name, site, reg, "combined")])==401)
                 adata[pair_type][cgenes[pair_type]][site]["clip%s" % cindex] = z
 
         cgenes[pair_type] += 1
@@ -634,8 +627,8 @@ def process(comps_id, surr=200):
         sorted_present_pairs.append("composite")
     if "skipped" in present_pairs:
         sorted_present_pairs.append("skipped")
-    if "all" in present_pairs:
-        sorted_present_pairs.append("all")
+    if "combined" in present_pairs:
+        sorted_present_pairs.append("combined")
     present_pairs = sorted_present_pairs
 
     #print stats.items()
@@ -664,10 +657,10 @@ def process(comps_id, surr=200):
     cmax = {}
     fmax = {}
     for clip_name in comps.CLIP:
-        cmax[clip_name] = {"same":0, "composite":0, "skipped":0, "all":0}
-        fmax[clip_name] = {"same":0, "composite":0, "skipped":0, "all":0}
-    smax = {"same":0, "composite":0, "skipped":0, "all":0}
-    pmax = {"same":0, "composite":0, "skipped":0, "all":0}
+        cmax[clip_name] = {"same":0, "composite":0, "skipped":0, "combined":0}
+        fmax[clip_name] = {"same":0, "composite":0, "skipped":0, "combined":0}
+    smax = {"same":0, "composite":0, "skipped":0, "combined":0}
+    pmax = {"same":0, "composite":0, "skipped":0, "combined":0}
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["enhanced", "repressed", "control_up", "control_down"]:
@@ -881,7 +874,7 @@ a:visited {
 function change_clip()
 {
   index = $('#cmb_clip option:selected').val();
-  sites = ["same", "composite", "skipped", "all"];
+  sites = ["same", "composite", "skipped", "combined"];
   for (var i=0; i<sites.length; i++)
   {
 """
@@ -933,7 +926,7 @@ function change_clip()
     f.write("<table style='border-collapse: collapse; border-spacing: 0px;'>")
 
     if len(comps.CLIP)>0:
-        class_str = {"skipped":"skipped-exon", "composite":"composite-exon", "same":"same-exon", "all":"combined"}
+        class_str = {"skipped":"skipped-exon", "composite":"composite-exon", "same":"same-exon", "combined":"combined"}
         for t in present_pairs:
             ts = class_str[t]
             f.write("<tr><td align=center></td><td align=center>%s: proximal</td><td align=center>%s: distal</td><td align=center>%s: s1</td><td align=center>%s: s2</td></tr>\n" % (ts, ts, ts, ts))
