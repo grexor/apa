@@ -34,9 +34,10 @@ class Comps:
         self.notes = ""
         self.access = ""
         self.authors = ""
+        self.owner = ""
         self.cDNA_thr = 5 # at least cDNA
         self.presence_thr = 2.0 # for at least half of experiments
-        self.pc_thr = 0.1
+        self.significance_thr = 0.05
         self.pair_dist = 0
         self.exp_data = {}
         self.polya_db = ""
@@ -87,6 +88,10 @@ class Comps:
                 self.access = str(r[0].split("access:")[1]).split(",")
                 r = f.readline()
                 continue
+            if r[0].startswith("owner:"):
+                self.owner = str(r[0].split("owner:")[1]).split(",")
+                r = f.readline()
+                continue
             if r[0].startswith("name:"):
                 self.name = str(r[0].split("name:")[1])
                 r = f.readline()
@@ -109,6 +114,10 @@ class Comps:
                 continue
             if r[0].startswith("pair_dist"):
                 self.pair_dist = float(r[0].split("pair_dist:")[1])
+                r = f.readline()
+                continue
+            if r[0].startswith("significance_thr"):
+                self.significance_thr = float(r[0].split("significance_thr:")[1])
                 r = f.readline()
                 continue
             if r[0].startswith("iCLIP"):
@@ -629,9 +638,9 @@ def pairs_de(comps_id, gsites, replicates, polydb):
 
     # DEX: this completelly invalidates the site selection, and leaves the decision to DEXseq
     if comps.site_selection.upper()=="DEXSEQ":
-        selected_sites = dexseq(comps_id)
+        selected_sites = dexseq(comps_id, thr=comps.significance_thr)
     else:
-        selected_sites = dexseq(comps_id) # for now there is no alternative
+        selected_sites = dexseq(comps_id, thr=comps.significance_thr) # for now there is no alternative
 
     f_pairs.write("\t".join(header)+"\n")
 
