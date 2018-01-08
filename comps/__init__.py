@@ -453,11 +453,11 @@ def process_comps(comps_id, map_id=1, clean=True):
         total_sites += num_sites_per_gene[x1] * x1
         total_genes += num_sites_per_gene[x1]
     y = [y[e] for e in x]
-    bar1 = ax.bar(x, y, 0.5, label='number of polyA sites', color='lightgray')
+    bar1 = ax.bar(x, y, 0.3, align='center', label='number of polyA sites', color='lightgray')
     ax.get_yaxis().set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
     plt.xlim(1-0.25, 10+0.5)
     plt.xlabel('number of polyA sites'); plt.ylabel('number of genes')
-    plt.xticks([e+0.25 for e in x], [1,2,3,4,5,6,7,8,9,">=10"])
+    plt.xticks([e for e in x], [1,2,3,4,5,6,7,8,9,">=10"])
     autolabel(bar1)
     plt.title("%s polyA sites annotated to %s genes (%.0f%% genes with APA)" % (format(int(total_sites), ','), format(int(total_genes), ','), number_moresites/float(max(1, total_genes))*100.0))
     plt.tight_layout()
@@ -556,7 +556,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
         input_fname = apa.path.comps_expression_filename(comps_id)
         output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
-        command = "R --vanilla --args %s %s %s %s '%s (gene level)' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+        command = "R --vanilla --args %s %s %s %s 'analysis: %s, gene expression cluster' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
         print command
         pybio.utils.Cmd(command).run()
         flog.write(command+"\n")
