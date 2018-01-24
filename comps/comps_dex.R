@@ -31,6 +31,8 @@ for(i in 1:num_test) {
   libs = append(libs, "single-end")
 }
 
+countFiles
+
 sampleTable = data.frame(row.names = row_names, condition = conds, libType = libs)
 suppressPackageStartupMessages(library( "DEXSeq" ))
 dxd = DEXSeqDataSetFromHTSeq(countFiles, sampleData=sampleTable, design= ~ sample + exon + condition:exon)

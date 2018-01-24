@@ -1075,6 +1075,52 @@ def apa_plot(comps_id):
     final_text = html_text.format(title=comps_id, enhanced_x=plot_data["enhanced"]["x"], enhanced_y=plot_data["enhanced"]["y"], enhanced_gene_id=plot_data["enhanced"]["gene_id"], enhanced_num=len(plot_data["enhanced"]["gene_id"]), repressed_x=plot_data["repressed"]["x"], repressed_y=plot_data["repressed"]["y"], repressed_gene_id=plot_data["repressed"]["gene_id"], repressed_num=len(plot_data["repressed"]["gene_id"]), control_up_x=plot_data["control_up"]["x"], control_up_y=plot_data["control_up"]["y"], control_up_gene_id=plot_data["control_up"]["gene_id"], control_up_num=len(plot_data["control_up"]["gene_id"]), control_down_x=plot_data["control_down"]["x"], control_down_y=plot_data["control_down"]["y"], control_down_gene_id=plot_data["control_down"]["gene_id"], control_down_num=len(plot_data["control_down"]["gene_id"]))
     open(html_filename, "wt").write(final_text)
 
+    # also store a PDF version of the plot
+    import matplotlib
+    matplotlib.use("Agg", warn=False)
+    import matplotlib.pyplot as plt
+    import math
+    import gzip
+    from matplotlib import cm as CM
+    import matplotlib.patches as mpatches
+    import matplotlib.ticker as mticker
+    from matplotlib.colors import LinearSegmentedColormap
+    import matplotlib.colors as mcolors
+    matplotlib.rcParams['axes.labelsize'] = 8
+    matplotlib.rcParams['axes.titlesize'] = 8
+    matplotlib.rcParams['xtick.labelsize'] = 8
+    matplotlib.rcParams['ytick.labelsize'] = 8
+    matplotlib.rcParams['legend.fontsize'] = 8
+    matplotlib.rc('axes',edgecolor='gray')
+    matplotlib.rcParams['axes.linewidth'] = 0.4
+    matplotlib.rcParams['legend.frameon'] = 'False'
+
+    for c_pair_type in ["same", "composite", "skipped", "combined"]:
+        plot_data = {"enhanced" : {"x":[], "y":[], "gene_id":[]}, "repressed" : {"x":[], "y":[], "gene_id":[]}, "control_up" : {"x":[], "y":[], "gene_id":[]}, "control_down" : {"x":[], "y":[], "gene_id":[]}}
+        f = open(pairs_filename, "rt")
+        header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+        r = f.readline()
+        while r:
+            r = r.replace("\r", "").replace("\n", "").split("\t")
+            data = dict(zip(header, r))
+            if data["pair_type"]==c_pair_type or c_pair_type=="combined":
+                plot_data[data["gene_class"]]["x"].append(float(data["proximal_fc"]))
+                plot_data[data["gene_class"]]["y"].append(float(data["distal_fc"]))
+                plot_data[data["gene_class"]]["gene_id"].append("%s: %s" % (data["gene_id"], data["gene_name"]))
+            r = f.readline()
+        f.close()
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+        marksize = 10
+        markalpha = 0.5
+        ax.scatter(plot_data["control_up"]["x"], plot_data["control_up"]["y"], color='gray', s=marksize, edgecolor='none', alpha=markalpha)
+        ax.scatter(plot_data["control_down"]["x"], plot_data["control_down"]["y"], color='gray', s=marksize, edgecolor='none', alpha=markalpha)
+        ax.scatter(plot_data["enhanced"]["x"], plot_data["enhanced"]["y"], color='red', s=marksize, edgecolor='none', alpha=markalpha)
+        ax.scatter(plot_data["repressed"]["x"], plot_data["repressed"]["y"], color='blue', s=marksize, edgecolor='none', alpha=markalpha)
+        plt.title("%s '%s' APA switches %s repressed, %s enhanced, %s control_up, %s control_down" % (c_pair_type, comps_id, len(plot_data["repressed"]["x"]), len(plot_data["enhanced"]["x"]), len(plot_data["control_up"]["x"]), len(plot_data["control_down"]["x"])))
+        plt.tight_layout()
+        plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.%s.pdf" % (comps_id, c_pair_type)))
+        plt.close()
+
 def prepare_heatmap_data(comps_id):
     f = open("/home/gregor/apa/data.comps/%s/%s.pairs_de.tab" % (comps_id, comps_id), "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")

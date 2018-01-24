@@ -44,6 +44,7 @@ class Library:
         self.name = "";
         self.notes = "";
         self.public_only = [];
+        self.columns = [("Genome", "map_to"), ("Tissue", "tissue"), ("Condition", "condition"), ("Method", "method"), ("Replicate", "replicate")]
 
 def read(lib_id):
     lib = Library(lib_id)
@@ -94,6 +95,24 @@ def read(lib_id):
                 lib.notes = str(r[0].split("notes:")[1])
                 r = f.readline()
                 continue
+            if r[0].startswith("columns:"):
+                lib.columns = eval(r[0].split("columns:")[1])
+                r = f.readline()
+                continue
             r = f.readline()
         f.close()
     return lib
+
+def save(library):
+    filename = os.path.join(apa.path.data_folder, library.lib_id, "%s.config" % library.lib_id)
+    f = open(filename, "wt")
+    f.write("access:" + ",".join(library.access) + "\n")
+    f.write("name:%s" % (library.name) + "\n")
+    f.write("notes:%s" % (library.notes) + "\n")
+    f.write("public_only:" + ",".join(library.public_only) + "\n")
+    f.write("owner:" + ",".join(library.owner) + "\n")
+    f.write("columns:%s" % (str(library.columns)) + "\n")
+    filename = os.path.join(apa.path.data_folder, library.lib_id, "annotation.tab")
+    if not os.path.exists(filename):
+        open(filename, "wt").close()
+    return True
