@@ -45,6 +45,8 @@ class Comps:
         self.site_selection = "DEXSEQ" # possibility to do site selection some other way in the future
         self.choose_function = "sum" # how are sites evaluated from iCLIP data, by "sum" in the clip_interval or by "closest" in the "clip_interval"
         self.deepbind = None
+        self.cluster_image_w = 1000
+        self.cluster_image_h = 1000
         self.clip_interval = (-100, 100) # interval around sites for binding data
         self.rnamaps = []
         self.ignore_genes = []
@@ -82,6 +84,14 @@ class Comps:
                 r = f.readline()
                 continue
             if r[0].startswith("#"):
+                r = f.readline()
+                continue
+            if r[0].startswith("cluster_image_w"):
+                self.cluster_image_w = int(r[0].split("cluster_image_w:")[1])
+                r = f.readline()
+                continue
+            if r[0].startswith("cluster_image_h"):
+                self.cluster_image_h = int(r[0].split("cluster_image_h:")[1])
                 r = f.readline()
                 continue
             if r[0].startswith("access:"):
@@ -556,7 +566,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
         input_fname = apa.path.comps_expression_filename(comps_id)
         output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
-        command = "R --vanilla --args %s %s %s %s 'analysis: %s, gene expression cluster' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+        command = "R --vanilla --args %s %s %s %s %s %s 'analysis: %s, gene expression cluster' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps.cluster_image_w, comps.cluster_image_h, comps_id, R_file)
         print command
         pybio.utils.Cmd(command).run()
         flog.write(command+"\n")
@@ -1109,13 +1119,13 @@ def apa_plot(comps_id):
                 plot_data[data["gene_class"]]["gene_id"].append("%s: %s" % (data["gene_id"], data["gene_name"]))
             r = f.readline()
         f.close()
-        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-        marksize = 10
-        markalpha = 0.5
-        ax.scatter(plot_data["control_up"]["x"], plot_data["control_up"]["y"], color='gray', s=marksize, edgecolor='none', alpha=markalpha)
-        ax.scatter(plot_data["control_down"]["x"], plot_data["control_down"]["y"], color='gray', s=marksize, edgecolor='none', alpha=markalpha)
-        ax.scatter(plot_data["enhanced"]["x"], plot_data["enhanced"]["y"], color='red', s=marksize, edgecolor='none', alpha=markalpha)
-        ax.scatter(plot_data["repressed"]["x"], plot_data["repressed"]["y"], color='blue', s=marksize, edgecolor='none', alpha=markalpha)
+        fig, ax = plt.subplots(1, 1, figsize=(12, 3))
+        marksize = 20
+        markalpha = 0.9
+        ax.scatter(plot_data["control_up"]["x"], plot_data["control_up"]["y"], color='#f1f1f1', s=marksize, edgecolor='none', alpha=markalpha)
+        ax.scatter(plot_data["control_down"]["x"], plot_data["control_down"]["y"], color='#f1f1f1', s=marksize, edgecolor='none', alpha=markalpha)
+        ax.scatter(plot_data["enhanced"]["x"], plot_data["enhanced"]["y"], color='#ff6961', s=marksize, edgecolor='none', alpha=markalpha)
+        ax.scatter(plot_data["repressed"]["x"], plot_data["repressed"]["y"], color='#779ecb', s=marksize, edgecolor='none', alpha=markalpha)
         plt.title("%s '%s' APA switches %s repressed, %s enhanced, %s control_up, %s control_down" % (c_pair_type, comps_id, len(plot_data["repressed"]["x"]), len(plot_data["enhanced"]["x"]), len(plot_data["control_up"]["x"]), len(plot_data["control_down"]["x"])))
         plt.tight_layout()
         plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.%s.pdf" % (comps_id, c_pair_type)))
@@ -1184,6 +1194,6 @@ def prepare_heatmap_data(comps_id):
     fout.write("\t".join(header2)+"\n")
 
     results.sort(reverse=True)
-    for (dPSI, row) in results[:50]:
+    for (dPSI, row) in results:
         fout.write("\t".join(str(x) for x in row) + "\n")
     fout.close()

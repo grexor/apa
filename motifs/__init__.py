@@ -26,14 +26,14 @@ def process(comps_id):
     fasta_files = {}
     tab_files = {}
 
-    for pair_type in ["tandem", "composite", "skipped", "all"]:
+    for pair_type in ["same", "composite", "skipped", "all"]:
         for reg in ["repressed", "enhanced", "control"]:
             k = "%s_%s" % (pair_type, reg)
             fname = os.path.join(fasta_folder, k+"_intersite.fasta")
             fasta_files[k] = open(fname, "wt")
 
     for site in ["proximal", "distal"]:
-        for pair_type in ["tandem", "composite", "skipped", "all"]:
+        for pair_type in ["same", "composite", "skipped", "all"]:
             fname = os.path.join(tab_folder, "%s_%s_%s.tab" % (comps_id, site, pair_type))
             tab_files["%s_%s" % (site, pair_type)] = open(fname, "wt")
             tab_files["%s_%s" % (site, pair_type)].write("\t".join(["id", "chr", "strand", "pos", "event_class"])+"\n")
@@ -114,7 +114,7 @@ def process(comps_id):
 
     f_stats = open(os.path.join(dest_folder, "site_stats.tab"), "wt")
     f_stats.write("# relative to proximal site; if proximal site = r, distal = e, and vice-versa; if proximal = c, distal is also c\n")
-    for pair_type in ["tandem", "composite", "skipped", "all"]:
+    for pair_type in ["same", "composite", "skipped", "all"]:
         for reg in ["repressed", "enhanced", "control"]:
             f_stats.write("%s\t%s\t%s\n" % (pair_type, reg, stats["%s.%s" % (reg, pair_type)]))
     f_stats.close()
@@ -130,7 +130,7 @@ def dreme(comps_id):
     os.makedirs(dreme_folder)
 
     for site in ["proximal", "distal"]:
-        for pair_type in ["tandem", "composite", "skipped"]:
+        for pair_type in ["same", "composite", "skipped"]:
             fasta_pos = os.path.join(fasta_folder, "%s_%s_%s.fasta" % (site, pair_type, "e"))
             fasta_neg = os.path.join(fasta_folder, "%s_%s_%s.fasta" % (site, pair_type, "r"))
             fasta_con = os.path.join(fasta_folder, "%s_%s_%s.fasta" % (site, pair_type, "c"))
