@@ -34,6 +34,8 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
         pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
     if mapper=="bowtie":
         pybio.map.bowtie(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
+    if mapper=="bowtie2":
+        pybio.map.bowtie2(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
 
 def preprocess_lexfwd(lib_id):
     threads = []

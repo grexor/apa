@@ -300,7 +300,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         expression[rshort].save(fname, track_id="%s.%s" % (comps_id, rshort), genome=comps.species)
 
     # combine all into single file
-    os.system("cat %s/*.bed > %s" % (beds_folder, os.path.join(beds_folder, "%s_all.bed" % comps_id)))
+    # os.system("cat %s/*.bed > %s" % (beds_folder, os.path.join(beds_folder, "%s_all.bed" % comps_id)))
 
     # finally, save two groups of summed up experimental groups: control (1) and test (2)
     for (sample_name, sample_data) in [("control", comps.control), ("test", comps.test)]:
@@ -314,7 +314,7 @@ def process_comps(comps_id, map_id=1, clean=True):
                 elif comps.db_type=="pas":
                     e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=comps.polya_db)
                 b.load(e_filename)
-        bed_filename = os.path.join(beds_folder, "%s.%s_all.bed" % (comps_id, sample_name))
+        bed_filename = os.path.join(beds_folder, "%s.%s_all.bed.gz" % (comps_id, sample_name))
         b.save(bed_filename, track_id="%s.%s_all" % (comps_id, sample_name), genome=comps.species)
 
     # find common list of positions
@@ -581,7 +581,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         flog.write(command+"\n")
         flog.flush()
 
-        # edgeR normalize site expression file
+        # edgeR normalize gene expression file
         R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
         input_fname = apa.path.comps_expression_filename(comps_id, filetype="genes")
         output_fname = apa.path.comps_expression_filename(comps_id, filetype="genes_norm")
@@ -607,7 +607,6 @@ def process_comps(comps_id, map_id=1, clean=True):
         prepare_heatmap_data(comps_id)
         R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_pairsde.R")
         input_fname = apa.path.comps_expression_filename(comps_id)
-        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
         command = "R --vanilla --args %s %s %s < %s" % (comps_id, len(comps.control), len(comps.test), R_file)
         print command
         pybio.utils.Cmd(command).run()
@@ -752,12 +751,10 @@ def pairs_de(comps_id, gsites, replicates, polydb):
     f_pairs.close()
 
     # save selected sites bedGraphs
-    bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed" % comps_id)
-    bg_selected_sites_test_fname = os.path.join(beds_folder, "%s_test_selected.bed" % comps_id)
-
+    bg_selected_sites_control_fname = os.path.join(beds_folder, "%s_control_selected.bed.gz" % comps_id)
+    bg_selected_sites_test_fname = os.path.join(beds_folder, "%s_test_selected.bed.gz" % comps_id)
     bg_selected_sites_control.save(bg_selected_sites_control_fname, track_id="%s_control_selected" % comps_id)
     bg_selected_sites_test.save(bg_selected_sites_test_fname, track_id="%s_test_selected" % comps_id)
-
 
 """
 Get splice sites related to polyA sites.
@@ -1138,7 +1135,8 @@ def prepare_heatmap_data(comps_id):
     ntest = None
     ncontrol = None
     ngenes = 0
-    results = []
+    results = [] # already computed PSI, stored to heatmap.tab
+    results_complete = [] # all numbers, stored to heatmap_complete.tab
 
     comps = apa.comps.Comps(comps_id)
 
@@ -1163,22 +1161,26 @@ def prepare_heatmap_data(comps_id):
             ntest = len(ptest)
 
         row = ["%s %s" % (data["gene_name"], data["gene_class"])]
+        row_complete = ["%s %s" % (data["gene_name"], data["gene_class"])]
         for i in range(0, ncontrol):
             dv = pcontrol[i]+dcontrol[i]
             if dv==0:
                 dv = 1
             row.append(int(pcontrol[i]/dv*100))
+            row_complete.append("%s;%s" % (int(pcontrol[i]), int(dcontrol[i])))
         for i in range(0, ntest):
             dv = ptest[i]+dtest[i]
             if dv==0:
                 dv = 1
             row.append(int(ptest[i]/dv*100))
+            row_complete.append("%s;%s" % (int(ptest[i]), int(dtest[i])))
         average_control = sum(row[1:1+ncontrol])/ncontrol
         average_test = sum(row[ncontrol:])/ntest
         dPSI = abs(average_control - average_test)
 
         if data["gene_class"] in ["repressed", "enhanced"]: # and data["pair_type"] in ["tandem"]:
             results.append((dPSI, row))
+            results_complete.append((dPSI, row_complete))
             ngenes += 1
 
         r = f.readline()
@@ -1190,10 +1192,20 @@ def prepare_heatmap_data(comps_id):
         header2.append(comps.control[i][2])
     for i in range(0, ntest):
         header2.append(comps.test[i][2])
-
     fout.write("\t".join(header2)+"\n")
-
     results.sort(reverse=True)
     for (dPSI, row) in results:
         fout.write("\t".join(str(x) for x in row) + "\n")
     fout.close()
+
+    fout_complete = open("/home/gregor/apa/data.comps/%s/%s.complete_heatmap.tab" % (comps_id, comps_id), "wt")
+    header2 = ["gene_name"]
+    for i in range(0, ncontrol):
+        header2.append(comps.control[i][2])
+    for i in range(0, ntest):
+        header2.append(comps.test[i][2])
+    fout_complete.write("\t".join(header2)+"\n")
+    results.sort(reverse=True)
+    for (dPSI, row) in results_complete:
+        fout_complete.write("\t".join(str(x) for x in row) + "\n")
+    fout_complete.close()

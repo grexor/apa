@@ -304,13 +304,14 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
     dataR = {}
     dataT = {}
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-    tail_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s_tail" % map_id, "%s_e%s_m%s_tail.bam" % (lib_id, exp_id, map_id))
-    tail_bam_file = pysam.Samfile(tail_bam_filename)
     raw_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     raw_bam_file = pysam.Samfile(raw_bam_filename)
 
-    a_number = 0
     """
+    #tail_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s_tail" % map_id, "%s_e%s_m%s_tail.bam" % (lib_id, exp_id, map_id))
+    #tail_bam_file = pysam.Samfile(tail_bam_filename)
+
+    a_number = 0
     for a in tail_bam_file.fetch():
 
         a_number += 1

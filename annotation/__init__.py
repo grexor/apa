@@ -45,6 +45,7 @@ class Library:
         self.notes = "";
         self.public_only = [];
         self.columns = [("Genome", "map_to"), ("Tissue", "tissue"), ("Condition", "condition"), ("Method", "method"), ("Replicate", "replicate")]
+        self.authors = []
 
 def read(lib_id):
     lib = Library(lib_id)
@@ -77,6 +78,10 @@ def read(lib_id):
                 continue
             if r[0].startswith("access:"):
                 lib.access = str(r[0].split("access:")[1]).split(",")
+                r = f.readline()
+                continue
+            if r[0].startswith("authors:"):
+                lib.authors = str(r[0].split("authors:")[1]).split(",")
                 r = f.readline()
                 continue
             if r[0].startswith("public_only:"):
