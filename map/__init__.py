@@ -99,7 +99,7 @@ def stats(lib_id, map_id=1, append=""):
         # not fastq or bam perhaps? (bedgraph data)
         if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
             continue
-        num_reads = commands.getoutput("zcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
+        num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
         num_reads = int(num_reads)/4
         map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
         map_reads = int(map_reads)

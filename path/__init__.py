@@ -97,10 +97,10 @@ def map_folder(lib_id, exp_id, map_id=1, append=""):
     return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s%s" % (map_id, append))
 
 def map_fastq_file(lib_id, exp_id, append=""):
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s%s.fastq.gz" % (lib_id, exp_id, append))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s%s.fastq.bz2" % (lib_id, exp_id, append))
 
 def map_fastq_file_raw(lib_id, exp_id):
-    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s_raw.fastq.gz" % (lib_id, exp_id))
+    return os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "%s_e%s_raw.fastq.bz2" % (lib_id, exp_id))
 
 # comps
 def comps_config_filename(comps_id):
