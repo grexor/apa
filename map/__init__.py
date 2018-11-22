@@ -88,7 +88,8 @@ def stats(lib_id, map_id=1, append=""):
     fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.tab" % (lib_id, map_id, append))
     print "writting to: %s" % fname
     f = open(fname, "wt")
-    header = ["exp_id", "tissue", "condition", "replicate", "#reads [M]", "#mapped [M]" , "mapped [%]"]
+    header = [x for x in apa.annotation.libs[lib_id].experiments[1].keys() if x not in ["exp_id"]]
+    header = ["exp_id"] + header + ["#reads [M]", "#mapped [M]" , "mapped [%]"]
     print "\t".join(header)
     f.write("\t".join(header) + "\n")
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
@@ -99,11 +100,16 @@ def stats(lib_id, map_id=1, append=""):
         # not fastq or bam perhaps? (bedgraph data)
         if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
             continue
+
         num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
         num_reads = int(num_reads)/4
         map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
         map_reads = int(map_reads)
-        row = [exp_id, exp_data["tissue"], exp_data["condition"], exp_data["replicate"], "%.2f" % (num_reads/1e6), "%.2f" % (map_reads/1e6), "%.2f" % (map_reads*100.0/max(1, num_reads))]
+
+        row = [exp_id]
+        for x in header[1:-3]:
+            row.append(exp_data[x])
+        row = row + ["%.2f" % (num_reads/1e6), "%.2f" % (map_reads/1e6), "%.2f" % (map_reads*100.0/max(1, num_reads))]
         print "\t".join(str(x) for x in row)
         f.write("\t".join(str(x) for x in row) + "\n")
     f.close()

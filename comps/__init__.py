@@ -51,6 +51,8 @@ class Comps:
         self.rnamaps = []
         self.ignore_genes = []
         self.exclusive_genes = []
+        self.genome = ""
+        self.method = ""
         self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
         if comps_id!=None:
             self.read_comps(comps_id)
@@ -84,6 +86,14 @@ class Comps:
                 r = f.readline()
                 continue
             if r[0].startswith("#"):
+                r = f.readline()
+                continue
+            if r[0].startswith("genome"):
+                self.genome = r[0].split("genome:")[1]
+                r = f.readline()
+                continue
+            if r[0].startswith("method"):
+                self.method = r[0].split("method:")[1]
                 r = f.readline()
                 continue
             if r[0].startswith("cluster_image_w"):
