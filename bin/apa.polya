@@ -5,9 +5,10 @@ import sys
 
 import argparse
 parser = argparse.ArgumentParser()
+parser.add_argument('-min_distance', type=int, action="store", dest="min_distance", default=125)
 parser.add_argument('-poly_id', action="store", dest="poly_id", default=None)
 parser.add_argument('-map_id', type=int, action="store", dest="map_id", default=1)
 args = parser.parse_args()
 
-apa.polya.process(args.poly_id, map_id=args.map_id)
+apa.polya.process(args.poly_id, map_id=args.map_id, min_distance=args.min_distance)
 #apa.polya.pas_db(args.poly_id, map_id=args.map_id)

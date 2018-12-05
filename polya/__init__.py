@@ -87,7 +87,7 @@ def process(poly_id, map_id=1, min_distance=25):
             print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
 
     #bed.filter(min_distance=25) # Gregor: alternative: -25..25 (201702 test)
-    bed.filter(min_distance=125)
+    bed.filter(min_distance=min_distance)
     bed.save(apa.path.polyadb_filename(poly_id, filetype="temp"), db_save="raw")
 
     annotate(poly_id)
