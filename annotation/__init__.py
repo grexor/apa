@@ -47,7 +47,54 @@ class Library:
         self.method = ""
         self.public_only = [];
         self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate")]
+        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate")]
         self.authors = []
+
+    def save(self):
+        filename = os.path.join(apa.path.data_folder, self.lib_id, "%s.config" % self.lib_id)
+        f = open(filename, "wt")
+        f.write("access:" + ",".join(self.access) + "\n")
+        f.write("name:%s" % (self.name) + "\n")
+        f.write("notes:%s" % (self.notes) + "\n")
+        f.write("public_only:" + ",".join(self.public_only) + "\n")
+        f.write("owner:" + ",".join(self.owner) + "\n")
+        f.write("method:" + self.method + "\n")
+        f.write("genome:" + self.genome + "\n")
+        f.write("columns:%s" % (str(self.columns)) + "\n")
+        f.write("columns_display:%s" % (str(self.columns_display)) + "\n")
+        filename = os.path.join(apa.path.data_folder, self.lib_id, "annotation.tab")
+        f = open(filename, "wt")
+        f.write("%s\n" % self.lib_id)
+        columns = ["exp_id", "species", "map_to", "method"]
+        for (cname, cid) in self.columns:
+            columns.append(cid)
+        f.write("%s\n" % ("\t".join(columns)))
+        for exp_id in self.experiments:
+            row = [exp_id, self.genome, self.genome, self.method]
+            for cid in columns[4:]:
+                try:
+                    row.append(self.experiments[exp_id][cid])
+                except:
+                    row.append("")
+            f.write("%s\n" % ("\t".join([str(el) for el in row])))
+        f.close()
+        return True
+
+    def add_experiment(self, data):
+        exp_id = len(self.experiments)+1
+        self.experiments[exp_id] = data
+        return exp_id
+
+    def add_empty_experiment(self):
+        exp_id = len(self.experiments)+1
+        data = {"species":"", "map_to":""}
+        for _, cid in self.columns:
+            data[cid] = ""
+        self.experiments[exp_id] = data
+        return exp_id
+
+    def edit_experiment(self, exp_id, data):
+        self.experiments[exp_id] = data
 
 def read(lib_id):
     lib = Library(lib_id)
@@ -114,20 +161,10 @@ def read(lib_id):
                 lib.columns = eval(r[0].split("columns:")[1])
                 r = f.readline()
                 continue
+            if r[0].startswith("columns_display:"):
+                lib.columns_display = eval(r[0].split("columns_display:")[1])
+                r = f.readline()
+                continue
             r = f.readline()
         f.close()
     return lib
-
-def save(library):
-    filename = os.path.join(apa.path.data_folder, library.lib_id, "%s.config" % library.lib_id)
-    f = open(filename, "wt")
-    f.write("access:" + ",".join(library.access) + "\n")
-    f.write("name:%s" % (library.name) + "\n")
-    f.write("notes:%s" % (library.notes) + "\n")
-    f.write("public_only:" + ",".join(library.public_only) + "\n")
-    f.write("owner:" + ",".join(library.owner) + "\n")
-    f.write("columns:%s" % (str(library.columns)) + "\n")
-    filename = os.path.join(apa.path.data_folder, library.lib_id, "annotation.tab")
-    if not os.path.exists(filename):
-        open(filename, "wt").close()
-    return True
