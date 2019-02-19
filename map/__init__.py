@@ -3,6 +3,7 @@ import os
 import apa
 import pybio
 import sys
+import json
 import shutil
 import commands
 import regex
@@ -84,33 +85,63 @@ def preprocess_lexfwd_thread(exp_id, lib_id):
     f.close()
     return
 
-def stats(lib_id, map_id=1, append=""):
+def stats_to_tab(lib_id, map_id=1, append=""):
+    fname_json = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.json" % (lib_id, map_id, append))
+    data = json.loads(open(fname_json).readline())
+    print data
     fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.tab" % (lib_id, map_id, append))
-    print "writting to: %s" % fname
+    print "writting statistics to: %s" % fname
     f = open(fname, "wt")
     header = [x for x in apa.annotation.libs[lib_id].experiments[1].keys() if x not in ["exp_id"]]
     header = ["exp_id"] + header + ["#reads [M]", "#mapped [M]" , "mapped [%]"]
     print "\t".join(header)
     f.write("\t".join(header) + "\n")
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
-        fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
-        map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
-        bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
-        print fastq_file, bam_file
-        # not fastq or bam perhaps? (bedgraph data)
-        if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
-            continue
-
-        num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
-        num_reads = int(num_reads)/4
-        map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
-        map_reads = int(map_reads)
-
         row = [exp_id]
         for x in header[1:-3]:
             row.append(exp_data[x])
+        num_reads = data.get(str(exp_id), {}).get("num_reads", 0)
+        map_reads = data.get(str(exp_id), {}).get("map_reads", 0)
         row = row + ["%.2f" % (num_reads/1e6), "%.2f" % (map_reads/1e6), "%.2f" % (map_reads*100.0/max(1, num_reads))]
         print "\t".join(str(x) for x in row)
         f.write("\t".join(str(x) for x in row) + "\n")
     f.close()
+
+def stats(lib_id, map_id=1, append=""):
+    fname_json = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.json" % (lib_id, map_id, append))
+    for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
+        print "processing statistics: %s e%s" % (lib_id, exp_id)
+        fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
+        map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
+        bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
+        if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
+            continue
+        num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
+        num_reads = int(num_reads)/4
+        map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
+        map_reads = int(map_reads)
+        data[int(exp_id)] = {"num_reads":num_reads, "map_reads":map_reads}
+    open(fname_json, "wt").write(json.dumps(data))
+    stats_to_tab(lib_id)
+    return
+
+def stats_experiment(lib_id, exp_id, map_id=1, append=""):
+    fname_json = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.json" % (lib_id, map_id, append))
+    if os.path.exists(fname_json):
+        data = json.loads(open(fname_json).readline())
+    else:
+        data = {}
+    print "processing statistics: %s e%s" % (lib_id, exp_id)
+    fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
+    map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
+    bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
+    if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
+        return
+    num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
+    num_reads = int(num_reads)/4
+    map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
+    map_reads = int(map_reads)
+    data[int(exp_id)] = {"num_reads":num_reads, "map_reads":map_reads}
+    open(fname_json, "wt").write(json.dumps(data))
+    stats_to_tab(lib_id)
     return

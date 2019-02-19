@@ -69,7 +69,9 @@ class Library:
         for (cname, cid) in self.columns:
             columns.append(cid)
         f.write("%s\n" % ("\t".join(columns)))
-        for exp_id in self.experiments:
+        exp_ids = self.experiments.keys()
+        exp_ids = sorted(exp_ids, key=lambda x: (int(x))) # sort, but keep "strings" in case they are string
+        for exp_id in exp_ids:
             row = [exp_id, self.genome, self.genome, self.method]
             for cid in columns[4:]:
                 try:
