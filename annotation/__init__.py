@@ -46,8 +46,8 @@ class Library:
         self.genome = "";
         self.method = ""
         self.public_only = [];
-        self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate")]
-        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate")]
+        self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename", "upload_filename")]
+        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename", "upload_filename")]
         self.authors = []
 
     def save(self):
@@ -65,15 +65,15 @@ class Library:
         filename = os.path.join(apa.path.data_folder, self.lib_id, "annotation.tab")
         f = open(filename, "wt")
         f.write("%s\n" % self.lib_id)
-        columns = ["exp_id", "species", "map_to", "method"]
+        columns = ["exp_id", "species", "map_to", "method", "upload_filename"]
         for (cname, cid) in self.columns:
             columns.append(cid)
         f.write("%s\n" % ("\t".join(columns)))
         exp_ids = self.experiments.keys()
         exp_ids = sorted(exp_ids, key=lambda x: (int(x))) # sort, but keep "strings" in case they are string
         for exp_id in exp_ids:
-            row = [exp_id, self.genome, self.genome, self.method]
-            for cid in columns[4:]:
+            row = [exp_id, self.genome, self.genome, self.method, self.experiments[exp_id].get("upload_filename", "")]
+            for cid in columns[5:]:
                 try:
                     row.append(self.experiments[exp_id][cid])
                 except:
@@ -87,11 +87,12 @@ class Library:
         self.experiments[exp_id] = data
         return exp_id
 
-    def add_empty_experiment(self):
+    def add_empty_experiment(self, filename=""):
         exp_id = len(self.experiments)+1
         data = {"species":"", "map_to":""}
         for _, cid in self.columns:
             data[cid] = ""
+        data["upload_filename"] = filename
         self.experiments[exp_id] = data
         return exp_id
 
