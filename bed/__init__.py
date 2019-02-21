@@ -7,6 +7,7 @@ import glob
 import sys
 import regex
 import gzip
+import glob
 
 # http://www.cgat.org/~andreas/documentation/pysam/api.html
 # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
@@ -68,6 +69,25 @@ def write_bed(d, filename):
             else:
                 f.write("%s\t%s\t%s\t-%s\n" % (chr, pos, pos+1, cDNA))
     f.close()
+
+# make gene expression table (htcount and gtf)
+def gene_expression(lib_id, map_id=1):
+    library = apa.annotation.libs[lib_id]
+    script_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.sh" % lib_id)
+    table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
+    gtf_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome))
+    print os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome)
+    gtf_fname = gtf_files[0]
+    f = open(script_fname, "wt")
+    f.write("bam_files=\"\n")
+    for exp_id, exp_data in library.experiments.items():
+        bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+        f.write(bam_filename+"\n")
+    f.write("\"\n")
+    f.write("htseq-count -f bam ${bam_files} %s > %s" % (gtf_fname, table_fname))
+    f.close()
+    os.system("chmod +x %s" % script_fname)
+    os.system(script_fname)
 
 def bed_raw(lib_id, exp_id, map_id=1, force=False, ip_filter=True):
     """
