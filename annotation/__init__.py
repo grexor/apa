@@ -99,6 +99,15 @@ class Library:
     def edit_experiment(self, exp_id, data):
         self.experiments[exp_id] = data
 
+def count_ownership(email):
+    num_libs = 0
+    num_experiments = 0
+    for exp_id, data in apa.annotation.libs.items():
+        if email in data.owner:
+            num_libs += 1
+            num_experiments += len(data.experiments)
+    return num_libs, num_experiments
+
 def read(lib_id):
     lib = Library(lib_id)
     data = {}
