@@ -76,18 +76,29 @@ def gene_expression(lib_id, map_id=1):
     script_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.sh" % lib_id)
     table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
     gtf_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome))
-    print os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome)
     gtf_fname = gtf_files[0]
     f = open(script_fname, "wt")
     f.write("bam_files=\"\n")
+    header = ["gene_id"]
     for exp_id, exp_data in library.experiments.items():
         bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
         f.write(bam_filename+"\n")
+        header.append("e%s" % exp_id)
     f.write("\"\n")
-    f.write("htseq-count -f bam ${bam_files} %s > %s" % (gtf_fname, table_fname))
+    additional_parameters = ""
+    if library.method=="lexrev":
+        additional_parameters = "-s reverse" # -s reverse: important, since lexrev maps in the opposite direction relative to the orientation of the gene
+    f.write("htseq-count %s -f bam ${bam_files} %s > %s" % (additional_parameters, gtf_fname, table_fname))
     f.close()
     os.system("chmod +x %s" % script_fname)
     os.system(script_fname)
+    f = open(table_fname, "rw+") # seek to work
+    f.seek(0)
+    f.write("\t".join(header)+"\n")
+    f.close()
+    # remove last 5 lines of the generated file (no feature, ambiguous, )
+    os.system("head -n -5 %s > %s.temp" % (table_fname, table_fname))
+    os.system("mv %s.temp %s" % (table_fname, table_fname))
 
 def bed_raw(lib_id, exp_id, map_id=1, force=False, ip_filter=True):
     """

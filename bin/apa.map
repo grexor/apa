@@ -9,8 +9,12 @@ parser.add_argument('-exp_id', action="store", dest="exp_id")
 parser.add_argument('-force', action="store_true", default=False)
 parser.add_argument('-map_id', action="store", dest="map_id", default=1)
 parser.add_argument('-mapper', action="store", dest="mapper", default="star")
-parser.add_argument('-cpu', action="store", dest="cpu", default=1)
+parser.add_argument('-cpu', action="store", dest="cpu", default=2)
 parser.add_argument('-minlen', action="store", dest="minlen", default=0.66, type=float)
 args = parser.parse_args()
+
+lib = apa.annotation.libs[args.lib_id]
+if lib.method=="nano":
+    args.mapper = "nano"
 
 apa.map.map_experiment(args.lib_id, args.exp_id, force=args.force, map_id=args.map_id, mapper=args.mapper, cpu=args.cpu, minlen=args.minlen)
