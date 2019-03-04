@@ -92,8 +92,8 @@ def gene_expression(lib_id, map_id=1):
     f.close()
     os.system("chmod +x %s" % script_fname)
     os.system(script_fname)
-    f = open(table_fname, "rw+") # seek to work
-    f.seek(0)
+    f = open(table_fname, "r+") # seek to work
+    f.seek(0, 0)
     f.write("\t".join(header)+"\n")
     f.close()
     # remove last 5 lines of the generated file (no feature, ambiguous, )
