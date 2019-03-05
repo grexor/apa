@@ -39,6 +39,13 @@ def get_species(poly_id):
         species = species.pop()
     return species
 
+def make_config(lib_id):
+    f = open(os.path.join(apa.path.polya_folder, "%s.config" % lib_id), "wt")
+    lib = apa.annotation.libs[lib_id]
+    for exp_id, exp_data in lib.experiments.items():
+        f.write("%s_e%s\n" % (lib_id, exp_id))
+    f.close()
+
 def process(poly_id, map_id=1, min_distance=25):
     """
     Creates polyA database.

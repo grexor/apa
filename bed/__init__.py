@@ -77,13 +77,17 @@ def gene_expression(lib_id, map_id=1):
     table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
     gtf_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome))
     gtf_fname = gtf_files[0]
+    map_to = set()
     f = open(script_fname, "wt")
     f.write("bam_files=\"\n")
-    header = ["gene_id"]
+    header = ["gene_id", "gene_name"]
     for exp_id, exp_data in library.experiments.items():
+        map_to.add(exp_data["map_to"])
         bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
         f.write(bam_filename+"\n")
         header.append("e%s" % exp_id)
+    map_to = list(map_to)[0]
+    pybio.genomes.load(map_to)
     f.write("\"\n")
     additional_parameters = ""
     if library.method=="lexrev":
@@ -92,13 +96,69 @@ def gene_expression(lib_id, map_id=1):
     f.close()
     os.system("chmod +x %s" % script_fname)
     os.system(script_fname)
-    f = open(table_fname, "r+") # seek to work
-    f.seek(0, 0)
-    f.write("\t".join(header)+"\n")
-    f.close()
+    f1 = open(table_fname)
+    f2 = open(table_fname+".temp", "wt")
+    f2.write("\t".join(header)+"\n")
+    r = f1.readline()
+    while r:
+        r = r.replace("\r", "").replace("\n", "").split("\t")
+        gene_id = r[0]
+        gene = apa.polya.get_gene(map_to, gene_id) # annotate gene names
+        if gene!={}:
+            gene_name = gene["gene_name"]
+        else:
+            gene_name = ""
+        r2 = r[0] + [gene_name] + r[1:]
+        f2.write("\t".join(str(x) for x in r2)+"\n")
+        r = f1.readline()
+    f1.close()
+    f2.close()
+    os.system("mv %s.temp %s" % (table_fname, table_fname))
     # remove last 5 lines of the generated file (no feature, ambiguous, )
     os.system("head -n -5 %s > %s.temp" % (table_fname, table_fname))
     os.system("mv %s.temp %s" % (table_fname, table_fname))
+
+def polya_expression(lib_id, poly_id, map_id=1):
+    lib = apa.annotation.libs[lib_id]
+    polyadb_filename = apa.path.polyadb_filename(poly_id)
+    result = {}
+    header = ["chr", "strand", "pos", "gene_id", "gene_name"]
+    keys = set()
+    map_to = set()
+    for exp_id, exp_data in lib.experiments.items():
+        header.append("e%s" % exp_id)
+        map_to.add(exp_data["map_to"])
+        result[exp_id] = {}
+        r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+        bam_filename = apa.path.bam_filename(lib_id, exp_id, map_id=map_id)
+        e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        e = pybio.data.Bedgraph()
+        e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
+        for chr, strand, pos, val in e.fetch():
+            key = (chr, strand, pos)
+            keys.add(key)
+            result[exp_id][key] = val
+    map_to = list(map_to)[0]
+    pybio.genomes.load(map_to)
+    table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_polya_expression.tab" % lib_id)
+    f = open(table_fname, "wt")
+    f.write("\t".join(str(x) for x in header)+"\n")
+    keys = list(keys)
+    keys = sorted(keys, key=lambda tup: (int(tup[0]) if tup[0].isdigit() else tup[0],tup[1], tup[2]))
+    for chr, strand, pos in keys:
+        _, gid, _, _, _ = pybio.genomes.annotate(map_to, chr, strand, pos, extension=5000)
+        gene_id = ""
+        gene_name = ""
+        if gid!=None:
+            gene = apa.polya.get_gene(map_to, gid)
+            gene_id = gid
+            gene_name = gene["gene_name"]
+        row = [chr, strand, pos, gene_id, gene_name]
+        for exp_id, _ in lib.experiments.items():
+            row.append(result[exp_id].get((chr, strand, pos), 0))
+        f.write("\t".join(str(x) for x in row)+"\n")
+    f.close()
 
 def bed_raw(lib_id, exp_id, map_id=1, force=False, ip_filter=True):
     """
