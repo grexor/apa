@@ -9,6 +9,9 @@ import regex
 import gzip
 import glob
 
+upstream_defaults = {"pAseq":100, "paseq":100, "aseq":100, "lexrev":5, "lexfwd":100, "nano":100}
+downstream_defaults = {"pAseq":25, "paseq":25, "aseq":25, "lexrev":5, "lexfwd":25, "nano":25}
+
 # http://www.cgat.org/~andreas/documentation/pysam/api.html
 # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
@@ -108,7 +111,7 @@ def gene_expression(lib_id, map_id=1):
             gene_name = gene["gene_name"]
         else:
             gene_name = ""
-        r2 = r[0] + [gene_name] + r[1:]
+        r2 = [r[0]] + [gene_name] + r[1:]
         f2.write("\t".join(str(x) for x in r2)+"\n")
         r = f1.readline()
     f1.close()
@@ -118,7 +121,9 @@ def gene_expression(lib_id, map_id=1):
     os.system("head -n -5 %s > %s.temp" % (table_fname, table_fname))
     os.system("mv %s.temp %s" % (table_fname, table_fname))
 
-def polya_expression(lib_id, poly_id, map_id=1):
+def polya_expression(lib_id, poly_id, map_id=1, upstream=None, downstream=None):
+    if poly_id==None:
+        poly_id = lib_id
     lib = apa.annotation.libs[lib_id]
     polyadb_filename = apa.path.polyadb_filename(poly_id)
     result = {}
@@ -126,6 +131,10 @@ def polya_expression(lib_id, poly_id, map_id=1):
     keys = set()
     map_to = set()
     for exp_id, exp_data in lib.experiments.items():
+        if upstream==None:
+            upstream = upstream_defaults[exp_data["method"]]
+        if downstream==None:
+            downstream = downstream_defaults[exp_data["method"]]
         header.append("e%s" % exp_id)
         map_to.add(exp_data["map_to"])
         result[exp_id] = {}
@@ -184,6 +193,8 @@ def bed_raw(lib_id, exp_id, map_id=1, force=False, ip_filter=True):
         apa.bed.bed_raw_lexrev(lib_id, exp_id, map_id=map_id, force=force, ip_filter=ip_filter)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_raw_lexfwd(lib_id, exp_id, map_id=map_id, force=force, ip_filter=ip_filter)
+    if exp_data["method"]=="nano":
+        apa.bed.bed_raw_nano(lib_id, exp_id, map_id=map_id, force=force, ip_filter=ip_filter)
 
 def bed_raw_paseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
     assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"] in ["pAseq", "paseq"])
@@ -472,6 +483,74 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
     return
 
+def bed_raw_nano(lib_id, exp_id, map_id, force=False, ip_filter=True):
+    assert(apa.annotation.libs[lib_id].experiments[exp_id]["method"]=="nano")
+
+    # http://www.cgat.org/~andreas/documentation/pysam/api.html
+    # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
+
+    t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+
+    # don't redo analysis if files exists
+    if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
+        print "%s_e%s_m%s : R/T BED : already processed" % (lib_id, exp_id, map_id)
+        return
+
+    lib = apa.annotation.libs[lib_id]
+    exp_data = lib.experiments[exp_id]
+
+    open(t_filename, "wt").close()
+    open(r_filename, "wt").close()
+
+    dataR = {}
+    dataT = {}
+    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
+    raw_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
+    raw_bam_file = pysam.Samfile(raw_bam_filename)
+
+    a_number = 0
+    ip_number = 0
+    for a in raw_bam_file.fetch():
+
+        a_number += 1
+        if a_number%100000==0:
+            print "%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(raw_bam_filename), ip_filter)
+
+        read_id = a.qname
+        chr = raw_bam_file.getrname(a.tid)
+        strand = "+" if not a.is_reverse else "-"
+        # we use the reference positions of the aligned read (aend, pos)
+        # relative positions are stored in qend, qstart
+        if strand=="+":
+            pos_end = a.aend - 1 # aend points to one past the last aligned residue, also see a.positions
+            assert(pos_end==a.positions[-1])
+        else:
+            pos_end = a.pos
+            assert(pos_end==a.positions[0])
+
+        key = "%s:%s" % (chr, strand)
+
+        # internal priming
+        if ip_filter:
+            if ip_check(genome, chr, strand, pos_end):
+                ip_number += 1
+                continue
+
+        # we try this: just IP filter reads
+        save(dataT, key, pos_end, read_id)
+        save(dataR, key, pos_end, read_id)
+
+    write_bed(dataT, t_filename)
+    write_bed(dataR, r_filename)
+
+    f_ip = open(os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.ip_stats.txt" % (lib_id, exp_id, map_id)), "wt")
+    f_ip.write("%s total processed alignments\n" % a_number)
+    f_ip.write("%s (%.2f %%) alignments omitted due to internal priming\n" % (ip_number, ip_number/float(max(1, a_number))*100))
+    f_ip.close()
+
+    return
+
 def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None, upstream=None, downstream=None):
     """
     :param force: overwrite existing bedGraph files if True
@@ -491,9 +570,6 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None, upstream
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
     map_to = exp_data["map_to"]
 
-    upstream_defaults = {"pAseq":100, "paseq":100, "aseq":100, "lexrev":5, "lexfwd":100}
-    downstream_defaults = {"pAseq":25, "paseq":25, "aseq":25, "lexrev":5, "lexfwd":25}
-
     if upstream==None:
         upstream = upstream_defaults[exp_data["method"]]
     if downstream==None:
@@ -507,6 +583,8 @@ def bed_expression(lib_id, exp_id, map_id=1, force=False, poly_id=None, upstream
         apa.bed.bed_expression_lexrev(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force, upstream=upstream, downstream=downstream)
     if exp_data["method"]=="lexfwd":
         apa.bed.bed_expression_lexfwd(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force, upstream=upstream, downstream=downstream)
+    if exp_data["method"]=="nano":
+        apa.bed.bed_expression_nano(lib_id, exp_id=exp_id, map_id=map_id, map_to=map_to, poly_id=poly_id, force=force, upstream=upstream, downstream=downstream)
 
 def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False, upstream=100, downstream=25):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
@@ -571,6 +649,25 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
         e.save(e_filename_norm, track_id="%s_e%s_m1" % (lib_id, exp_id), db_save="cpm")
 
 def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False, upstream=100, downstream=25):
+    genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
+    r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
+    if poly_id==None:
+        poly_id = map_to
+    polyadb_filename = apa.path.polyadb_filename(poly_id)
+
+    bam_filename = apa.path.bam_filename(lib_id, exp_id, map_id=map_id)
+    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    if os.path.exists(e_filename) and not force:
+        print "%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+    else:
+        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        open(e_filename, "wb").close() # touch E BED (processing)
+        e = pybio.data.Bedgraph()
+        e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
+        #e.overlay2(polyadb_filename, bam_filename, start=-upstream, stop=downstream)
+        e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
+
+def bed_expression_nano(lib_id, exp_id, map_id, map_to, poly_id, force=False, upstream=100, downstream=25):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
     r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
     if poly_id==None:
