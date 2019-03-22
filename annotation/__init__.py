@@ -47,8 +47,8 @@ class Library:
         self.method = ""
         self.public_only = [];
         self.seq_type = "single" # sequencing type: single, paired
-        self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_R1"), ("Upload Filename_R2", "upload_filename_R2")]
-        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_R1"), ("Upload Filename_R2", "upload_filename_R2")]
+        self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_r1"), ("Upload Filename_R2", "upload_filename_r2")]
+        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_r1"), ("Upload Filename_R2", "upload_filename_r2")]
         self.authors = []
 
     def save(self):
