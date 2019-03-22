@@ -64,12 +64,12 @@ class Library:
         f.write("seq_type:" + self.seq_type + "\n")
         columns = []
         for c in self.columns:
-            if self.seq_type=="single" and c[1]=="upload_filename_R2":
+            if self.seq_type=="single" and c[1]=="upload_filename_r2":
                 continue
             columns.append(c)
         columns_display = []
         for c in self.columns_display:
-            if self.seq_type=="single" and c[1]=="upload_filename_R2":
+            if self.seq_type=="single" and c[1]=="upload_filename_r2":
                 continue
             columns_display.append(c)
         f.write("columns:%s" % (str(columns)) + "\n")
@@ -104,8 +104,8 @@ class Library:
         data = {"species":"", "map_to":""}
         for _, cid in self.columns:
             data[cid] = ""
-        data["upload_filename_R1"] = filename_R1
-        data["upload_filename_R2"] = filename_R2
+        data["upload_filename_r1"] = filename_R1
+        data["upload_filename_r2"] = filename_R2
         self.experiments[exp_id] = data
         return exp_id
 
