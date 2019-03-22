@@ -46,8 +46,9 @@ class Library:
         self.genome = "";
         self.method = ""
         self.public_only = [];
-        self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename", "upload_filename")]
-        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename", "upload_filename")]
+        self.seq_type = "single" # sequencing type: single, paired
+        self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_R1"), ("Upload Filename_R2", "upload_filename_R2")]
+        self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_R1"), ("Upload Filename_R2", "upload_filename_R2")]
         self.authors = []
 
     def save(self):
@@ -60,20 +61,31 @@ class Library:
         f.write("owner:" + ",".join(self.owner) + "\n")
         f.write("method:" + self.method + "\n")
         f.write("genome:" + self.genome + "\n")
-        f.write("columns:%s" % (str(self.columns)) + "\n")
-        f.write("columns_display:%s" % (str(self.columns_display)) + "\n")
+        f.write("seq_type:" + self.seq_type + "\n")
+        columns = []
+        for c in self.columns:
+            if self.seq_type=="single" and c[1]=="upload_filename_R2":
+                continue
+            columns.append(c)
+        columns_display = []
+        for c in self.columns_display:
+            if self.seq_type=="single" and c[1]=="upload_filename_R2":
+                continue
+            columns_display.append(c)
+        f.write("columns:%s" % (str(columns)) + "\n")
+        f.write("columns_display:%s" % (str(columns_display)) + "\n")
         filename = os.path.join(apa.path.data_folder, self.lib_id, "annotation.tab")
         f = open(filename, "wt")
         f.write("%s\n" % self.lib_id)
-        columns = ["exp_id", "species", "map_to", "method", "upload_filename"]
+        columns = ["exp_id", "species", "map_to", "method"]
         for (cname, cid) in self.columns:
             columns.append(cid)
         f.write("%s\n" % ("\t".join(columns)))
         exp_ids = self.experiments.keys()
         exp_ids = sorted(exp_ids, key=lambda x: (int(x))) # sort, but keep "strings" in case they are string
         for exp_id in exp_ids:
-            row = [exp_id, self.genome, self.genome, self.method, self.experiments[exp_id].get("upload_filename", "")]
-            for cid in columns[5:]:
+            row = [exp_id, self.genome, self.genome, self.method]
+            for cid in columns[4:]:
                 try:
                     row.append(self.experiments[exp_id][cid])
                 except:
@@ -87,12 +99,13 @@ class Library:
         self.experiments[exp_id] = data
         return exp_id
 
-    def add_empty_experiment(self, filename=""):
+    def add_empty_experiment(self, filename_R1="", filename_R2=""):
         exp_id = len(self.experiments)+1
         data = {"species":"", "map_to":""}
         for _, cid in self.columns:
             data[cid] = ""
-        data["upload_filename"] = filename
+        data["upload_filename_R1"] = filename_R1
+        data["upload_filename_R2"] = filename_R2
         self.experiments[exp_id] = data
         return exp_id
 
@@ -147,6 +160,10 @@ def read(lib_id):
                 continue
             if r[0].startswith("method:"):
                 lib.method = str(r[0].split("method:")[1])
+                r = f.readline()
+                continue
+            if r[0].startswith("seq_type:"):
+                lib.seq_type = str(r[0].split("seq_type:")[1])
                 r = f.readline()
                 continue
             if r[0].startswith("authors:"):
