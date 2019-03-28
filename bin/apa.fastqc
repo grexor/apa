@@ -1,4 +1,3 @@
 echo "computing Fastqc of folder $1"
-cd $1
 fastqc -t 5 e*/*.fastq.bz2
 multiqc -p e*/ -f
