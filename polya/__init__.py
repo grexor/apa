@@ -18,6 +18,9 @@ mpl.rcParams['xtick.labelsize'] = 10
 mpl.rcParams['ytick.labelsize'] = 10
 mpl.rcParams['legend.fontsize'] = 9
 
+# Gruber et al.
+PAS_hexamers = ['AATAAA', 'ATTAAA', 'TATAAA', 'AGTAAA', 'AATACA', 'CATAAA', 'AATATA', 'GATAAA', 'AATGAA', 'AAGAAA', 'ACTAAA', 'AATAGA', 'AATAAT', 'AACAAA', 'ATTACA', 'ATTATA', 'AACAAG', 'AATAAG']
+
 def get_species(poly_id):
     if poly_id in ["hg19_tian", "hg19_derti"]:
         return "hg19"
@@ -150,7 +153,7 @@ def annotate(poly_id):
             accepted[key] = 1
 
     ftab = gzip.open(polyadb_tab, "wb")
-    ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "pas_loci", "cs_loci", "seq_-100_100"]) + "\n")
+    ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "pas_loci", "cs_loci", "PAShex_PASloci_PASindex", "seq_-100_100"]) + "\n")
     fbed = gzip.open(polyadb_bed, "wb")
     fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"" % (poly_id, poly_id))
 
@@ -167,15 +170,21 @@ def annotate(poly_id):
         strand = "+" if cDNA>=0 else "-"
         # get upstream sequence
         seq = pybio.genomes.seq(species, chr, strand, pos, start=-100, stop=100)
+        pas = ""
+        for i, h in enumerate(PAS_hexamers):
+            loci = seq[70:100].find(h)
+            if loci!=-1:
+                pas = "PAS%s_PAS%s_PAS%s" % (h, i, loci-100)
+                break
         gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
         if accepted.get(key, None)!=None:
             if gid==None:
-                row = [chr, strand, pos, "", "", "", cDNA, "", "", "", seq]
+                row = [chr, strand, pos, "", "", "", cDNA, "", "", "", pas, seq]
             else:
                 gene = get_gene(species, gid)
                 interval = "%s:%s:%s" % (str(gid_interval[0]), str(gid_interval[1]), interval_types[gid_interval[2]])
-                row = [chr, strand, pos, gid, gene["gene_name"], interval, cDNA, "", "", "", seq]
+                row = [chr, strand, pos, gid, gene["gene_name"], interval, cDNA, "", "", "", pas, seq]
             ftab.write("\t".join(str(e) for e in row)+"\n")
             fbed.write("\t".join(r)+"\n")
             ffasta.write(">%s\n%s\n" % ("%s%s:%s" % (strand, chr, pos), seq))
@@ -357,175 +366,6 @@ def annotate_pair(species, chr, strand, pos1, pos2, extension=5000):
             return "composite"
         return "skipped"
     return "other"
-
-def pas_db(poly_id, map_id=1):
-    """
-    Creates PAS database.
-    """
-    species = get_species(poly_id)
-    min_distance = 60
-
-    experiments = []
-    if poly_id in pybio.genomes.genomes_list():
-        # is the poly_id a genome assembly name?
-        for lib_id, lib_data in apa.annotation.libs.items():
-            for exp_id, exp_data in lib_data.experiments.items():
-                if poly_id!=exp_data["map_to"]:
-                    continue
-                experiments.append((lib_id, exp_id))
-    else:
-        # is the poly_id a list of experiments (=pool) filename?
-        f = open(os.path.join(apa.path.polya_folder, "%s.config" % poly_id), "rt")
-        r = f.readline()
-        while r:
-            r = r.replace("\r", "").replace("\n", "")
-            lib_id = "_".join(r.split("_")[:2])
-            exp_id = int(r.split("_")[-1][1:])
-            experiments.append((lib_id, exp_id))
-            map_to = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
-            r = f.readline()
-        f.close()
-
-    # debug reasons
-    #experiments = experiments[:2]
-
-    b = pybio.data.Bedgraph()
-    for (lib_id, exp_id) in experiments:
-        fname = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
-        b.load(fname)
-    name_t = os.path.join(apa.path.polya_folder, "%s.data_t" % poly_id)
-    b.save(name_t+".bed.gz")
-
-    b = pybio.data.Bedgraph()
-    for (lib_id, exp_id) in experiments:
-        fname = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
-        b.load(fname)
-    name_r = os.path.join(apa.path.polya_folder, "%s.data_r" % poly_id)
-    b.save(name_r+".bed.gz")
-
-    def write_seqs(tab_filename):
-        pybio.genomes.load("hg19")
-        f = gzip.open(tab_filename, "wb")
-        f.write("\t".join(["chr", "strand", "pos", "cDNA", "s_-100_100"]) + "\n")
-        for chr, chr_data in b.raw.items():
-            for strand, pos_data in chr_data.items():
-                for pos, val in pos_data.items():
-                    s = pybio.genomes.seq("hg19", chr, strand, pos, start=-100, stop=100)
-                    f.write("\t".join(str(el) for el in [chr, strand, pos, val, s])+"\n")
-        f.close()
-
-    pybio.genomes.load(species)
-    write_seqs(name_t+".tab.gz")
-    write_seqs(name_r+".tab.gz")
-
-    db = pybio.data.Bedgraph()
-    db_pas = {}
-
-    pas_signals = ["AATAAA", "ATTAAA", "AAATAA", "CAATAA", "AGTAAA", "TTAATA", "TATAAA", "TGAATA", "CATAAA", "GTAATA", "CTAATA", "GATAAA"]
-
-    f = gzip.open(name_t+".tab.gz")
-    header = f.readline()
-    r = f.readline()
-    all_seqs = 0
-    while r:
-        r = r.replace("\n", "").replace("\r", "").split("\t")
-        all_seqs += 1
-        seq = r[-1][63:87] # upstream 100 nt
-        cDNA = int(r[-2])
-        pos = int(r[-3])
-        strand = r[-4]
-        chr = r[-5]
-        for pas in pas_signals:
-            index = seq.find(pas)
-            if index!=-1:
-                start = -(100-(63+index))
-                pas_check = pybio.genomes.seq("hg19", chr, strand, pos, start=start, stop=start+5)
-                assert(pas==pas_check)
-                db.set_value(chr, strand, pos, db.get_value(chr, strand, pos)+cDNA) # increase the value by cDNA at this position
-                db_pas.setdefault((chr, strand, pos), set()).add(pas)
-                break
-        r = f.readline()
-        if all_seqs%1000==0:
-            print "read %sM seqs" % (all_seqs/1e6)
-    f.close()
-
-    name_db = os.path.join(apa.path.polya_folder, "%s_pas" % poly_id)
-    db.save(name_db+"_temp.bed.gz")
-
-    f = gzip.open(name_db+"_temp.bed.gz")
-    fout = gzip.open(name_db+"_temp.tab.gz", "wb")
-    r = f.readline() # bed header
-    r = f.readline()
-    previous = None
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        chr, pos, cDNA = r[0], int(r[1]), int(r[-1])
-        strand = "+" if cDNA>=0 else "-"
-        pas = db_pas.get((chr, strand, pos), "")
-        assert(len(pas)==1)
-        distance = ""
-        if previous!=None:
-            if previous[0]==chr and previous[1]==strand:
-                distance = pos - previous[-1]
-        row = [r[0], r[1], r[3], list(pas)[0], distance]
-        fout.write("\t".join(str(x) for x in row) + "\n")
-        r = f.readline()
-        previous = (chr, strand, pos)
-    f.close()
-    fout.close()
-
-    print "filtering PAS database %s" % poly_id
-    print "\tmin_distance = %snt" % min_distance
-    print "\tPAS ranks = %s" % pas_signals
-
-    def write_row(f, row):
-        f.write("\t".join(str(el) for el in row) + "\n")
-
-    f = gzip.open(name_db+"_temp.tab.gz")
-    fout = gzip.open(name_db+"_temp_filtered.tab.gz", "wb")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        chr, pos, cDNA, pas, dist = r[0], int(r[1]), int(r[2]), r[3], r[4]
-        dist = int(dist) if dist!="" else None
-        if dist==None:
-            pool = []
-            write_row(fout, [chr, pos, cDNA, pas])
-        elif dist>min_distance:
-            # write pool?
-            if len(pool)>1:
-                pool = sorted(pool, key = lambda x : (x[0], -x[3])) # sort by pas rank (inc) + cDNA (dec)
-                row = pool[0][1:-1]
-                write_row(fout, row)
-                pool = [(pas_signals.index(pas), chr, pos, cDNA, pas, dist)]
-            elif len(pool)==0:
-                pool = [(pas_signals.index(pas), chr, pos, cDNA, pas, dist)]
-            elif len(pool)==1:
-                row = pool[0][1:-1]
-                write_row(fout, row)
-                pool = [(pas_signals.index(pas), chr, pos, cDNA, pas, dist)]
-        elif dist<min_distance:
-            pool.append((pas_signals.index(pas), chr, pos, cDNA, pas, dist))
-        r = f.readline()
-    # write final record(s) from pool
-    if len(pool)>0:
-        pool.sort()
-        write_row(fout, pool[0][1:-1])
-    f.close()
-    fout.close()
-
-    b = pybio.data.Bedgraph()
-    # add the distances to the new database
-    f = gzip.open(name_db+"_temp_filtered.tab.gz")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        chr, pos, cDNA = r[0], int(r[1]), int(r[2])
-        strand = "+" if cDNA>=0 else "-"
-        b.set_value(chr, strand, pos, cDNA)
-        r = f.readline()
-    f.close()
-    b.save(name_db+".bed.gz")
 
 def read_polydb(poly_id):
     db = {}

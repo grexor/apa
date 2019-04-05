@@ -15,8 +15,7 @@ downstream_defaults = {"pAseq":25, "paseq":25, "aseq":25, "lexrev":5, "lexfwd":2
 # http://www.cgat.org/~andreas/documentation/pysam/api.html
 # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
 
-#PAS_hexamers = ['AATAAA', 'ATTAAA', 'AGTAAA', 'TATAAA', 'CATAAA', 'GATAAA', 'AATATA', 'AATACA', 'AATAGA', 'ACTAAA', 'AAGAAA', 'AATGAA']
-# Gruber
+# Gruber et al.
 PAS_hexamers = ['AATAAA', 'ATTAAA', 'TATAAA', 'AGTAAA', 'AATACA', 'CATAAA', 'AATATA', 'GATAAA', 'AATGAA', 'AAGAAA', 'ACTAAA', 'AATAGA', 'AATAAT', 'AACAAA', 'ATTACA', 'ATTATA', 'AACAAG', 'AATAAG']
 
 """
