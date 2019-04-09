@@ -174,7 +174,7 @@ def annotate(poly_id):
         for i, h in enumerate(PAS_hexamers):
             loci = seq[70:100].find(h)
             if loci!=-1:
-                pas = "PAS%s_PAS%s_PAS%s" % (h, i, loci-100)
+                pas = "%s_%s_%s" % (h, i, loci-100)
                 break
         gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
@@ -258,7 +258,7 @@ def classify_polya(poly_id):
         pas_type, pas_offset, cs_offset = polyar_results[(chr, strand, pos)]
         if pas_type=="":
             pas_type="noclass"
-        r[-4], r[-3], r[-2] = pas_type, pas_offset, cs_offset
+        r[-5], r[-4], r[-3] = pas_type, pas_offset, cs_offset
     	f_tab.write("\t".join([str(e) for e in r])+"\n")
         bed_row = [chr, pos, pos+1, cDNA]
         files[pas_type].write("\t".join(str(e) for e in bed_row) + "\n")
