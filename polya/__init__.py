@@ -174,7 +174,7 @@ def annotate(poly_id):
         for i, h in enumerate(PAS_hexamers):
             loci = seq[70:100].find(h)
             if loci!=-1:
-                pas = "%s_%s_%s" % (h, i, loci-100)
+                pas = "%s_%s_%s" % (h, i, loci-30)
                 break
         gid_up, gid, gid_down, gid_interval, _ = pybio.genomes.annotate(species, chr, strand, pos)
         key = "%s:%s:%s" % (chr, strand, pos)
