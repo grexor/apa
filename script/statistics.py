@@ -24,6 +24,8 @@ for fname in files:
         exp_id = int(data["exp_id"])
         if "method" in data:
             method = data["method"]
+        else:
+            method = "not_speficied"
         try:
             genome = lib.experiments[exp_id]["map_to"]
             genomes.add(genome)
