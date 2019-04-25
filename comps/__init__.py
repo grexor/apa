@@ -393,7 +393,7 @@ def process_comps(comps_id, map_id=1, clean=True):
                     continue
 
                 site_data["cDNA_sum"] = int(cDNA_sum)
-                site_data["site_hex"] = polydb_annotated.get("%s_%s_%s" % (chr, strand, pos), {}).get("PAS_upstreamloc_PASindex", "")
+                site_data["site_hex"] = polydb_annotated.get("%s_%s_%s" % (chr, strand, pos), {}).get("PAShex_PASloci_PASindex", "")
 
                 sites[pos] = site_data
                 gsites[gene_id] = sites
@@ -708,12 +708,12 @@ def pairs_de(comps_id, gsites, replicates, polydb):
 
         row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
         row.append(proximal_pos)
-        proximal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("PAS_upstreamloc_PASindex", "")
+        proximal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("PAShex_PASloci_PASindex", "")
         row.append(proximal_hex)
         row.append(proximal_site["gene_feature"])
         row.append(sum(proximal_test+proximal_control))
         row.append(distal_pos)
-        distal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("PAS_upstreamloc_PASindex", "")
+        distal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("PAShex_PASloci_PASindex", "")
         row.append(distal_hex)
         row.append(distal_site["gene_feature"])
         row.append(sum(distal_test+distal_control))
