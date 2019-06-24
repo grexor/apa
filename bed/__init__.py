@@ -78,6 +78,7 @@ def gene_expression(lib_id, map_id=1):
     script_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.sh" % lib_id)
     table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
     gtf_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome))
+    print os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome)
     gtf_fname = gtf_files[0]
     map_to = set()
     f = open(script_fname, "wt")
