@@ -9,7 +9,6 @@ num_test = as.numeric(args[4]);
 comps_id = args[5];
 
 BPPARAM = MulticoreParam()
-#BPPARAM = SnowParam(workers=3)
 inDir = system.file(input_folder)
 
 countFiles = c()
@@ -41,4 +40,5 @@ dxd = estimateDispersions(dxd, BPPARAM=BPPARAM)
 dxd = testForDEU(dxd, BPPARAM=BPPARAM)
 dxd = estimateExonFoldChanges(dxd, fitExpToVar="condition", BPPARAM=BPPARAM)
 dxr1 = DEXSeqResults(dxd)
+dxr1$genomicData = NULL
 write.table(dxr1, file=output_fname, sep="\t", row.names=FALSE, quote=FALSE)
