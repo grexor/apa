@@ -361,7 +361,6 @@ def process_comps(comps_id, map_id=1, clean=True):
                 num_sites_genes += 1
                 num_genes.add(gene_id)
                 sites = gsites.get(gene_id, {})
-                expression_vector = []
                 site_data = {"chr":chr, "strand":strand, "pos":pos, "gene_interval":list(gene_interval), "gene_feature":gene_feature} # store position and gene_interval (start, stop, exon/intron), clip binding
 
                 # get clip data
@@ -372,9 +371,11 @@ def process_comps(comps_id, map_id=1, clean=True):
                 control_sum = 0
                 test_sum = 0
                 cDNA_sum = 0
+                expression_vector = []
                 for (rshort, _) in replicates:
                     bg = expression[rshort]
                     cDNA = bg.get_value(chr, strand, pos)
+                    assert(cDNA>=0)
                     cDNA_sum += cDNA
                     expression_vector.append(cDNA)
                     if rshort.startswith("c"):

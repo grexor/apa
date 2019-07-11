@@ -39,6 +39,6 @@ dxd = estimateSizeFactors(dxd)
 dxd = estimateDispersions(dxd, BPPARAM=BPPARAM)
 dxd = testForDEU(dxd, BPPARAM=BPPARAM)
 dxd = estimateExonFoldChanges(dxd, fitExpToVar="condition", BPPARAM=BPPARAM)
-dxr1 = DEXSeqResults(dxd)
+dxr1 = DEXSeqResults(dxd, independentFiltering=FALSE)
 dxr1$genomicData = NULL
 write.table(dxr1, file=output_fname, sep="\t", row.names=FALSE, quote=FALSE)
