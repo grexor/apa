@@ -283,10 +283,13 @@ def process_comps(comps_id, map_id=1, clean=True):
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
 
+    rshort_experiments = {}
+
     for (comp_id, experiments, comp_name) in comps.control+comps.test:
         key = "%s:%s" % (comp_id, comp_name)
         expression[comp_id] = pybio.data.Bedgraph()
         replicates.append((comp_id, key)) # (short_name, long_name)
+        rshort_experiments[comp_id] = experiments
         for id in experiments:
             print "%s: +%s" % (comp_id, id)
             lib_id = id[:id.rfind("_")]
@@ -488,6 +491,29 @@ def process_comps(comps_id, map_id=1, clean=True):
     # =======================
 
     # expression gene level
+    # changed to take counts from htcount of library gene_expression file
+    # TODO
+    gene_expression_data = {}
+    temp_genes = set() # get all genes, do not filter for DGE
+    libs = set()
+    for (comp_id, experiments, comp_name) in comps.control+comps.test:
+        for temp in experiments:
+            lib_id = temp[:temp.rfind("_")]
+            exp_id = int(temp.split("_")[-1][1:])
+            libs.add(lib_id)
+    for lib_id in list(libs):
+        table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
+        f = open(table_fname, "rt")
+        header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+        r = f.readline()
+        while r:
+            r = r.replace("\r", "").replace("\n", "").split("\t")
+            temp_genes.add(r[0])
+            for exp_id, exp_value in enumerate(r[2:]):
+                gene_expression_data["%s_%s_%s" % (lib_id, exp_id+1, r[0])] = exp_value
+            r = f.readline()
+        f.close()
+
     fname = apa.path.comps_expression_filename(comps_id)
     f_genes = open(fname, "wt")
     header = ["chr", "strand", "gene_locus", "gene_id", "gene_name", "gene_biotype"]
@@ -495,8 +521,10 @@ def process_comps(comps_id, map_id=1, clean=True):
     for (rshort, rlong) in replicates:
         header.append(rlong)
     f_genes.write("\t".join(header)+"\n")
-    for gene_id, sites in gsites.items():
+    for gene_id in list(temp_genes):
         gene = apa.polya.get_gene(comps.species, gene_id)
+        if gene=={}: # gene not found
+            continue
         chr = gene["gene_chr"]
         strand = gene["gene_strand"]
         gene_start = gene["gene_start"]
@@ -505,15 +533,21 @@ def process_comps(comps_id, map_id=1, clean=True):
         assert(gene_len>0)
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
         row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"]]
+        sites = gsites.get(gene_id, {})
         row.append(sites.keys())
         row.append(len(sites))
         row_comp = []
         cDNA_gtotal = 0
-        for (rshort, _) in replicates:
+        for (rshort, rlong) in replicates:
             cDNA_rtotal = 0
-            for site_pos, es in sites.items():
-                val = es.get(rshort, 0)
-                cDNA_rtotal += val
+            for eid in rshort_experiments[rshort]:
+                lib_id = eid[:eid.rfind("_")]
+                exp_id = int(eid.split("_")[-1][1:])
+                cDNA_rtotal += int(gene_expression_data["%s_%s_%s" % (lib_id, exp_id, gene_id)])
+            #cDNA_rtotal = 0
+            #for site_pos, es in sites.items():
+            #    val = es.get(rshort, 0)
+            #    cDNA_rtotal += val
             cDNA_gtotal += cDNA_rtotal
             row_comp.append(cDNA_rtotal)
         row.append(cDNA_gtotal)
