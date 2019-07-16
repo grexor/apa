@@ -54,6 +54,7 @@ class Comps:
         self.genome = ""
         self.method = ""
         self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
+        self.analysis_type = "apa"
         if comps_id!=None:
             self.read_comps(comps_id)
 
@@ -90,6 +91,10 @@ class Comps:
                 continue
             if r[0].startswith("genome"):
                 self.genome = r[0].split("genome:")[1]
+                r = f.readline()
+                continue
+            if r[0].startswith("analysis_type"):
+                self.analysis_type = r[0].split("analysis_type:")[1]
                 r = f.readline()
                 continue
             if r[0].startswith("method"):
