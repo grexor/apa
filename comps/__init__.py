@@ -55,6 +55,7 @@ class Comps:
         self.method = ""
         self.db_type="cs" # cs = cleavage site, pas = polyadenylation signal, cs = default
         self.analysis_type = "apa"
+        self.status = "complete" # processing, complete, default is complete since we dont have this parameters for all analysis
         if comps_id!=None:
             self.read_comps(comps_id)
 
@@ -101,6 +102,10 @@ class Comps:
                 self.method = r[0].split("method:")[1]
                 r = f.readline()
                 continue
+            if r[0].startswith("status"):
+                self.status = r[0].split("status:")[1]
+                r = f.readline()
+                continue
             if r[0].startswith("cluster_image_w"):
                 self.cluster_image_w = int(r[0].split("cluster_image_w:")[1])
                 r = f.readline()
@@ -126,7 +131,7 @@ class Comps:
                 r = f.readline()
                 continue
             if r[0].startswith("authors:"):
-                self.authors = str(r[0].split("authors:")[1])
+                self.authors = str(r[0].split("authors:")[1]).split(",")
                 r = f.readline()
                 continue
             if r[0].startswith("choose_function:"):
@@ -236,7 +241,7 @@ class Comps:
             exp_id = int(exp.split("_")[-1][1:])
             self.exp_data[exp] = apa.annotation.libs[lib_id].experiments[exp_id]
 
-    def save(self, comps):
+    def save(self):
         config_file = apa.path.comps_config_filename(self.comps_id)
         f = open(config_file, "wt")
         f.write("\t".join(["id", "experiments", "name"]) + "\n")
@@ -244,8 +249,26 @@ class Comps:
             f.write("\t".join(str(x) for x in [id, ",".join(exp_list), name]) + "\n")
         for (id, exp_list, name) in self.test:
             f.write("\t".join(str(x) for x in [id, ",".join(exp_list), name]) + "\n")
+        f.write("\n")
         if len(self.CLIP)>0:
             f.write("CLIP:%s" % str(self.CLIP))
+        f.write("control_name:%s\n" % self.control_name)
+        f.write("test_name:%s\n" % self.test_name)
+        f.write("site_selection:%s\n" % self.site_selection)
+        f.write("polya_db:%s\n" % self.polya_db)
+        f.write("poly_type:%s\n" % json.dumps(self.poly_type))
+        f.write("presence_thr:%s\n" % self.presence_thr)
+        f.write("cDNA_thr:%s\n" % self.cDNA_thr)
+        f.write("\n")
+        f.write("authors:%s\n" % ",".join(self.authors))
+        f.write("access:%s\n" % ",".join(self.access))
+        f.write("name:%s\n" % self.name)
+        f.write("\n")
+        f.write("analysis_type:%s\n" % self.analysis_type)
+        f.write("method:%s\n" % self.method)
+        f.write("genome:%s\n" % self.genome)
+        f.write("\n")
+        f.write("status:%s\n" % self.status)
         f.close()
         return True
 
@@ -289,19 +312,18 @@ def process_comps(comps_id, map_id=1, clean=True):
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files
 
     rshort_experiments = {}
-
     for (comp_id, experiments, comp_name) in comps.control+comps.test:
         key = "%s:%s" % (comp_id, comp_name)
         expression[comp_id] = pybio.data.Bedgraph()
         replicates.append((comp_id, key)) # (short_name, long_name)
         rshort_experiments[comp_id] = experiments
-        for id in experiments:
-            print "%s: +%s" % (comp_id, id)
-            lib_id = id[:id.rfind("_")]
-            exp_id = int(id.split("_")[-1][1:])
-            e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
-            expression[comp_id].load(e_filename)
-        print
+        if comps.analysis_type=="apa":
+            for id in experiments:
+                print "%s: +%s" % (comp_id, id)
+                lib_id = id[:id.rfind("_")]
+                exp_id = int(id.split("_")[-1][1:])
+                e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
+                expression[comp_id].load(e_filename)
 
     replicates = sorted(replicates, key=lambda item: (item[0][0], int(item[0][1:])))
     print "replicates = ", replicates
@@ -313,187 +335,192 @@ def process_comps(comps_id, map_id=1, clean=True):
     dex_folder = os.path.join(apa.path.comps_folder, comps_id, "dex")
     if not os.path.exists(dex_folder):
         os.makedirs(dex_folder)
-    for (rshort, rlong) in replicates:
-        fname = os.path.join(beds_folder, "%s.%s.bed" % (comps_id, rshort))
-        expression[rshort].save(fname, track_id="%s.%s" % (comps_id, rshort), genome=comps.species)
+    if comps.analysis_type=="apa":
+        for (rshort, rlong) in replicates:
+            fname = os.path.join(beds_folder, "%s.%s.bed" % (comps_id, rshort))
+            expression[rshort].save(fname, track_id="%s.%s" % (comps_id, rshort), genome=comps.species)
 
     # combine all into single file
     # os.system("cat %s/*.bed > %s" % (beds_folder, os.path.join(beds_folder, "%s_all.bed" % comps_id)))
 
-    # finally, save two groups of summed up experimental groups: control (1) and test (2)
-    for (sample_name, sample_data) in [("control", comps.control), ("test", comps.test)]:
-        b = pybio.data.Bedgraph()
-        for (comp_id, experiments, comp_name) in sample_data:
-            for id in experiments:
-                lib_id = id[:id.rfind("_")]
-                exp_id = int(id.split("_")[-1][1:])
-                if comps.db_type=="cs":
-                    e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
-                elif comps.db_type=="pas":
-                    e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=comps.polya_db)
-                b.load(e_filename)
-        bed_filename = os.path.join(beds_folder, "%s.%s_all.bed.gz" % (comps_id, sample_name))
-        b.save(bed_filename, track_id="%s.%s_all" % (comps_id, sample_name), genome=comps.species)
-
-    # find common list of positions
-    # filter positions
-    positions = {}
-    for id, bg in expression.items():
-        for chr, strand_data in bg.raw.items():
-            positions.setdefault(chr, {})
-            for strand, pos_set in strand_data.items():
-                positions.setdefault(chr, {}).setdefault(strand, set())
-                valid_positions = set()
-                for pos in pos_set:
-                    # filter poly-A positions by type (strong, weak, etc)
-                    if polydb.get_value(chr, strand, pos)!=0:
-                        valid_positions.add(pos)
-                positions[chr][strand] = positions[chr][strand].union(valid_positions)
-
-    # organize polya sites / pas signals inside genes
+    # global variables
     gsites = {}
-    num_sites = 0
-    num_sites_genes = 0
-    num_genes = set()
-    num_sites_genes_expressed = 0
-    num_sites_genes_expressed_final = 0
 
-    for chr, strand_data in positions.items():
-        for strand, pos_set in strand_data.items():
-            pos_set = list(pos_set)
-            for pos in pos_set:
-                num_sites += 1
-                (gene_up, gene_id, gene_down, gene_interval, gene_feature) = pybio.genomes.annotate(comps.species, chr, strand, pos)
-                if gene_id==None: # only consider polya sites inside genes
-                    continue
-                num_sites_genes += 1
-                num_genes.add(gene_id)
-                sites = gsites.get(gene_id, {})
-                site_data = {"chr":chr, "strand":strand, "pos":pos, "gene_interval":list(gene_interval), "gene_feature":gene_feature} # store position and gene_interval (start, stop, exon/intron), clip binding
+    if comps.analysis_type=="apa":
 
-                # get clip data
-                for clip_name in comps.CLIP:
-                    # Bedgraph2
-                    site_data[clip_name] = clip[clip_name].get_vector("chr"+chr, strand, pos, start=comps.clip_interval[0], stop=comps.clip_interval[1])
+        # finally, save two groups of summed up experimental groups: control (1) and test (2)
+        for (sample_name, sample_data) in [("control", comps.control), ("test", comps.test)]:
+            b = pybio.data.Bedgraph()
+            for (comp_id, experiments, comp_name) in sample_data:
+                for id in experiments:
+                    lib_id = id[:id.rfind("_")]
+                    exp_id = int(id.split("_")[-1][1:])
+                    if comps.db_type=="cs":
+                        e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
+                    elif comps.db_type=="pas":
+                        e_filename = apa.path.e_filename(lib_id, exp_id, filetype="pas", map_id=map_id, poly_id=comps.polya_db)
+                    b.load(e_filename)
+            bed_filename = os.path.join(beds_folder, "%s.%s_all.bed.gz" % (comps_id, sample_name))
+            b.save(bed_filename, track_id="%s.%s_all" % (comps_id, sample_name), genome=comps.species)
 
-                control_sum = 0
-                test_sum = 0
-                cDNA_sum = 0
-                expression_vector = []
-                for (rshort, _) in replicates:
-                    bg = expression[rshort]
-                    cDNA = bg.get_value(chr, strand, pos)
-                    assert(cDNA>=0)
-                    cDNA_sum += cDNA
-                    expression_vector.append(cDNA)
-                    if rshort.startswith("c"):
-                        control_sum += cDNA
-                    if rshort.startswith("t"):
-                        test_sum += cDNA
-                    site_data[rshort] = cDNA
+        # find common list of positions
+        # filter positions
+        positions = {}
+        for id, bg in expression.items():
+            for chr, strand_data in bg.raw.items():
+                positions.setdefault(chr, {})
+                for strand, pos_set in strand_data.items():
+                    positions.setdefault(chr, {}).setdefault(strand, set())
+                    valid_positions = set()
+                    for pos in pos_set:
+                        # filter poly-A positions by type (strong, weak, etc)
+                        if polydb.get_value(chr, strand, pos)!=0:
+                            valid_positions.add(pos)
+                    positions[chr][strand] = positions[chr][strand].union(valid_positions)
 
-                # re-added 20170612, not included in the paper version of analysis
-                expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
-                if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
-                    continue
+        # organize polya sites / pas signals inside genes
+        num_sites = 0
+        num_sites_genes = 0
+        num_genes = set()
+        num_sites_genes_expressed = 0
+        num_sites_genes_expressed_final = 0
 
-                # filter lowly expressed sites, paper version
-                if (control_sum<10) and (test_sum<10):
-                    continue
+        for chr, strand_data in positions.items():
+            for strand, pos_set in strand_data.items():
+                pos_set = list(pos_set)
+                for pos in pos_set:
+                    num_sites += 1
+                    (gene_up, gene_id, gene_down, gene_interval, gene_feature) = pybio.genomes.annotate(comps.species, chr, strand, pos)
+                    if gene_id==None: # only consider polya sites inside genes
+                        continue
+                    num_sites_genes += 1
+                    num_genes.add(gene_id)
+                    sites = gsites.get(gene_id, {})
+                    site_data = {"chr":chr, "strand":strand, "pos":pos, "gene_interval":list(gene_interval), "gene_feature":gene_feature} # store position and gene_interval (start, stop, exon/intron), clip binding
 
-                site_data["cDNA_sum"] = int(cDNA_sum)
-                site_data["site_hex"] = polydb_annotated.get("%s_%s_%s" % (chr, strand, pos), {}).get("PAShex_PASloci_PASindex", "")
+                    # get clip data
+                    for clip_name in comps.CLIP:
+                        # Bedgraph2
+                        site_data[clip_name] = clip[clip_name].get_vector("chr"+chr, strand, pos, start=comps.clip_interval[0], stop=comps.clip_interval[1])
 
-                sites[pos] = site_data
-                gsites[gene_id] = sites
-                num_sites_genes_expressed += 1
+                    control_sum = 0
+                    test_sum = 0
+                    cDNA_sum = 0
+                    expression_vector = []
+                    for (rshort, _) in replicates:
+                        bg = expression[rshort]
+                        cDNA = bg.get_value(chr, strand, pos)
+                        assert(cDNA>=0)
+                        cDNA_sum += cDNA
+                        expression_vector.append(cDNA)
+                        if rshort.startswith("c"):
+                            control_sum += cDNA
+                        if rshort.startswith("t"):
+                            test_sum += cDNA
+                        site_data[rshort] = cDNA
 
-    # filter out sites that have expression < minor_major_thr of maximally expressed site
-    for gene_id, sites in gsites.items():
-        max_exp = 0
-        for pos, site_data in sites.items():
-            max_exp = max(max_exp, site_data["cDNA_sum"])
-        for pos, site_data in list(sites.items()): # python3 safe
-            if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
-                del sites[pos]
+                    # re-added 20170612, not included in the paper version of analysis
+                    expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
+                    if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
+                        continue
 
-    num_sites_per_gene = {}
-    for gene_id, sites in gsites.items():
-        num_sites_per_gene[len(sites.keys())] = num_sites_per_gene.get(len(sites.keys()), 0) + 1
-        num_sites_genes_expressed_final += len(sites.keys())
+                    # filter lowly expressed sites, paper version
+                    if (control_sum<10) and (test_sum<10):
+                        continue
 
-    f_stats = open(os.path.join(apa.path.comps_folder, comps_id, "%s_annotation_stats.txt" % comps_id), "wt")
-    f_stats.write("-----------site stats---------------\n")
-    f_stats.write("%s polyA sites\n" % num_sites)
-    f_stats.write("    %s polyA sites assigned to %s genes\n" % (num_sites_genes, len(num_genes)))
-    f_stats.write("        %s polyA sites expressed enough across experiments\n" % num_sites_genes_expressed)
-    f_stats.write("            %s final polyA sites kept that had >5%% expression on gene level\n" % num_sites_genes_expressed_final)
-    f_stats.write("-----------site stats (end)---------\n")
-    f_stats.write("\n")
-    f_stats.write("-----------site per gene -----------\n")
-    sum_temp_sites = 0
-    sum_temp_genes = 0
-    for s_gene, v in num_sites_per_gene.items():
-        f_stats.write("%s genes with %s site(s)\n" % (v, s_gene))
-        sum_temp_sites += s_gene*v
-        sum_temp_genes += v
-    f_stats.write("total of %s polyA sites assigned to %s genes\n" % (sum_temp_sites, sum_temp_genes))
-    f_stats.write("-----------site per gene (end)------\n")
-    f_stats.close()
+                    site_data["cDNA_sum"] = int(cDNA_sum)
+                    site_data["site_hex"] = polydb_annotated.get("%s_%s_%s" % (chr, strand, pos), {}).get("PAShex_PASloci_PASindex", "")
 
-    # draw num sites per gene
-    # =======================
-    import matplotlib
-    matplotlib.use("Agg", warn=False)
-    import matplotlib.pyplot as plt
-    import math
-    import gzip
-    from matplotlib import cm as CM
-    import matplotlib.patches as mpatches
-    import matplotlib.ticker as mticker
-    from matplotlib.colors import LinearSegmentedColormap
-    import matplotlib.colors as mcolors
-    matplotlib.rcParams['axes.labelsize'] = 14
-    matplotlib.rcParams['axes.titlesize'] = 14
-    matplotlib.rcParams['xtick.labelsize'] = 14
-    matplotlib.rcParams['ytick.labelsize'] = 14
-    matplotlib.rcParams['legend.fontsize'] = 14
-    matplotlib.rc('axes',edgecolor='gray')
-    matplotlib.rcParams['axes.linewidth'] = 0.4
-    matplotlib.rcParams['legend.frameon'] = 'False'
-    def autolabel(rects):
-        for rect in rects:
-            height = rect.get_height()
-            ax.text(rect.get_x() + rect.get_width()/2., height+100, format(int(height), ','), ha='center', va='bottom', fontdict={"size":14})
-    fig, ax = plt.subplots(1, 1, figsize=(12, 3))
-    total_sites, total_genes = 0, 0
-    x = [1,2,3,4,5,6,7,8,9,10]
-    y = {}
-    number_moresites = 0
-    for e in x:
-        y[e] = 0
-    for x1 in sorted(num_sites_per_gene.keys()):
-        if x1>1:
-            number_moresites += num_sites_per_gene[x1]
-        if x1<10 and x1!=0:
-            y[x1] += num_sites_per_gene[x1]
-        if x1>=10:
-            y[10] += num_sites_per_gene[x1]
-        total_sites += num_sites_per_gene[x1] * x1
-        total_genes += num_sites_per_gene[x1]
-    y = [y[e] for e in x]
-    bar1 = ax.bar(x, y, 0.3, align='center', label='number of polyA sites', color='lightgray')
-    ax.get_yaxis().set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
-    plt.xlim(1-0.25, 10+0.5)
-    plt.xlabel('number of polyA sites'); plt.ylabel('number of genes')
-    plt.xticks([e for e in x], [1,2,3,4,5,6,7,8,9,">=10"])
-    autolabel(bar1)
-    plt.title("%s polyA sites annotated to %s genes (%.0f%% genes with APA)" % (format(int(total_sites), ','), format(int(total_genes), ','), number_moresites/float(max(1, total_genes))*100.0))
-    plt.tight_layout()
-    plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.pdf" % comps_id))
-    plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.png" % comps_id), transparent=True)
-    plt.close()
-    # =======================
+                    sites[pos] = site_data
+                    gsites[gene_id] = sites
+                    num_sites_genes_expressed += 1
+
+        # filter out sites that have expression < minor_major_thr of maximally expressed site
+        for gene_id, sites in gsites.items():
+            max_exp = 0
+            for pos, site_data in sites.items():
+                max_exp = max(max_exp, site_data["cDNA_sum"])
+            for pos, site_data in list(sites.items()): # python3 safe
+                if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
+                    del sites[pos]
+
+        num_sites_per_gene = {}
+        for gene_id, sites in gsites.items():
+            num_sites_per_gene[len(sites.keys())] = num_sites_per_gene.get(len(sites.keys()), 0) + 1
+            num_sites_genes_expressed_final += len(sites.keys())
+
+        f_stats = open(os.path.join(apa.path.comps_folder, comps_id, "%s_annotation_stats.txt" % comps_id), "wt")
+        f_stats.write("-----------site stats---------------\n")
+        f_stats.write("%s polyA sites\n" % num_sites)
+        f_stats.write("    %s polyA sites assigned to %s genes\n" % (num_sites_genes, len(num_genes)))
+        f_stats.write("        %s polyA sites expressed enough across experiments\n" % num_sites_genes_expressed)
+        f_stats.write("            %s final polyA sites kept that had >5%% expression on gene level\n" % num_sites_genes_expressed_final)
+        f_stats.write("-----------site stats (end)---------\n")
+        f_stats.write("\n")
+        f_stats.write("-----------site per gene -----------\n")
+        sum_temp_sites = 0
+        sum_temp_genes = 0
+        for s_gene, v in num_sites_per_gene.items():
+            f_stats.write("%s genes with %s site(s)\n" % (v, s_gene))
+            sum_temp_sites += s_gene*v
+            sum_temp_genes += v
+        f_stats.write("total of %s polyA sites assigned to %s genes\n" % (sum_temp_sites, sum_temp_genes))
+        f_stats.write("-----------site per gene (end)------\n")
+        f_stats.close()
+
+        # draw num sites per gene
+        # =======================
+        import matplotlib
+        matplotlib.use("Agg", warn=False)
+        import matplotlib.pyplot as plt
+        import math
+        import gzip
+        from matplotlib import cm as CM
+        import matplotlib.patches as mpatches
+        import matplotlib.ticker as mticker
+        from matplotlib.colors import LinearSegmentedColormap
+        import matplotlib.colors as mcolors
+        matplotlib.rcParams['axes.labelsize'] = 14
+        matplotlib.rcParams['axes.titlesize'] = 14
+        matplotlib.rcParams['xtick.labelsize'] = 14
+        matplotlib.rcParams['ytick.labelsize'] = 14
+        matplotlib.rcParams['legend.fontsize'] = 14
+        matplotlib.rc('axes',edgecolor='gray')
+        matplotlib.rcParams['axes.linewidth'] = 0.4
+        matplotlib.rcParams['legend.frameon'] = 'False'
+        def autolabel(rects):
+            for rect in rects:
+                height = rect.get_height()
+                ax.text(rect.get_x() + rect.get_width()/2., height+100, format(int(height), ','), ha='center', va='bottom', fontdict={"size":14})
+        fig, ax = plt.subplots(1, 1, figsize=(12, 3))
+        total_sites, total_genes = 0, 0
+        x = [1,2,3,4,5,6,7,8,9,10]
+        y = {}
+        number_moresites = 0
+        for e in x:
+            y[e] = 0
+        for x1 in sorted(num_sites_per_gene.keys()):
+            if x1>1:
+                number_moresites += num_sites_per_gene[x1]
+            if x1<10 and x1!=0:
+                y[x1] += num_sites_per_gene[x1]
+            if x1>=10:
+                y[10] += num_sites_per_gene[x1]
+            total_sites += num_sites_per_gene[x1] * x1
+            total_genes += num_sites_per_gene[x1]
+        y = [y[e] for e in x]
+        bar1 = ax.bar(x, y, 0.3, align='center', label='number of polyA sites', color='lightgray')
+        ax.get_yaxis().set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+        plt.xlim(1-0.25, 10+0.5)
+        plt.xlabel('number of polyA sites'); plt.ylabel('number of genes')
+        plt.xticks([e for e in x], [1,2,3,4,5,6,7,8,9,">=10"])
+        autolabel(bar1)
+        plt.title("%s polyA sites annotated to %s genes (%.0f%% genes with APA)" % (format(int(total_sites), ','), format(int(total_genes), ','), number_moresites/float(max(1, total_genes))*100.0))
+        plt.tight_layout()
+        plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.pdf" % comps_id))
+        plt.savefig(os.path.join(apa.path.comps_folder, comps_id, "%s_sites_per_gene.png" % comps_id), transparent=True)
+        plt.close()
+        # =======================
 
     # expression gene level
     # changed to take counts from htcount of library gene_expression file
@@ -612,25 +639,6 @@ def process_comps(comps_id, map_id=1, clean=True):
         flog.write(command+"\n")
         flog.flush()
 
-        # replicates cluster analysis
-        R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
-        input_fname = apa.path.comps_expression_filename(comps_id)
-        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
-        command = "R --vanilla --args %s %s %s %s %s %s 'analysis: %s, gene expression cluster' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps.cluster_image_w, comps.cluster_image_h, comps_id, R_file)
-        print command
-        pybio.utils.Cmd(command).run()
-        flog.write(command+"\n")
-        flog.flush()
-
-        # dexseq analysis
-        R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
-        output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
-        command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
-        print command
-        pybio.utils.Cmd(command).run()
-        flog.write(command+"\n")
-        flog.flush()
-
         # edgeR normalize gene expression file
         R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
         input_fname = apa.path.comps_expression_filename(comps_id, filetype="genes")
@@ -641,30 +649,51 @@ def process_comps(comps_id, map_id=1, clean=True):
         flog.write(command+"\n")
         flog.flush()
 
-        # edgeR normalize site expression file
-        R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
-        input_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
-        output_fname = apa.path.comps_expression_filename(comps_id, filetype="sites_norm")
-        command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
-        print command
-        pybio.utils.Cmd(command).run()
-        flog.write(command+"\n")
+        if comps.analysis_type=="apa":
+            # replicates cluster analysis
+            R_file = os.path.join(apa.path.root_folder, "comps", "comps_cluster.R")
+            input_fname = apa.path.comps_expression_filename(comps_id)
+            output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
+            command = "R --vanilla --args %s %s %s %s %s %s 'analysis: %s, gene expression cluster' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps.cluster_image_w, comps.cluster_image_h, comps_id, R_file)
+            print command
+            pybio.utils.Cmd(command).run()
+            flog.write(command+"\n")
+            flog.flush()
 
-        # write the pairs_de file
-        pairs_de(comps_id, gsites, replicates, polydb)
+            # dexseq analysis
+            R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
+            output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
+            command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
+            print command
+            pybio.utils.Cmd(command).run()
+            flog.write(command+"\n")
+            flog.flush()
 
-        # heatmap from pairs_de
-        prepare_heatmap_data(comps_id)
-        R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_pairsde.R")
-        input_fname = apa.path.comps_expression_filename(comps_id)
-        command = "R --vanilla --args %s %s %s < %s" % (comps_id, len(comps.control), len(comps.test), R_file)
-        print command
-        pybio.utils.Cmd(command).run()
-        flog.write(command+"\n")
-        flog.flush()
+            # edgeR normalize site expression file
+            R_file = os.path.join(apa.path.root_folder, "comps", "edgeR_normalize.R")
+            input_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
+            output_fname = apa.path.comps_expression_filename(comps_id, filetype="sites_norm")
+            command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
+            print command
+            pybio.utils.Cmd(command).run()
+            flog.write(command+"\n")
+
+            # write the pairs_de file
+            pairs_de(comps_id, gsites, replicates, polydb)
+
+            # heatmap from pairs_de
+            prepare_heatmap_data(comps_id)
+            R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_pairsde.R")
+            input_fname = apa.path.comps_expression_filename(comps_id)
+            command = "R --vanilla --args %s %s %s < %s" % (comps_id, len(comps.control), len(comps.test), R_file)
+            print command
+            pybio.utils.Cmd(command).run()
+            flog.write(command+"\n")
+            flog.flush()
 
         flog.close()
-
+        comps.status = "complete"
+        comps.save()
 
 def pairs_de(comps_id, gsites, replicates, polydb):
     comps = Comps(comps_id) # study data
