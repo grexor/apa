@@ -13,8 +13,15 @@ parser.add_argument('-cpu', action="store", dest="cpu", default=2)
 parser.add_argument('-minlen', action="store", dest="minlen", default=0.66, type=float)
 args = parser.parse_args()
 
-lib = apa.annotation.libs[args.lib_id]
+lib = apa.annotation.Library(args.lib_id)
+lib.add_status(args.exp_id)
+lib.save()
+
 if lib.method=="nano":
     args.mapper = "nano"
 
 apa.map.map_experiment(args.lib_id, args.exp_id, force=args.force, map_id=args.map_id, mapper=args.mapper, cpu=args.cpu, minlen=args.minlen)
+
+lib = apa.annotation.Library(args.lib_id)
+lib.remove_status(args.exp_id)
+lib.save()

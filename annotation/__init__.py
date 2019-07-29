@@ -3,6 +3,7 @@ import os
 import pybio
 import glob
 import struct
+import fcntl
 
 def init():
     apa.annotation.libs = {}
@@ -13,7 +14,7 @@ def init():
         lib_id = filename.split("/")[-1]
         annotation_tab = os.path.join(apa.path.data_folder, lib_id, "annotation.tab")
         if os.path.exists(annotation_tab):
-            apa.annotation.libs[lib_id] = apa.annotation.read(lib_id)
+            apa.annotation.libs[lib_id] = apa.annotation.Library(lib_id)
 
 def aremoved(lib_id, read_id):
     filename = os.path.join(apa.path.data_folder, lib_id, "%s.aremoved.bin" % (lib_if))
@@ -35,6 +36,7 @@ def rndcode(lib_id, read_id):
     return struct.unpack("I", data)[0]
 
 class Library:
+
     def __init__(self, lib_id):
         self.lib_id = lib_id
         self.experiments = {}
@@ -50,10 +52,140 @@ class Library:
         self.columns = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_r1"), ("Upload Filename_R2", "upload_filename_r2")]
         self.columns_display = [("Tissue", "tissue"), ("Condition", "condition"), ("Replicate", "replicate"), ("Upload Filename_R1", "upload_filename_r1"), ("Upload Filename_R2", "upload_filename_r2")]
         self.authors = []
+        self.status = ""
+        if lib_id!=None:
+            self.read_lib(lib_id)
+
+    def read_lib(self, lib_id):
+        data = {}
+        filename = os.path.join(apa.path.data_folder, lib_id, "annotation.tab")
+        if not os.path.exists(filename):
+            return
+        while True:
+            f = open(filename, "rt")
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except IOError as e:
+                # raise on unrelated IOErrors
+                if e.errno != errno.EAGAIN:
+                    raise
+                else:
+                    time.sleep(0.1)
+        self.fastq_files = f.readline().replace("\r", "").replace("\n", "").replace("\t", "").split("&")
+        header = f.readline().replace("\r", "").replace("\n", "").split("\t")
+        r = f.readline()
+        while r:
+            r = r.replace("\r", "").replace("\n", "").split("\t")
+            data = dict(zip(header, r))
+            self.experiments[int(data["exp_id"])] = data
+            r = f.readline()
+        fcntl.flock(f, fcntl.LOCK_UN)
+        f.close()
+
+        filename = os.path.join(apa.path.data_folder, lib_id, "%s.config" % lib_id)
+        if os.path.exists(filename):
+            while True:
+                f = open(filename, "rt")
+                try:
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except IOError as e:
+                    # raise on unrelated IOErrors
+                    if e.errno != errno.EAGAIN:
+                        raise
+                    else:
+                        time.sleep(0.1)
+            r = f.readline()
+            while r:
+                r = r.replace("\r", "").replace("\n", "")
+                r = r.split(" #")[0] # remove comments
+                r = r.rstrip() # remove whitespace characters from end of string
+                r = r.split("\t")
+                if r==[""]:
+                    r = f.readline()
+                    continue
+                if r[0].startswith("#"):
+                    r = f.readline()
+                    continue
+                if r[0].startswith("status:"):
+                    self.status = str(r[0].split("status:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("access:"):
+                    self.access = str(r[0].split("access:")[1]).split(",")
+                    r = f.readline()
+                    continue
+                if r[0].startswith("genome:"):
+                    self.genome = str(r[0].split("genome:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("method:"):
+                    self.method = str(r[0].split("method:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("seq_type:"):
+                    self.seq_type = str(r[0].split("seq_type:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("authors:"):
+                    self.authors = str(r[0].split("authors:")[1]).split(",")
+                    r = f.readline()
+                    continue
+                if r[0].startswith("public_only:"):
+                    self.public_only = str(r[0].split("public_only:")[1]).split(",")
+                    r = f.readline()
+                    continue
+                if r[0].startswith("owner:"):
+                    self.owner = str(r[0].split("owner:")[1]).split(",")
+                    r = f.readline()
+                    continue
+                if r[0].startswith("name:"):
+                    self.name = str(r[0].split("name:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("notes:"):
+                    self.notes = str(r[0].split("notes:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("columns:"):
+                    self.columns = eval(r[0].split("columns:")[1])
+                    r = f.readline()
+                    continue
+                if r[0].startswith("columns_display:"):
+                    self.columns_display = eval(r[0].split("columns_display:")[1])
+                    r = f.readline()
+                    continue
+                r = f.readline()
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+
+    def add_status(self, status_name):
+        if self.status!="":
+            status = set(self.status.split(","))
+        else:
+            status = set()
+        status.add(status_name)
+        self.status = ",".join(list(status))
+
+    def remove_status(self, status_name):
+        status = self.status.split(",")
+        status = filter(lambda el: el != status_name, status)
+        self.status = ",".join(status)
 
     def save(self):
         filename = os.path.join(apa.path.data_folder, self.lib_id, "%s.config" % self.lib_id)
-        f = open(filename, "wt")
+        while True:
+            f = open(filename, "wt")
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except IOError as e:
+                # raise on unrelated IOErrors
+                if e.errno != errno.EAGAIN:
+                    raise
+                else:
+                    time.sleep(0.1)
         f.write("access:" + ",".join(self.access) + "\n")
         f.write("name:%s" % (self.name) + "\n")
         f.write("notes:%s" % (self.notes) + "\n")
@@ -62,6 +194,7 @@ class Library:
         f.write("method:" + self.method + "\n")
         f.write("genome:" + self.genome + "\n")
         f.write("seq_type:" + self.seq_type + "\n")
+        f.write("status:" + self.status + "\n")
         columns = []
         for c in self.columns:
             if self.seq_type=="single" and c[1]=="upload_filename_r2":
@@ -74,8 +207,21 @@ class Library:
             columns_display.append(c)
         f.write("columns:%s" % (str(columns)) + "\n")
         f.write("columns_display:%s" % (str(columns_display)) + "\n")
+        fcntl.flock(f, fcntl.LOCK_UN)
+        f.close()
+
         filename = os.path.join(apa.path.data_folder, self.lib_id, "annotation.tab")
-        f = open(filename, "wt")
+        while True:
+            f = open(filename, "wt")
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except IOError as e:
+                # raise on unrelated IOErrors
+                if e.errno != errno.EAGAIN:
+                    raise
+                else:
+                    time.sleep(0.1)
         f.write("%s\n" % self.lib_id)
         columns = ["exp_id", "species", "map_to", "method"]
         for (cname, cid) in self.columns:
@@ -91,6 +237,7 @@ class Library:
                 except:
                     row.append("")
             f.write("%s\n" % ("\t".join([str(el) for el in row])))
+        fcntl.flock(f, fcntl.LOCK_UN)
         f.close()
         return True
 
@@ -120,80 +267,3 @@ def count_ownership(email):
             num_libs += 1
             num_experiments += len(data.experiments)
     return num_libs, num_experiments
-
-def read(lib_id):
-    lib = Library(lib_id)
-    data = {}
-    filename = os.path.join(apa.path.data_folder, lib_id, "annotation.tab")
-    f = open(filename, "rt")
-    lib.fastq_files = f.readline().replace("\r", "").replace("\n", "").replace("\t", "").split("&")
-    header = f.readline().replace("\r", "").replace("\n", "").split("\t")
-    r = f.readline()
-    while r:
-        r = r.replace("\r", "").replace("\n", "").split("\t")
-        data = dict(zip(header, r))
-        lib.experiments[int(data["exp_id"])] = data
-        r = f.readline()
-
-    filename = os.path.join(apa.path.data_folder, lib_id, "%s.config" % lib_id)
-    if os.path.exists(filename):
-        f = open(filename, "rt")
-        r = f.readline()
-        while r:
-            r = r.replace("\r", "").replace("\n", "")
-            r = r.split(" #")[0] # remove comments
-            r = r.rstrip() # remove whitespace characters from end of string
-            r = r.split("\t")
-            if r==[""]:
-                r = f.readline()
-                continue
-            if r[0].startswith("#"):
-                r = f.readline()
-                continue
-            if r[0].startswith("access:"):
-                lib.access = str(r[0].split("access:")[1]).split(",")
-                r = f.readline()
-                continue
-            if r[0].startswith("genome:"):
-                lib.genome = str(r[0].split("genome:")[1])
-                r = f.readline()
-                continue
-            if r[0].startswith("method:"):
-                lib.method = str(r[0].split("method:")[1])
-                r = f.readline()
-                continue
-            if r[0].startswith("seq_type:"):
-                lib.seq_type = str(r[0].split("seq_type:")[1])
-                r = f.readline()
-                continue
-            if r[0].startswith("authors:"):
-                lib.authors = str(r[0].split("authors:")[1]).split(",")
-                r = f.readline()
-                continue
-            if r[0].startswith("public_only:"):
-                lib.public_only = str(r[0].split("public_only:")[1]).split(",")
-                r = f.readline()
-                continue
-            if r[0].startswith("owner:"):
-                lib.owner = str(r[0].split("owner:")[1]).split(",")
-                r = f.readline()
-                continue
-            if r[0].startswith("name:"):
-                lib.name = str(r[0].split("name:")[1])
-                r = f.readline()
-                continue
-            if r[0].startswith("notes:"):
-                lib.notes = str(r[0].split("notes:")[1])
-                r = f.readline()
-                continue
-            if r[0].startswith("columns:"):
-                lib.columns = eval(r[0].split("columns:")[1])
-                r = f.readline()
-                continue
-            if r[0].startswith("columns_display:"):
-                lib.columns_display = eval(r[0].split("columns_display:")[1])
-                r = f.readline()
-                continue
-            r = f.readline()
-        f.close()
-    return lib

@@ -10,4 +10,12 @@ if args.lib_id==None:
     print "specify library to process (-lib_id)"
     sys.exit(1)
 
+lib = apa.annotation.Library(args.lib_id)
+lib.add_status("gene_expression")
+lib.save()
+
 apa.bed.gene_expression(args.lib_id)
+
+lib = apa.annotation.Library(args.lib_id)
+lib.remove_status("gene_expression")
+lib.save()

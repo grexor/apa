@@ -34,7 +34,7 @@ class Comps:
         self.notes = ""
         self.access = ""
         self.authors = ""
-        self.owner = ""
+        self.owner = []
         self.cDNA_thr = 5 # at least cDNA
         self.presence_thr = 2.0 # for at least half of experiments
         self.significance_thr = 0.05
@@ -262,7 +262,9 @@ class Comps:
         f.write("\n")
         f.write("authors:%s\n" % ",".join(self.authors))
         f.write("access:%s\n" % ",".join(self.access))
+        f.write("owner:%s\n" % ",".join(self.owner))
         f.write("name:%s\n" % self.name)
+        f.write("notes:%s\n" % self.notes)
         f.write("\n")
         f.write("analysis_type:%s\n" % self.analysis_type)
         f.write("method:%s\n" % self.method)
@@ -300,13 +302,14 @@ def process_comps(comps_id, map_id=1, clean=True):
     for clip_name in comps.CLIP:
         clip[clip_name] = pybio.data.Bedgraph2(os.path.join(apa.path.iCLIP_folder, clip_name))
 
-    # if there is a polya-db specified in the comparison, load the positions into the filter
-    # (strong, weak, less)
-    poly_filter = {}
-    polydb = pybio.data.Bedgraph()
-    for poly_type in comps.poly_type:
-        polydb.load(apa.path.polyadb_filename(comps.polya_db, poly_type=poly_type, filetype="bed"), meta=poly_type)
-    polydb_annotated = apa.polya.read_polydb(comps.polya_db)
+    if comps.analysis_type=="apa":
+        # if there is a polya-db specified in the comparison, load the positions into the filter
+        # (strong, weak, less)
+        poly_filter = {}
+        polydb = pybio.data.Bedgraph()
+        for poly_type in comps.poly_type:
+            polydb.load(apa.path.polyadb_filename(comps.polya_db, poly_type=poly_type, filetype="bed"), meta=poly_type)
+        polydb_annotated = apa.polya.read_polydb(comps.polya_db)
 
     replicates = []
     expression = {} # keys = c1, c2, c3, t1, t2, t3...items = bedgraph files

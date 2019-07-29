@@ -8,7 +8,15 @@ parser.add_argument('-lib_id', action="store", dest="lib_id")
 parser.add_argument('-exp_id', action="store", dest="exp_id", default=None)
 args = parser.parse_args()
 
+lib = apa.annotation.Library(args.lib_id)
+lib.add_status("map_stats")
+lib.save()
+
 if (args.exp_id==None):
     apa.map.stats(args.lib_id)
 else:
     apa.map.stats_experiment(args.lib_id, args.exp_id)
+
+lib = apa.annotation.Library(args.lib_id)
+lib.remove_status("map_stats")
+lib.save()

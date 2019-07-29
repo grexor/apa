@@ -12,4 +12,12 @@ if args.lib_id==None:
     print "specify library to process (-lib_id)"
     sys.exit(1)
 
+lib = apa.annotation.Library(args.lib_id)
+lib.add_status("polya_expression")
+lib.save()
+
 apa.bed.polya_expression(args.lib_id, args.poly_id, map_id=args.map_id)
+
+lib = apa.annotation.Library(args.lib_id)
+lib.remove_status("polya_expression")
+lib.save()
