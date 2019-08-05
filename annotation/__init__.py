@@ -4,6 +4,9 @@ import pybio
 import glob
 import struct
 import fcntl
+import random
+import errno
+import time
 
 def init():
     apa.annotation.libs = {}
@@ -71,7 +74,7 @@ class Library:
                 if e.errno != errno.EAGAIN:
                     raise
                 else:
-                    time.sleep(0.1)
+                    time.sleep(random.random())
         self.fastq_files = f.readline().replace("\r", "").replace("\n", "").replace("\t", "").split("&")
         header = f.readline().replace("\r", "").replace("\n", "").split("\t")
         r = f.readline()
@@ -95,7 +98,7 @@ class Library:
                     if e.errno != errno.EAGAIN:
                         raise
                     else:
-                        time.sleep(0.1)
+                        time.sleep(random.random())
             r = f.readline()
             while r:
                 r = r.replace("\r", "").replace("\n", "")
@@ -185,7 +188,7 @@ class Library:
                 if e.errno != errno.EAGAIN:
                     raise
                 else:
-                    time.sleep(0.1)
+                    time.sleep(random.random())
         f.write("access:" + ",".join(self.access) + "\n")
         f.write("name:%s" % (self.name) + "\n")
         f.write("notes:%s" % (self.notes) + "\n")
@@ -221,7 +224,7 @@ class Library:
                 if e.errno != errno.EAGAIN:
                     raise
                 else:
-                    time.sleep(0.1)
+                    time.sleep(random.random())
         f.write("%s\n" % self.lib_id)
         columns = ["exp_id", "species", "map_to", "method"]
         for (cname, cid) in self.columns:
