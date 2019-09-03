@@ -34,7 +34,7 @@ def worker():
 # STEP1: process all study data
 tasks = []
 for exp_id in apa.annotation.libs[args.lib_id].experiments.keys():
-    tasks.append("apa.map -lib_id %s -exp_id %s -force -mapper %s -cpu %s -map_id %s -minlen %s" % (args.lib_id, exp_id, args.mapper, args.cpu, args.map_id, args.minlen))
+        tasks.append("apa.map -lib_id %s -exp_id %s -force -mapper %s -cpu %s -map_id %s -minlen %s" % (args.lib_id, exp_id, args.mapper, args.cpu, args.map_id, args.minlen))
 
 for i in range(num_worker_threads):
      t = Thread(target=worker)

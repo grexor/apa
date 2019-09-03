@@ -9,8 +9,8 @@ import regex
 import gzip
 import glob
 
-upstream_defaults = {"pAseq":100, "paseq":100, "aseq":100, "lexrev":5, "lexfwd":100, "nano":100}
-downstream_defaults = {"pAseq":25, "paseq":25, "aseq":25, "lexrev":5, "lexfwd":25, "nano":25}
+upstream_defaults = {"pAseq":100, "paseq":100, "aseq":100, "lexrev":5, "lexfwd":100, "nano":100, "RNAseq":100}
+downstream_defaults = {"pAseq":25, "paseq":25, "aseq":25, "lexrev":5, "lexfwd":25, "nano":25, "RNAseq":100}
 
 # http://www.cgat.org/~andreas/documentation/pysam/api.html
 # Coordinates in pysam are always 0-based (following the python convention). SAM text files use 1-based coordinates.
@@ -78,7 +78,9 @@ def gene_expression(lib_id, map_id=1):
     script_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.sh" % lib_id)
     table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
     gtf_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome))
-    print os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gtf.gz" % library.genome)
+    if len(gtf_files)==0:
+        # try gff files
+        gtf_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.annotation.*/*.gff.gz" % library.genome))
     gtf_fname = gtf_files[0]
     map_to = set()
     f = open(script_fname, "wt")
@@ -108,7 +110,7 @@ def gene_expression(lib_id, map_id=1):
         gene_id = r[0]
         gene = apa.polya.get_gene(map_to, gene_id) # annotate gene names
         if gene!={}:
-            gene_name = gene["gene_name"]
+            gene_name = gene.get("gene_name", "")
         else:
             gene_name = ""
         r2 = [r[0]] + [gene_name] + r[1:]

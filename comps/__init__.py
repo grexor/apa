@@ -567,7 +567,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         gene_len = gene_stop-gene_start+1
         assert(gene_len>0)
         gene_locus = "chr%s:%s-%s" % (chr, gene_start, gene_stop)
-        row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"]]
+        row = [chr, strand, gene_locus, gene_id, gene.get("gene_name", ""), gene["gene_biotype"]]
         sites = gsites.get(gene_id, {})
         row.append(sites.keys())
         row.append(len(sites))
@@ -578,7 +578,9 @@ def process_comps(comps_id, map_id=1, clean=True):
             for eid in rshort_experiments[rshort]:
                 lib_id = eid[:eid.rfind("_")]
                 exp_id = int(eid.split("_")[-1][1:])
-                cDNA_rtotal += int(gene_expression_data["%s_%s_%s" % (lib_id, exp_id, gene_id)])
+                ktemp = "%s_%s_%s" % (lib_id, exp_id, gene_id)
+                ctemp = int(gene_expression_data.get(ktemp, 0))
+                cDNA_rtotal += ctemp
             #cDNA_rtotal = 0
             #for site_pos, es in sites.items():
             #    val = es.get(rshort, 0)

@@ -13,13 +13,12 @@ from threading import *
 from multiprocessing import Process # http://stackoverflow.com/questions/4496680/python-threads-all-executing-on-a-single-core
 
 def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1, minlen=0.66, append=""):
+    lib = apa.annotation.libs[lib_id]
+
     exp_id = int(exp_id)
     exp_data = apa.annotation.libs[lib_id].experiments[exp_id]
     map_folder = apa.path.map_folder(lib_id, exp_id, map_id = map_id, append=append)
-    fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
-    if os.path.exists(map_folder) and force==False:
-        print "%s_e%s : MAP : skip (already mapped) or currently mapping" % (lib_id, exp_id)
-        return
+
     if os.path.exists(map_folder):
         if map_folder.find(lib_id)>0 and map_folder.find("m%s" % map_id)>0 and len(lib_id)>6: # security
             shutil.rmtree(map_folder)
@@ -27,18 +26,29 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
         os.makedirs(map_folder)
     except:
         pass
+    if os.path.exists(map_folder) and force==False:
+        print "%s_e%s : MAP : skip (already mapped) or currently mapping" % (lib_id, exp_id)
+        return
 
-    print "%s_e%s : MAP : %s" % (lib_id, exp_id, map_folder)
-    if mapper=="star":
-        pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu, minlen=minlen)
-    if mapper=="sege":
-        pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
-    if mapper=="bowtie":
-        pybio.map.bowtie(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
-    if mapper=="bowtie2":
-        pybio.map.bowtie2(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
-    if mapper=="nano":
-        pybio.map.nano(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
+    if lib.seq_type=="single":
+        fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
+        print "%s_e%s : MAP : %s" % (lib_id, exp_id, map_folder)
+        if mapper=="star":
+            pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu, minlen=minlen)
+        if mapper=="sege":
+            pybio.map.sege(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
+        if mapper=="bowtie":
+            pybio.map.bowtie(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
+        if mapper=="bowtie2":
+            pybio.map.bowtie2(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
+        if mapper=="nano":
+            pybio.map.nano(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu)
+
+    if lib.seq_type=="paired":
+        fastq_file1 = apa.path.map_fastq_file(lib_id, exp_id, append="_R1")
+        fastq_file2 = apa.path.map_fastq_file(lib_id, exp_id, append="_R2")
+        if mapper=="star":
+            pybio.map.star_pair(exp_data["map_to"], fastq_file1, fastq_file2, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu, minlen=minlen)
 
 def preprocess_lexfwd(lib_id):
     threads = []
@@ -107,38 +117,33 @@ def stats_to_tab(lib_id, map_id=1, append=""):
     f.close()
 
 def stats(lib_id, map_id=1, append=""):
-    fname_json = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.json" % (lib_id, map_id, append))
-    data = {}
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
-        print "processing statistics: %s e%s" % (lib_id, exp_id)
-        fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
-        map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
-        bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
-        if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
-            continue
-        num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
-        num_reads = int(num_reads)/4
-        map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
-        map_reads = int(map_reads)
-        data[int(exp_id)] = {"num_reads":num_reads, "map_reads":map_reads}
-    open(fname_json, "wt").write(json.dumps(data))
-    stats_to_tab(lib_id)
+        stats_experiment(lib_id, exp_id, map_id=map_id)
     return
 
 def stats_experiment(lib_id, exp_id, map_id=1, append=""):
+    lib = apa.annotation.libs[lib_id]
     fname_json = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.json" % (lib_id, map_id, append))
+    map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
+    bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
+    if lib.seq_type=="single":
+        fastq_files = [apa.path.map_fastq_file(lib_id, exp_id, append=append)]
+    if lib.seq_type=="paired":
+        fastq_files = [apa.path.map_fastq_file(lib_id, exp_id, append="_R1"), apa.path.map_fastq_file(lib_id, exp_id, append="_R2")]
     if os.path.exists(fname_json):
         data = json.loads(open(fname_json).readline())
     else:
         data = {}
     print "processing statistics: %s e%s" % (lib_id, exp_id)
-    fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
-    map_folder = apa.path.map_folder(lib_id, exp_id, map_id=map_id, append=append)
-    bam_file = os.path.join(map_folder, "%s_e%s_m%s%s.bam" % (lib_id, exp_id, map_id, append))
-    if not os.path.exists(fastq_file) or not os.path.exists(bam_file):
+    if not os.path.exists(bam_file):
         return
-    num_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
-    num_reads = int(num_reads)/4
+    num_reads = 0
+    for fastq_file in fastq_files:
+        if not os.path.exists(fastq_file):
+            continue
+        temp_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
+        temp_reads = int(temp_reads)/4
+        num_reads += temp_reads
     map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
     map_reads = int(map_reads)
     data[exp_id] = {"num_reads":num_reads, "map_reads":map_reads}

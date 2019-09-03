@@ -48,6 +48,7 @@ class Library:
         self.access = [];
         self.name = "";
         self.notes = "";
+        self.tags = "";
         self.genome = "";
         self.method = ""
         self.public_only = [];
@@ -151,6 +152,10 @@ class Library:
                     self.notes = str(r[0].split("notes:")[1])
                     r = f.readline()
                     continue
+                if r[0].startswith("tags:"):
+                    self.tags = str(r[0].split("tags:")[1])
+                    r = f.readline()
+                    continue
                 if r[0].startswith("columns:"):
                     self.columns = eval(r[0].split("columns:")[1])
                     r = f.readline()
@@ -197,6 +202,7 @@ class Library:
         f.write("method:" + self.method + "\n")
         f.write("genome:" + self.genome + "\n")
         f.write("seq_type:" + self.seq_type + "\n")
+        f.write("tags:" + self.tags + "\n")
         f.write("status:" + self.status + "\n")
         columns = []
         for c in self.columns:
