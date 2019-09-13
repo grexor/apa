@@ -123,6 +123,13 @@ def gene_expression(lib_id, map_id=1):
     os.system("head -n -5 %s > %s.temp" % (table_fname, table_fname))
     os.system("mv %s.temp %s" % (table_fname, table_fname))
 
+    # normalize to cpm
+    R_file = os.path.join(apa.path.root_folder, "comps", "gene_expression_raw_cpm.R")
+    input_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression.tab" % lib_id)
+    output_fname = os.path.join(apa.path.data_folder, lib_id, "%s_gene_expression_cpm.tab" % lib_id)
+    command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
+    pybio.utils.Cmd(command).run()
+
 def polya_expression(lib_id, poly_id, map_id=1, upstream=None, downstream=None):
     if poly_id==None:
         poly_id = lib_id
