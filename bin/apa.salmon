@@ -1,0 +1,18 @@
+#!/usr/bin/python
+import apa
+import sys
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('-lib_id', action="store", dest="lib_id")
+args = parser.parse_args()
+
+lib = apa.annotation.Library(args.lib_id)
+lib.add_status("salmon_e%s" % args.lib_id)
+lib.save()
+
+apa.map.salmon(args.lib_id)
+
+lib = apa.annotation.Library(args.lib_id)
+lib.remove_status("salmon_e%s" % args.lib_id)
+lib.save()

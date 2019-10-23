@@ -152,3 +152,78 @@ def stats_experiment(lib_id, exp_id, map_id=1, append=""):
     f.close()
     stats_to_tab(lib_id)
     return
+
+# make gene expression table (htcount and gtf)
+def salmon(lib_id):
+    library = apa.annotation.libs[lib_id]
+    script_fname = os.path.join(apa.path.data_folder, lib_id, "salmon", "%s_salmon.sh" % lib_id)
+    table_fname = os.path.join(apa.path.data_folder, lib_id, "%s_salmon.tab" % lib_id)
+    salmon_folder = os.path.join(apa.path.data_folder, lib_id, "salmon")
+    try:
+        os.makedirs(salmon_folder)
+    except:
+        pass
+
+    max_exp = len(library.experiments)
+    f = open(script_fname, "wt")
+    map_to = library.experiments[1]["map_to"]
+    version = pybio.genomes.get_latest_version(map_to)
+    genome_folder = os.path.join(pybio.path.genomes_folder, "%s.transcripts.%s.salmon" % (map_to, version))
+    for exp_id in range(1, max_exp+1):
+        fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
+        output_folder = os.path.join(apa.path.data_folder, lib_id, "salmon", "e%s" % exp_id)
+        f.write("salmon quant -i %s -l A -r <(bunzip2 -c %s) --validateMappings -o %s\n" % (genome_folder, fastq_file, output_folder))
+    f.close()
+
+    os.system("chmod +x %s" % script_fname)
+    os.system(script_fname)
+
+    # find name mapping between transcripts and genes
+    transcript_gene = {}
+
+    t_files = glob.glob(os.path.join(apa.path.pybio_folder, "genomes", "%s.transcripts.*/*.fa.gz" % library.genome))
+    t_fname = t_files[0]
+    f = pybio.data.Fasta(t_fname)
+
+    print "reading transcript->gene data from:", t_fname
+    while f.read():
+        id = f.id.split(" ")
+        t_id = id[0]
+        gene_id = None
+        gene_name = None
+        gene_id = id[3].split(":")[1]
+        gene_name = id[6].split(":")[1]
+        transcript_gene[t_id] = [gene_id, gene_name]
+
+    # combine results for individual experiments into the master quant table
+    master_quant_fname = os.path.join(apa.path.data_folder, lib_id, "salmon", "%s_salmon.tab" % lib_id)
+    fout = open(master_quant_fname, "wt")
+    row = ["transcript_id", "gene_id", "gene_name"]
+    for exp_id in range(1, max_exp+1):
+        row.append("e%s_TPM" % exp_id)
+    fout.write("\t".join(row) + "\n")
+    data = {}
+    for exp_id in range(1, max_exp+1):
+        data[exp_id] = {}
+        quant_fname = os.path.join(apa.path.data_folder, lib_id, "salmon", "e%s" % exp_id, "quant.sf")
+        f = open(quant_fname)
+        r = f.readline()
+        r = f.readline()
+        while r:
+            r = r.replace("\n", "").replace("\r", "").split("\t")
+            transcript_id = r[0]
+            tpm = r[3]
+            data[exp_id][transcript_id] = tpm
+            r = f.readline()
+        f.close()
+    tids = set()
+    for exp_id in range(1, max_exp+1):
+        tids = tids.union(data[exp_id].keys())
+    tids = list(tids)
+    for tid in tids:
+        gene_id, gene_name = transcript_gene[tid]
+        row = [tid, gene_id, gene_name]
+        for exp_id in range(1, max_exp+1):
+            row.append(data[exp_id].get(tid, 0))
+        fout.write("\t".join(row) + "\n")
+    f.close()
