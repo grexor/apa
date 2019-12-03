@@ -130,7 +130,7 @@ def go_enrichment(comps_id):
             comps.append((e_distal, c_list, "enhanced_distal"))
 
             for (gene_set, reference_set, name) in comps:
-                print "%s:%s GO analysis: genes=%s, controls=%s" % (pair_type, name, len(gene_set), len(reference_set))
+                print("{pair_type}:{name} GO analysis: genes={num_genes}, controls={num_control}".format(pair_type=pair_type, name=name, num_genes=len(gene_set), num_control=len(reference_set)))
                 res = annotations.get_enriched_terms(gene_set, reference=reference_set, use_fdr=False, aspect=aspect)
                 results = []
                 for go_id, (genes, p_value, go_genes) in res.items():
@@ -161,7 +161,7 @@ def go_enrichment(comps_id):
                 f.close()
 
                 fname = os.path.join(apa.path.comps_folder, comps_id, "rnamap", "go_%s_%s_%s.tab" % (name, pair_type, aspect))
-                print "\t-> %s" % fname
+                print("\t-> %s" % fname)
                 f = open(fname, "wt")
                 f.write("#query (%s genes) = " % len(gene_set) + ",".join(gene_set) + "\n")
                 f.write("#reference (%s genes) = " % len(reference_set) + ",".join(reference_set) + "\n")

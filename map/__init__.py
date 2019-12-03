@@ -5,10 +5,9 @@ import pybio
 import sys
 import json
 import shutil
-import commands
 import regex
 import gzip
-from Queue import *
+from queue import *
 from threading import *
 from multiprocessing import Process # http://stackoverflow.com/questions/4496680/python-threads-all-executing-on-a-single-core
 
@@ -27,12 +26,12 @@ def map_experiment(lib_id, exp_id, map_id = 1, force=False, mapper="star", cpu=1
     except:
         pass
     if os.path.exists(map_folder) and force==False:
-        print "%s_e%s : MAP : skip (already mapped) or currently mapping" % (lib_id, exp_id)
+        print("{lib_id}_e{exp_id} : MAP : skip (already mapped) or currently mapping".format(lib_id=lib_id, exp_id=exp_id))
         return
 
     if lib.seq_type=="single":
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id, append=append)
-        print "%s_e%s : MAP : %s" % (lib_id, exp_id, map_folder)
+        print("{lib_id}_e{exp_id} : MAP : {map_folder}".format(lib_id=lib_id, exp_id=exp_id, map_folder=map_folder))
         if mapper=="star":
             pybio.map.star(exp_data["map_to"], fastq_file, map_folder, "%s_e%s_m%s%s" % (lib_id, exp_id, map_id, append), cpu=cpu, minlen=minlen)
         if mapper=="sege":
@@ -101,7 +100,7 @@ def stats_to_tab(lib_id, map_id=1, append=""):
     fname_json = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.json" % (lib_id, map_id, append))
     data = json.loads(open(fname_json).readline())
     fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.tab" % (lib_id, map_id, append))
-    print "writting statistics to: %s" % fname
+    print("writting statistics: {fname}".format(fname=fname))
     f = open(fname, "wt")
     header = [x for x in apa.annotation.libs[lib_id].experiments[apa.annotation.libs[lib_id].experiments.keys()[0]].keys() if x not in ["exp_id"]]
     header = ["exp_id"] + header + ["#reads [M]", "#mapped [M]" , "mapped [%]"]
@@ -134,17 +133,19 @@ def stats_experiment(lib_id, exp_id, map_id=1, append=""):
         data = json.loads(open(fname_json).readline())
     else:
         data = {}
-    print "processing statistics: %s e%s" % (lib_id, exp_id)
+    print("processing statistics: {lib_id}_e{exp_id}".format(lib_id=lib_id, exp_id=exp_id))
     if not os.path.exists(bam_file):
         return
     num_reads = 0
     for fastq_file in fastq_files:
         if not os.path.exists(fastq_file):
             continue
-        temp_reads = commands.getoutput("bzcat %s | wc -l" % fastq_file).split("\n")[-1] # get last line of output
+        output, error = pybio.utils.Cmd("bzcat {fastq_file} | wc -l".format(fastq_file=fastq_file))
+        temp_reads = output.split("\n")[-1] # get last line of output
         temp_reads = int(temp_reads)/4
         num_reads += temp_reads
-    map_reads = commands.getoutput("samtools view -c %s" % bam_file).split("\n")[-1] # get last line of output
+    output, error = pybio.utils.Cmd("samtools view -c {bam_file}".format(bam_file=bam_file))
+    map_reads = output.split("\n")[-1] # get last line of output
     map_reads = int(map_reads)
     data[exp_id] = {"num_reads":num_reads, "map_reads":map_reads}
     f = open(fname_json, "wt")
@@ -153,7 +154,7 @@ def stats_experiment(lib_id, exp_id, map_id=1, append=""):
     stats_to_tab(lib_id)
     return
 
-# make gene expression table (htcount and gtf)
+# make transcript expression table (salmon)
 def salmon(lib_id):
     library = apa.annotation.libs[lib_id]
     script_fname = os.path.join(apa.path.data_folder, lib_id, "salmon", "%s_salmon.sh" % lib_id)
@@ -169,6 +170,7 @@ def salmon(lib_id):
     map_to = library.experiments[1]["map_to"]
     version = pybio.genomes.get_latest_version(map_to)
     genome_folder = os.path.join(pybio.path.genomes_folder, "%s.transcripts.%s.salmon" % (map_to, version))
+    f.write("#!/bin/bash\n")
     for exp_id in range(1, max_exp+1):
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         output_folder = os.path.join(apa.path.data_folder, lib_id, "salmon", "e%s" % exp_id)
@@ -185,7 +187,7 @@ def salmon(lib_id):
     t_fname = t_files[0]
     f = pybio.data.Fasta(t_fname)
 
-    print "reading transcript->gene data from:", t_fname
+    print("reading transcript->gene data: {t_fname}".format(t_fname=t_fname))
     while f.read():
         id = f.id.split(" ")
         t_id = id[0]

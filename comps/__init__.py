@@ -60,12 +60,12 @@ class Comps:
             self.read_comps(comps_id)
 
     def __str__(self):
-        print "comps_id = %s" % (self.comps_id)
+        print("comps_id = %s" % (self.comps_id))
         for test_id, test_data in self.test.items():
-            print "%s %s" % (test_id, test_data)
+            print("%s %s" % (test_id, test_data))
         for control_id, control_data in self.control.items():
-            print "%s %s" % (control_id, control_data)
-        print "CLIP = %s" % self.CLIP
+            print("%s %s" % (control_id, control_data))
+        print("CLIP = %s" % self.CLIP)
         return ""
 
     def read_comps(self, comps_id):
@@ -277,7 +277,7 @@ class Comps:
 def process_comps(comps_id, map_id=1, clean=True):
 
     if not os.path.exists(os.path.join(apa.path.comps_folder, comps_id, "%s.config" % comps_id)):
-        print "%s.config missing, exiting" % (comps_id)
+        print("%s.config missing, exiting" % (comps_id))
         sys.exit(1)
 
     # clean
@@ -286,7 +286,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         files = glob.glob(os.path.join(apa.path.comps_folder, comps_id, "*"))
         for f in files:
             if not f.endswith(".config") and not f.startswith("docs") and not f==".htaccess":
-                print "removing: %s" % f
+                print("removing: %s" % f)
                 if os.path.isdir(f):
                     shutil.rmtree(f)
                 else:
@@ -322,14 +322,14 @@ def process_comps(comps_id, map_id=1, clean=True):
         rshort_experiments[comp_id] = experiments
         if comps.analysis_type=="apa":
             for id in experiments:
-                print "%s: +%s" % (comp_id, id)
+                print("%s: +%s" % (comp_id, id))
                 lib_id = id[:id.rfind("_")]
                 exp_id = int(id.split("_")[-1][1:])
                 e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=comps.polya_db)
                 expression[comp_id].load(e_filename)
 
     replicates = sorted(replicates, key=lambda item: (item[0][0], int(item[0][1:])))
-    print "replicates = ", replicates
+    print("replicates = ", replicates)
 
     # save bedgraph files for c1, t1, ...
     beds_folder = os.path.join(apa.path.comps_folder, comps_id, "beds")
@@ -639,7 +639,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         input_fname = apa.path.comps_expression_filename(comps_id)
         output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.genes_de.tab" % comps_id)
         command = "R --vanilla --args %s %s %s %s < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), R_file)
-        print command
+        print(command)
         pybio.utils.Cmd(command).run()
         flog.write(command+"\n")
         flog.flush()
@@ -649,7 +649,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         input_fname = apa.path.comps_expression_filename(comps_id, filetype="genes")
         output_fname = apa.path.comps_expression_filename(comps_id, filetype="genes_norm")
         command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
-        print command
+        print(command)
         pybio.utils.Cmd(command).run()
         flog.write(command+"\n")
         flog.flush()
@@ -660,7 +660,7 @@ def process_comps(comps_id, map_id=1, clean=True):
             input_fname = apa.path.comps_expression_filename(comps_id)
             output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.cluster_genes" % comps_id)
             command = "R --vanilla --args %s %s %s %s %s %s 'analysis: %s, gene expression cluster' < %s" % (input_fname, output_fname, len(comps.control), len(comps.test), comps.cluster_image_w, comps.cluster_image_h, comps_id, R_file)
-            print command
+            print(command)
             pybio.utils.Cmd(command).run()
             flog.write(command+"\n")
             flog.flush()
@@ -669,7 +669,7 @@ def process_comps(comps_id, map_id=1, clean=True):
             R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
             output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
             command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
-            print command
+            print(command)
             pybio.utils.Cmd(command).run()
             flog.write(command+"\n")
             flog.flush()
@@ -679,7 +679,7 @@ def process_comps(comps_id, map_id=1, clean=True):
             input_fname = apa.path.comps_expression_filename(comps_id, filetype="sites")
             output_fname = apa.path.comps_expression_filename(comps_id, filetype="sites_norm")
             command = "R --vanilla --args %s %s < %s" % (input_fname, output_fname, R_file)
-            print command
+            print(command)
             pybio.utils.Cmd(command).run()
             flog.write(command+"\n")
 
@@ -691,7 +691,7 @@ def process_comps(comps_id, map_id=1, clean=True):
             R_file = os.path.join(apa.path.root_folder, "comps", "comps_heatmap_pairsde.R")
             input_fname = apa.path.comps_expression_filename(comps_id)
             command = "R --vanilla --args %s %s %s < %s" % (comps_id, len(comps.control), len(comps.test), R_file)
-            print command
+            print(command)
             pybio.utils.Cmd(command).run()
             flog.write(command+"\n")
             flog.flush()
@@ -961,7 +961,7 @@ def dexseq(comps_id, thr=0.05):
         try:
             pos = int(data["featureID"][1:])
         except:
-            print "Could not recover position from: %s" % data["featureID"]
+            print("Could not recover position from: %s" % data["featureID"])
             r = f.readline()
             continue
         if data["padj"]=="NA" or data["log2fold_test_control"]=="NA":

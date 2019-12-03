@@ -16,7 +16,7 @@ import pybio
 import apa
 import os
 from collections import Counter
-import cPickle
+import pickle
 from pandas import DataFrame
 import math
 import matplotlib.patches as mpatches
@@ -105,7 +105,7 @@ def rnamap_area(vpos, vneg, vcon_up, vcon_down, filename, title="test", site="pr
     plt.gca().add_patch(p)
     plt.xticks([0,25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400], [-200,-175,-150,-125,-100,-75,-50,-25,0,25,50,75,100,125,150,175,200])
     plt.grid(alpha=0.2)
-    print "saving", filename
+    print("saving", filename)
     if site=="proximal":
         title = "%s.%s, e=%s, r=%s, c=%s" % (pair_type, site, stats[("enhanced", pair_type)], stats[("repressed", pair_type)], stats[("control_up", pair_type)]+stats[("control_down", pair_type)])
     if site=="distal":
@@ -225,7 +225,7 @@ def rnamap_heat(vpos, vneg, filename, title="test", site="proximal", stats=None,
         plt.title("%s (top 20)" % title)
         plt.subplots_adjust(left=0.1, right=0.97, top=0.90, bottom=0.05)
         cbar = fig.colorbar(heatmap, fraction=0.01, pad=0.01)
-        print "saving %s" % (filename+"_%s.png" % reg_type)
+        print("saving %s" % (filename+"_%s.png" % reg_type))
         plt.savefig(filename+"_%s.png" % reg_type, dpi=100, transparent=True)
         if save_pdf:
             plt.savefig(filename+"_%s.pdf" % reg_type)
@@ -587,11 +587,6 @@ def process(comps_id, surr=200):
         r = f.readline()
     f.close() # end of reading gene data
 
-    # save all data
-
-    #print cdata[("peaks_id80654_rnd100_flank3_fdr0.05_group_5207_TARDBP-LC-flag-GFP-IP-group_sum_S_hg19--ensembl59_from_5158-5159_bedGraph-cDNA.bed.gz_lowFDR_clusters.bed.gz", "proximal", "r", "same")][:30]
-    #print present[("proximal", "r", "same")][:30]
-
     temp = {}
     f = open(os.path.join(apa.path.comps_folder, comps_id, "%s_pair_distances.tab" % comps_id), "wt")
     dtemp = [0, 100, 450, 1000, 5000, 10000]
@@ -606,17 +601,17 @@ def process(comps_id, surr=200):
         f.write("%s nt\t%s pairs\n" % (leq, temp.get(leq, 0)))
     f.close()
 
-    print "save adata.pickle"
+    print("save adata.pickle")
     f = open(os.path.join(rnamap_dest, "adata.pickle"), "wb")
-    f.write(cPickle.dumps(adata, protocol=-1))
+    f.write(pickle.dumps(adata, protocol=-1))
     f.close()
 
     f = open(os.path.join(rnamap_dest, "stats.pickle"), "wb")
-    f.write(cPickle.dumps(stats, protocol=-1))
+    f.write(pickle.dumps(stats, protocol=-1))
     f.close()
 
     f = open(os.path.join(rnamap_dest, "stats_bysite.pickle"), "wb")
-    f.write(cPickle.dumps(stats_bysite, protocol=-1))
+    f.write(pickle.dumps(stats_bysite, protocol=-1))
     f.close()
 
     present_pairs = list(set([pair_type for (reg, pair_type) in stats.keys()]))
@@ -632,17 +627,17 @@ def process(comps_id, surr=200):
     present_pairs = sorted_present_pairs
 
     #print stats.items()
-    print "---"
+    print("---")
     #print stats_bysite.items()
     for cat in [("proximal", "repressed", "same"), ("proximal", "enhanced", "same"), ("proximal", "repressed", "composite"), ("proximal", "enhanced", "composite"), ("proximal", "repressed", "skipped"), ("proximal", "enhanced", "skipped")]:
-        print cat, stats_bysite.get(cat, 0)
-    print "---"
+        print(cat, stats_bysite.get(cat, 0))
+    print("---")
 
     for f in fasta_files.values():
         f.close()
 
     # normalize with nt resolution
-    print "normalization with nucleotide resolution"
+    print("normalization with nucleotide resolution")
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             for reg in ["enhanced", "repressed", "control_up", "control_down"]:
@@ -653,7 +648,7 @@ def process(comps_id, surr=200):
                 for clip_name in comps.CLIP:
                     cdata[(clip_name, site, reg, pair_type)] = [e/max(1.0, float(z)) for e,z in zip(cdata[(clip_name, site, reg, pair_type)], n)]
 
-    print "getting max values"
+    print("getting max values")
     cmax = {}
     fmax = {}
     for clip_name in comps.CLIP:
@@ -670,7 +665,7 @@ def process(comps_id, surr=200):
                 smax[pair_type] = max(smax[pair_type], max(sdata[(site, reg, pair_type)]))
                 pmax[pair_type] = max(pmax[pair_type], max(pdata[(site, reg, pair_type)]))
 
-    print "saving figures"
+    print("saving figures")
     for pair_type in present_pairs:
         for site in ["proximal", "distal", "s1", "s2"]:
             # clip

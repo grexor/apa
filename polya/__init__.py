@@ -91,10 +91,10 @@ def process(poly_id, map_id=1, min_distance=25):
         num_read += 1
         meta = ["%s_e%s" % (lib_id, exp_id)] # list of metadata
         t_filename = apa.path.t_filename(lib_id, exp_id, map_id=map_id)
-        print t_filename
+        print(t_filename)
         if os.path.exists(t_filename):
             bed.load(t_filename, meta=meta)
-            print "%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0)
+            print("%s: %s %s %s %s %.2fM" % (num_read, lib_id, exp_id, poly_id, os.path.exists(t_filename), bed.total_raw/1000000.0))
 
     #bed.filter(min_distance=25) # Gregor: alternative: -25..25 (201702 test)
     bed.filter(min_distance=min_distance)
@@ -126,7 +126,7 @@ def annotate(poly_id):
     db = {}
     db_values = []
     gene_values = {}
-    print polyadb_temp
+    print(polyadb_temp)
     f = gzip.open(polyadb_temp)
     r = f.readline()
     r = f.readline()
@@ -253,16 +253,16 @@ def classify_polya(poly_id):
     f_tab.write(header)
     r = f.readline()
     while r:
-    	r = r.replace("\n", "").replace("\r", "").split("\t")
-    	chr, strand, pos, gene_id, gene_name, interval, cDNA, seq = r[0], r[1], int(r[2]), r[3], r[4], r[5], float(r[6]), r[10]
-        pas_type, pas_offset, cs_offset = polyar_results[(chr, strand, pos)]
+        r = r.replace("\n", "").replace("\r", "").split("\t")
+        (chr, strand, pos, gene_id, gene_name, interval, cDNA, seq) = r[0], r[1], int(r[2]), r[3], r[4], r[5], float(r[6]), r[10]
+        (pas_type, pas_offset, cs_offset) = polyar_results[(chr, strand, pos)]
         if pas_type=="":
             pas_type="noclass"
         r[-5], r[-4], r[-3] = pas_type, pas_offset, cs_offset
-    	f_tab.write("\t".join([str(e) for e in r])+"\n")
+        f_tab.write("\t".join([str(e) for e in r])+"\n")
         bed_row = [chr, pos, pos+1, cDNA]
         files[pas_type].write("\t".join(str(e) for e in bed_row) + "\n")
-    	r = f.readline()
+        r = f.readline()
     f.close()
     f_tab.close()
     for f in files.values():

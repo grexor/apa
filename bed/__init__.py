@@ -150,7 +150,7 @@ def polya_expression(lib_id, poly_id, map_id=1, upstream=None, downstream=None):
         r_filename = apa.path.r_filename(lib_id, exp_id, map_id=map_id)
         bam_filename = apa.path.bam_filename(lib_id, exp_id, map_id=map_id)
         e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
-        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        print("{lib_id}_e{exp_id}_m{map_id} : E BED, upstream={upstream}, downstream={downstream}".format(lib_id=lib_id, exp_id=exp_id, map_id=map_id, upstream=upstream, downstream=downstream))
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
         for chr, strand, pos, val in e.fetch():
@@ -215,7 +215,7 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
     # don't redo analysis if files exists
     if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
-        print "%s_e%s_m%s : R/T BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("{lib_id}_e{exp_id}_m{map_id} : R/T BED : already processed or currently processing".format(lib_id=lib_id, exp_id=exp_id, map_id=map_id))
         return
 
     lib = apa.annotation.libs[lib_id]
@@ -234,7 +234,7 @@ def bed_raw_paseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
     for a in bam_file.fetch():
         a_number += 1
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sM reads processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
+            print("{lib_id}_e{exp_id}_m{map_id} : {processed}M reads processed : {bam_filename}".format(lib_id=lib_id, exp_id=exp_id, map_id=map_id, processed=a_number/1e6, bam_filename=bam_filename))
 
         # do not process spliced reads
         #cigar = a.cigar
@@ -280,7 +280,7 @@ def bed_raw_aseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
     # don't redo analysis if files exists
     if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
-        print "%s_e%s_m%s : R/T BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("{lib_id}_e{exp_id}_m{map_id} : R/T BED : already processed or currently processing".format(lib_id=lib_id, exp_id=exp_id, map_id=map_id))
         return
 
     lib = apa.annotation.libs[lib_id]
@@ -299,7 +299,7 @@ def bed_raw_aseq(lib_id, exp_id, map_id, force=False, ip_filter=True):
     for a in bam_file.fetch():
         a_number += 1
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sM reads processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
+            print("{lib_id}_e{exp_id}_m{map_id} : {processed}M reads processed : {bam_filename}".format(lib_id=lib_id, exp_id=exp_id, map_id=map_id, processed=a_number/1e6, bam_filename=bam_filename))
 
         read_id = a.qname
         chr = bam_file.getrname(a.tid)
@@ -336,7 +336,7 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
     # don't redo analysis if files exists
     if (os.path.exists(t_filename) and not force):
-        print "%s_e%s_m%s : tail BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s : tail BED : already processed or currently processing" % (lib_id, exp_id, map_id))
         return
 
     lib = apa.annotation.libs[lib_id]
@@ -357,7 +357,7 @@ def bed_raw_lexrev(lib_id, exp_id, map_id, force=False, ip_filter=True):
         a_number += 1
 
         if a_number%10000==0:
-            print "%s_e%s_m%s : %sM processed : %s" % (lib_id, exp_id, map_id, a_number/1e6, bam_filename)
+            print("{lib_id}_e{exp_id}_m{map_id} : {processed}M reads processed : {bam_filename}".format(lib_id=lib_id, exp_id=exp_id, map_id=map_id, processed=a_number/1e6, bam_filename=bam_filename))
 
         cigar = a.cigar
         cigar_types = [t for (t, v) in cigar]
@@ -403,7 +403,7 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
     # don't redo analysis if files exists
     if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
-        print "%s_e%s_m%s : R/T BED : already processed" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s : R/T BED : already processed" % (lib_id, exp_id, map_id))
         return
 
     lib = apa.annotation.libs[lib_id]
@@ -418,45 +418,13 @@ def bed_raw_lexfwd(lib_id, exp_id, map_id, force=False, ip_filter=True):
     raw_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s" % map_id, "%s_e%s_m%s.bam" % (lib_id, exp_id, map_id))
     raw_bam_file = pysam.Samfile(raw_bam_filename)
 
-    """
-    #tail_bam_filename = os.path.join(apa.path.data_folder, lib_id, "e%s" % exp_id, "m%s_tail" % map_id, "%s_e%s_m%s_tail.bam" % (lib_id, exp_id, map_id))
-    #tail_bam_file = pysam.Samfile(tail_bam_filename)
-
-    a_number = 0
-    for a in tail_bam_file.fetch():
-
-        a_number += 1
-        if a_number%100000==0:
-            print "%s_e%s_m%s_tail : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(tail_bam_filename), ip_filter)
-
-        read_id = a.qname
-        chr = tail_bam_file.getrname(a.tid)
-        strand = "+" if not a.is_reverse else "-"
-        # we use the reference positions of the aligned read (aend, pos)
-        # relative positions are stored in qend, qstart
-        if strand=="+":
-            pos_end = a.aend - 1 # aend points to one past the last aligned residue, also see a.positions
-            assert(pos_end==a.positions[-1])
-        else:
-            pos_end = a.pos
-            assert(pos_end==a.positions[0])
-
-        key = "%s:%s" % (chr, strand)
-
-        # internal priming
-        if ip_filter:
-            if ip_check(genome, chr, strand, pos_end):
-                continue
-        save(dataT, key, pos_end, read_id)
-    """
-
     a_number = 0
     ip_number = 0
     for a in raw_bam_file.fetch():
 
         a_number += 1
         if a_number%100000==0:
-            print "%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(raw_bam_filename), ip_filter)
+            print("%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(raw_bam_filename), ip_filter))
 
         read_id = a.qname
         chr = raw_bam_file.getrname(a.tid)
@@ -503,7 +471,7 @@ def bed_raw_nano(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
     # don't redo analysis if files exists
     if (os.path.exists(r_filename) and not force) or (os.path.exists(t_filename) and not force):
-        print "%s_e%s_m%s : R/T BED : already processed" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s : R/T BED : already processed" % (lib_id, exp_id, map_id))
         return
 
     lib = apa.annotation.libs[lib_id]
@@ -524,7 +492,7 @@ def bed_raw_nano(lib_id, exp_id, map_id, force=False, ip_filter=True):
 
         a_number += 1
         if a_number%100000==0:
-            print "%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(raw_bam_filename), ip_filter)
+            print("%s_e%s_m%s : %sM processed : %s, ip-filtering: %s" % (lib_id, exp_id, map_id, a_number/1e6, os.path.basename(raw_bam_filename), ip_filter))
 
         read_id = a.qname
         chr = raw_bam_file.getrname(a.tid)
@@ -606,9 +574,9 @@ def bed_expression_paseq(lib_id, exp_id, map_id, map_to, poly_id, force=False, u
 
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
-        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
@@ -626,9 +594,9 @@ def bed_expression_aseq(lib_id, exp_id, map_id, map_to, poly_id, force=False, up
 
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
-        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
@@ -646,9 +614,9 @@ def bed_expression_lexrev(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     e_filename_norm = apa.path.e_filename_norm(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
-        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
         open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
@@ -667,9 +635,9 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
     bam_filename = apa.path.bam_filename(lib_id, exp_id, map_id=map_id)
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
-        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
         open(e_filename, "wb").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
@@ -686,9 +654,9 @@ def bed_expression_nano(lib_id, exp_id, map_id, map_to, poly_id, force=False, up
     bam_filename = apa.path.bam_filename(lib_id, exp_id, map_id=map_id)
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
-        print "%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id)
+        print("%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
-        print "%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream)
+        print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
         open(e_filename, "wb").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
