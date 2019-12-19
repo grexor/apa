@@ -168,12 +168,13 @@ class Library:
             fcntl.flock(f, fcntl.LOCK_UN)
             f.close()
 
-    def add_status(self, status_name):
+    def add_status(self, status_name=None):
         if self.status!="":
             status = set(self.status.split(","))
         else:
             status = set()
-        status.add(status_name)
+        if status!=None:
+            status.add(status_name)
         self.status = ",".join(list(status))
 
     def remove_status(self, status_name):
