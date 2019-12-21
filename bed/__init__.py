@@ -134,6 +134,8 @@ def polya_expression(lib_id, poly_id, map_id=1, upstream=None, downstream=None):
     if poly_id==None:
         poly_id = lib_id
     lib = apa.annotation.libs[lib_id]
+    lib.add_status("polya_expression")
+    lib.save()
     polyadb_filename = apa.path.polyadb_filename(poly_id)
     result = {}
     header = ["chr", "strand", "pos", "gene_id", "gene_name"]
@@ -177,6 +179,8 @@ def polya_expression(lib_id, poly_id, map_id=1, upstream=None, downstream=None):
             row.append(result[exp_id].get((chr, strand, pos), 0))
         f.write("\t".join(str(x) for x in row)+"\n")
     f.close()
+    lib.remove_status("polya_expression")
+    lib.save()
 
 def bed_raw(lib_id, exp_id, map_id=1, force=False, ip_filter=True):
     """

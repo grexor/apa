@@ -141,11 +141,11 @@ def stats_experiment(lib_id, exp_id, map_id=1, append=""):
         if not os.path.exists(fastq_file):
             continue
         output, error = pybio.utils.Cmd("bzcat {fastq_file} | wc -l".format(fastq_file=fastq_file)).run()
-        temp_reads = output.split("\n")[-1] # get last line of output
+        temp_reads = output.split("\n")[0] # get last line of output
         temp_reads = int(temp_reads)/4
         num_reads += temp_reads
     output, error = pybio.utils.Cmd("samtools view -c {bam_file}".format(bam_file=bam_file)).run()
-    map_reads = output.split("\n")[-1] # get last line of output
+    map_reads = output.split("\n")[0] # get last line of output
     map_reads = int(map_reads)
     data[exp_id] = {"num_reads":num_reads, "map_reads":map_reads}
     f = open(fname_json, "wt")
@@ -167,11 +167,11 @@ def salmon(lib_id):
 
     max_exp = len(library.experiments)
     f = open(script_fname, "wt")
-    map_to = library.experiments[1]["map_to"]
+    map_to = library.experiments[next(iter(library.experiments))]["map_to"]
     version = pybio.genomes.get_latest_version(map_to)
     genome_folder = os.path.join(pybio.path.genomes_folder, "%s.transcripts.%s.salmon" % (map_to, version))
     f.write("#!/bin/bash\n")
-    for exp_id in range(1, max_exp+1):
+    for exp_id in library.experiments.keys():
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         output_folder = os.path.join(apa.path.data_folder, lib_id, "salmon", "e%s" % exp_id)
         f.write("salmon quant -i %s -l A -r <(bunzip2 -c %s) --validateMappings -o %s\n" % (genome_folder, fastq_file, output_folder))

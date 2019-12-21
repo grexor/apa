@@ -194,7 +194,7 @@ class Library:
                 if e.errno != errno.EAGAIN:
                     raise
                 else:
-                    time.sleep(random.random())
+                    time.sleep(random.random()*2+1)
         f.write("access:" + ",".join(self.access) + "\n")
         f.write("name:%s" % (self.name) + "\n")
         f.write("notes:%s" % (self.notes) + "\n")
