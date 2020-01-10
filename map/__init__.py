@@ -164,7 +164,6 @@ def salmon(lib_id):
         os.makedirs(salmon_folder)
     except:
         pass
-
     max_exp = len(library.experiments)
     f = open(script_fname, "wt")
     map_to = library.experiments[next(iter(library.experiments))]["map_to"]
@@ -201,11 +200,11 @@ def salmon(lib_id):
     master_quant_fname = os.path.join(apa.path.data_folder, lib_id, "salmon", "%s_salmon.tab" % lib_id)
     fout = open(master_quant_fname, "wt")
     row = ["transcript_id", "gene_id", "gene_name"]
-    for exp_id in range(1, max_exp+1):
+    for exp_id in library.experiments.keys():
         row.append("e%s_TPM" % exp_id)
     fout.write("\t".join(row) + "\n")
     data = {}
-    for exp_id in range(1, max_exp+1):
+    for exp_id in library.experiments.keys():
         data[exp_id] = {}
         quant_fname = os.path.join(apa.path.data_folder, lib_id, "salmon", "e%s" % exp_id, "quant.sf")
         f = open(quant_fname)
@@ -219,13 +218,13 @@ def salmon(lib_id):
             r = f.readline()
         f.close()
     tids = set()
-    for exp_id in range(1, max_exp+1):
+    for exp_id in library.experiments.keys():
         tids = tids.union(data[exp_id].keys())
     tids = list(tids)
     for tid in tids:
         gene_id, gene_name = transcript_gene[tid]
         row = [tid, gene_id, gene_name]
-        for exp_id in range(1, max_exp+1):
+        for exp_id in library.experiments.keys():
             row.append(data[exp_id].get(tid, 0))
         fout.write("\t".join(row) + "\n")
     f.close()
