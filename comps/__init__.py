@@ -1002,6 +1002,7 @@ def dexseq(comps_id, thr=0.05):
                 if abs(L1["pos"]-L2["pos"])>comps.pair_dist:
                     all_pairs.append((L1["gene_exp"]+L2["gene_exp"], L1, L2))
             all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
+            # all_pairs.sort(key=lambda x: x[0][0], reverse=True) # python 3
             if len(all_pairs)>0:
                 site1, site2 = all_pairs[0][1], all_pairs[0][2]
                 pair_type = "control"
