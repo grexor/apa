@@ -251,7 +251,10 @@ class Comps:
             f.write("\t".join(str(x) for x in [id, ",".join(exp_list), name]) + "\n")
         f.write("\n")
         if len(self.CLIP)>0:
-            f.write("CLIP:%s" % str(self.CLIP))
+            f.write("\n")
+            for clip_fname in CLIP:
+                f.write("CLIP:%s\n" % clip_fname)
+            f.write("\n")
         f.write("control_name:%s\n" % self.control_name)
         f.write("test_name:%s\n" % self.test_name)
         f.write("site_selection:%s\n" % self.site_selection)
