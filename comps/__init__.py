@@ -252,7 +252,7 @@ class Comps:
         f.write("\n")
         if len(self.CLIP)>0:
             f.write("\n")
-            for clip_fname in CLIP:
+            for clip_fname in self.CLIP:
                 f.write("CLIP:%s\n" % clip_fname)
             f.write("\n")
         f.write("control_name:%s\n" % self.control_name)
