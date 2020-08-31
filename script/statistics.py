@@ -1,5 +1,4 @@
 import glob
-import pybio
 import apa
 import shutil
 import os
@@ -40,14 +39,12 @@ for fname in files:
 
 today = datetime.date.today()
 fname = os.path.join(apa.path.data_folder, "stats.json")
+print(fname)
 f = open(fname, "wt")
 f.write(json.dumps({"experiments":experiments, "reads":reads, "methods":methods, "date":str(today)}))
 f.close()
 
 print("wrote statistics to file:", fname)
-print(experiments)
-print(reads)
-print(methods)
 
 # sort genomes by number of reads
 data = []
