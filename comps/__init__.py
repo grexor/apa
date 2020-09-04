@@ -670,7 +670,7 @@ def process_comps(comps_id, map_id=1, clean=True):
 
             # dexseq analysis
             R_file = os.path.join(apa.path.root_folder, "comps", "comps_dex.R")
-            output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s.dex.tab" % comps_id)
+            output_fname = os.path.join(apa.path.comps_folder, comps_id, "%s" % comps_id)
             command = "R --vanilla --args %s %s %s %s %s < %s" % (dex_folder, output_fname, len(comps.control), len(comps.test), comps_id, R_file)
             print(command)
             pybio.utils.Cmd(command).run()

@@ -3,7 +3,8 @@ library(BiocParallel)
 
 args = commandArgs(trailingOnly = T); # trailingOnly: only take parameters after --args
 input_folder = args[1];
-output_fname = args[2];
+output_fname = paste(args[2], ".dex.tab", sep="");
+output_fname_norm = paste(args[2], ".dex_norm.tab", sep="");
 num_control = as.numeric(args[3]);
 num_test = as.numeric(args[4]);
 comps_id = args[5];
@@ -42,3 +43,5 @@ dxd = estimateExonFoldChanges(dxd, fitExpToVar="condition", BPPARAM=BPPARAM)
 dxr1 = DEXSeqResults(dxd, independentFiltering=FALSE)
 dxr1$genomicData = NULL
 write.table(dxr1, file=output_fname, sep="\t", row.names=FALSE, quote=FALSE)
+nc = counts(dxr1, normalized=TRUE)
+write.table(nc, file=output_fname_norm, sep="\t", col.names=NA, row.names=TRUE, quote=FALSE)
