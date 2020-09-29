@@ -190,10 +190,10 @@ def salmon(lib_id):
     while f.read():
         id = f.id.split(" ")
         t_id = id[0]
-        gene_id = None
-        gene_name = None
         gene_id = id[3].split(":")[1]
-        gene_name = id[6].split(":")[1]
+        gene_name = ""
+        if len(id)>6:
+            gene_name = id[6].split(":")[1]
         transcript_gene[t_id] = [gene_id, gene_name]
 
     # combine results for individual experiments into the master quant table

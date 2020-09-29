@@ -195,7 +195,7 @@ def annotate(poly_id):
     ffasta.close()
     os.remove(polyadb_temp)
     classify_polya(poly_id)
-    polyadb_class_histogram(poly_id)
+    #polyadb_class_histogram(poly_id)
 
 def classify_polya(poly_id):
     """
@@ -212,6 +212,7 @@ def classify_polya(poly_id):
     os.chdir(os.path.join(os.getenv("HOME"), "software/polyar/"))
 
     # run polyar
+    print("java polyar -i %s -o %s.res" % (polyadb_fasta, poly_id))
     os.system("java polyar -i %s -o %s.res" % (polyadb_fasta, poly_id))
 
     polyar_results = {}
