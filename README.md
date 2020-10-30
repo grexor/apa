@@ -14,7 +14,7 @@ The inclusive nature of the framework, together with novel integrative solutions
 
 ## Authors
 
-[apa](https://github.com/grexor/apa) is developed and supported by [Gregor Rot](http://rotlab.info) in collaboration with several research laboratories worldwide.
+[apa](https://github.com/grexor/apa) is developed and supported by [Gregor Rot](https://grexor.github.io) in collaboration with several research laboratories worldwide.
 
 The development started in 2009 when Tomaž Curk and Gregor Rot wrote the first prototype of [apa](https://github.com/grexor/apa). In 2013, Gregor Rot refactored and further developed the code, also establishing [expressRNA](http://expressRNA.org), a web application for exploring results of alternative polyadenylation analysis.
 
