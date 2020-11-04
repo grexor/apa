@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import apa
 import sys
@@ -31,8 +31,8 @@ for i in range(num_worker_threads):
      t = Thread(target=worker)
      t.daemon = True
      t.start()
-     
+
 for task in tasks:
     q.put(task)
-    
+
 q.join()

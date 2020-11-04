@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import apa
 for lib_id in apa.annotation.libs.keys():
