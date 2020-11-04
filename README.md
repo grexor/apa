@@ -1,5 +1,12 @@
 # apa: alternative polyadenylation (APA) analysis
 
+* [About](#about)
+* [Installation](#installation)
+* [Authors](#authors)
+* [Reporting problems](#reporting-problems)
+
+## About
+
 apa is a Python framework for processing and analysing 3'-end targeted sequence data to study alternative polyadenylation. [apa](https://github.com/grexor/apa) interconnects [pybio](https://github.com/grexor/pybio) (basic handling of annotated genomes), [RNAmotifs2](https://github.com/grexor/rnamotifs2) (analysis of regulatory motif clusters) and other open-source software (DEXSeq, STAR short-read aligner).
 
 The inclusive nature of the framework, together with novel integrative solutions (differential polyA site usage and RNA-protein binding via RNA-maps, cluster motif analysis), results in the following computational capabilities:
@@ -11,6 +18,33 @@ The inclusive nature of the framework, together with novel integrative solutions
 + identification of motifs influencing alternative splicing (DEXSeq and RNAmotifs2),
 + integration with iCLIP (RNA-protein binding) and computing RNA-maps,
 + and other.
+
+## Installation
+
+A few steps of how to download and setup `apa`.
+
+### Clone the GitHub repository
+
+For now the most direct way of installing pybio is to clone the repository and add the containing folder to PYTHONPATH:
+
+```
+git clone https://github.com/grexor/apa.git
+```
+
+If, for example, you installed pybio to /home/user, you would add this command to the .profile file in the same folder:
+
+```
+export PYTHONPATH=$PYTHONPATH:/home/user
+```
+
+### Dependencies
+
+There are a few software tools pybio depends on:
+
+* [pybio](https://github.com/grexor/pybio), install by following instructions on the GitHub page
+* [R](https://www.r-project.org), install following instructions, recommended latest release or at least >4.0.0
+* [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html), `BiocManager::install("edgeR")`
+* [DEXSeq](https://bioconductor.org/packages/release/bioc/html/DEXSeq.html), `BiocManager::install("DEXSeq")`
 
 ## Authors
 
