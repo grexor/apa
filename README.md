@@ -35,7 +35,7 @@ For now the most direct way of installing pybio is to clone the repository and a
 git clone https://github.com/grexor/apa.git
 ```
 
-If, for example, you installed pybio to /home/user, you would add this command to the .profile file in the same folder:
+If, for example, you installed `apa` to `/home/user/apa`, you would add this command to the .profile file in the same folder:
 
 ```
 export PYTHONPATH=$PYTHONPATH:/home/user
