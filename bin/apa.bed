@@ -17,7 +17,7 @@ parser.add_argument('-no_ip_filter', action="store_false", dest="ip_filter")
 args = parser.parse_args()
 
 if args.lib_id==None:
-    print "specify library to process (-lib_id)"
+    print("specify library to process (-lib_id)")
     sys.exit(1)
 
 # determine experiments to process

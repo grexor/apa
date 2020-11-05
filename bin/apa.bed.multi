@@ -3,11 +3,11 @@
 import apa
 import sys
 import glob
-from Queue import *
-from threading import *
+import queue
+import threading
 import os
-
 import argparse
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-type', action="store", dest="type", default="raw") # raw or expression
 parser.add_argument('-lib_id', action="store", dest="lib_id", default=None)
@@ -17,10 +17,8 @@ parser.add_argument('-upstream', type=int, action="store", default=None)
 parser.add_argument('-downstream', type=int, action="store", default=None)
 parser.add_argument('-ip_filter', action="store_true", dest="ip_filter", default=True)
 parser.add_argument('-no_ip_filter', action="store_false", dest="ip_filter")
+parser.add_argument('-workers', action="store", dest="workers", default=2, type=int)
 args = parser.parse_args()
-
-num_worker_threads = 7
-q = Queue()
 
 def worker():
     while True:
@@ -46,14 +44,19 @@ for e_id in e_ids:
     if args.downstream!=None:
         pars.append("-downstream %s" % args.downstream)
     tasks.append("apa.bed %s" % " ".join(pars))
-    print tasks[-1] # print the last added task
+    print(tasks[-1]) # print the last added task
+
+num_worker_threads = args.workers
+q = queue.Queue()
+threads = []
 
 for i in range(num_worker_threads):
-     t = Thread(target=worker)
-     t.daemon = True
-     t.start()
+    t = threading.Thread(target=worker)
+    t.daemon = True
+    t.start()
+    threads.append(t)
 
-for task in tasks:
-    q.put(task)
+for item in tasks:
+    q.put(item)
 
 q.join()

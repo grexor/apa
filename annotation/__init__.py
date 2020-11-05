@@ -217,8 +217,11 @@ class Library:
             columns_display.append(c)
         f.write("columns:%s" % (str(columns)) + "\n")
         f.write("columns_display:%s" % (str(columns_display)) + "\n")
-        fcntl.flock(f, fcntl.LOCK_UN)
-        f.close()
+        try:
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+        except:
+            pass
 
         filename = os.path.join(apa.path.data_folder, self.lib_id, "annotation.tab")
         while True:
@@ -231,13 +234,13 @@ class Library:
                 if e.errno != errno.EAGAIN:
                     raise
                 else:
-                    time.sleep(random.random())
+                    time.sleep(random.random()*2+1)
         f.write("%s\n" % self.lib_id)
         columns = ["exp_id", "species", "map_to", "method"]
         for (cname, cid) in self.columns:
             columns.append(cid)
         f.write("%s\n" % ("\t".join(columns)))
-        exp_ids = self.experiments.keys()
+        exp_ids = list(self.experiments.keys())
         exp_ids = sorted(exp_ids, key=lambda x: (int(x))) # sort, but keep "strings" in case they are string
         for exp_id in exp_ids:
             row = [exp_id, self.genome, self.genome, self.method]
@@ -247,8 +250,11 @@ class Library:
                 except:
                     row.append("")
             f.write("%s\n" % ("\t".join([str(el) for el in row])))
-        fcntl.flock(f, fcntl.LOCK_UN)
-        f.close()
+        try:
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+        except:
+            pass
         return True
 
     def add_experiment(self, data):
