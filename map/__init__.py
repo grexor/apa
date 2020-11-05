@@ -102,7 +102,7 @@ def stats_to_tab(lib_id, map_id=1, append=""):
     fname = os.path.join(apa.path.lib_folder(lib_id), "%s_m%s%s.stats.tab" % (lib_id, map_id, append))
     print("writting statistics: {fname}".format(fname=fname))
     f = open(fname, "wt")
-    header = [x for x in apa.annotation.libs[lib_id].experiments[apa.annotation.libs[lib_id].experiments.keys()[0]].keys() if x not in ["exp_id"]]
+    header = [x for x in apa.annotation.libs[lib_id].experiments[list(apa.annotation.libs[lib_id].experiments.keys())[0]].keys() if x not in ["exp_id"]]
     header = ["exp_id"] + header + ["#reads [M]", "#mapped [M]" , "mapped [%]"]
     f.write("\t".join(header) + "\n")
     for exp_id, exp_data in apa.annotation.libs[lib_id].experiments.items():
