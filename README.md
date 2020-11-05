@@ -65,11 +65,12 @@ Here we provide basic `apa` usage examples.
 For this example we will call our library 20201104_1 (unique library identifier). Let's assume it contains 4 experiments (with id e1-e4). Each experiment is represented by one FASTQ file. The libraries are stored in the `apa.path.data_folder` (`apa/data.apa` by default):
 
 ```
-apa/data.apa/20201104_1/annotation.tab     # annotation file describing the experiments of data library 20201104_1
-apa/data.apa/20201104_1/e1/20201104_1_e1.fastq.bz2   # FASTQ for experiment 1
-apa/data.apa/20201104_1/e2/20201104_1_e2.fastq.bz2   # FASTQ for experiment 2
-apa/data.apa/20201104_1/e3/20201104_1_e3.fastq.bz2   # FASTQ for experiment 3
-apa/data.apa/20201104_1/e4/20201104_1_e4.fastq.bz2   # FASTQ for experiment 4
+apa/data.apa/20201104_1/20201104_1.config          # config file where you define species, reference genome and sequencing protocol
+apa/data.apa/20201104_1/annotation.tab             # annotation file describing the experiments of data library 20201104_1
+apa/data.apa/20201104_1/e1/20201104_1_e1.fastq.bz2 # FASTQ for experiment 1
+apa/data.apa/20201104_1/e2/20201104_1_e2.fastq.bz2 # FASTQ for experiment 2
+apa/data.apa/20201104_1/e3/20201104_1_e3.fastq.bz2 # FASTQ for experiment 3
+apa/data.apa/20201104_1/e4/20201104_1_e4.fastq.bz2 # FASTQ for experiment 4
 ```
 
 You can download the files from the expressRNA.org server by running:
