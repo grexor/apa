@@ -60,7 +60,7 @@ def write_bed(d, filename):
     """
     Save bedGraph file from dictionary d (chr->strand->position->value) to filename.
     """
-    f = gzip.open(filename, "wb")
+    f = gzip.open(filename, "wt")
     for chr_strand, pos_data in d.items():
         chr, strand = chr_strand.split(":")
         positions = [(pos, len(rnd_set)) for pos, rnd_set in pos_data.items()]
@@ -645,7 +645,7 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
         print("%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
         print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
-        open(e_filename, "wb").close() # touch E BED (processing)
+        open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
         #e.overlay2(polyadb_filename, bam_filename, start=-upstream, stop=downstream)
@@ -664,7 +664,7 @@ def bed_expression_nano(lib_id, exp_id, map_id, map_to, poly_id, force=False, up
         print("%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
         print("%s_e%s_m%s : E BED, upstream=%s, downstream=%s" % (lib_id, exp_id, map_id, upstream, downstream))
-        open(e_filename, "wb").close() # touch E BED (processing)
+        open(e_filename, "wt").close() # touch E BED (processing)
         e = pybio.data.Bedgraph()
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
         #e.overlay2(polyadb_filename, bam_filename, start=-upstream, stop=downstream)

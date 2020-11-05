@@ -127,7 +127,7 @@ def annotate(poly_id):
     db_values = []
     gene_values = {}
     print(polyadb_temp)
-    f = gzip.open(polyadb_temp)
+    f = gzip.open(polyadb_temp, "rt")
     r = f.readline()
     r = f.readline()
     while r:
@@ -152,14 +152,14 @@ def annotate(poly_id):
         if abs(cDNA)>cDNA_filter:
             accepted[key] = 1
 
-    ftab = gzip.open(polyadb_tab, "wb")
+    ftab = gzip.open(polyadb_tab, "wt")
     ftab.write("\t".join(["chr", "strand", "pos", "gene_id", "gene_name", "interval", "cDNA", "pas_type", "pas_loci", "cs_loci", "PAShex_PASloci_PASindex", "seq_-100_100"]) + "\n")
-    fbed = gzip.open(polyadb_bed, "wb")
+    fbed = gzip.open(polyadb_bed, "wt")
     fbed.write("track type=bedGraph name=\"%s\" description=\"%s\" altColor=\"200,120,59\" color=\"120,101,172\" maxHeightPixels=\"100:50:0\" visibility=\"full\" priority=\"20\"" % (poly_id, poly_id))
 
     # store upstream sequences for polyar to classify weak/strong/other poly-A sites
     ffasta = open(polyadb_fasta, "wt")
-    f = gzip.open(polyadb_temp)
+    f = gzip.open(polyadb_temp, "rt")
     r = f.readline()
     r = f.readline()
     while r:
@@ -194,7 +194,7 @@ def annotate(poly_id):
     fbed.close()
     ffasta.close()
     os.remove(polyadb_temp)
-    classify_polya(poly_id)
+    #classify_polya(poly_id)
     #polyadb_class_histogram(poly_id)
 
 def classify_polya(poly_id):
