@@ -25,7 +25,11 @@ The inclusive nature of the framework, together with novel integrative solutions
 
 ## Installation
 
-A few steps of how to download and setup `apa`.
+A few steps of how to download and setup `apa`. The best way to try the pipeline is using Docker.
+
+### Docker
+
+Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh`. This will install *apa*, *pybio* and all dependencies. It will also create a "data" folder on your drive where larger genome and result files will be stored. To login to the system (user *apauser*), simply run the `run_apauser.sh` script.
 
 ### Clone the GitHub repository
 
