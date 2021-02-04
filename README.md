@@ -25,7 +25,7 @@ The inclusive nature of the framework, together with novel integrative solutions
 
 ## Installation
 
-A few steps of how to download and setup `apa`. The best way to try the pipeline is using Docker.
+A few steps of how to download and setup `apa`. The best way to try the pipeline is using **Docker**.
 
 ### Docker
 
