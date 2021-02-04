@@ -641,6 +641,7 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
 
     bam_filename = apa.path.bam_filename(lib_id, exp_id, map_id=map_id)
     e_filename = apa.path.e_filename(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
+    e_filename_norm = apa.path.e_filename_norm(lib_id, exp_id, map_id=map_id, poly_id=poly_id)
     if os.path.exists(e_filename) and not force:
         print("%s_e%s_m%s_ : E BED : already processed or currently processing" % (lib_id, exp_id, map_id))
     else:
@@ -650,6 +651,8 @@ def bed_expression_lexfwd(lib_id, exp_id, map_id, map_to, poly_id, force=False, 
         e.overlay(polyadb_filename, r_filename, start=-upstream, stop=downstream)
         #e.overlay2(polyadb_filename, bam_filename, start=-upstream, stop=downstream)
         e.save(e_filename, track_id="%s_e%s_m1" % (lib_id, exp_id))
+        e.norm()
+        e.save(e_filename_norm, track_id="%s_e%s_m1" % (lib_id, exp_id), db_save="cpm")
 
 def bed_expression_nano(lib_id, exp_id, map_id, map_to, poly_id, force=False, upstream=100, downstream=25):
     genome = apa.annotation.libs[lib_id].experiments[exp_id]["map_to"]
