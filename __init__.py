@@ -25,6 +25,7 @@ version = "1.3"
 
 apa.path.init() # inicialize paths
 apa.annotation.init() # read annotations
+apa.config.init()
 
 def get_read_len(lib_id, exp_id):
     f = pybio.data.Fastq(apa.path.map_fastq_file(lib_id, exp_id))
