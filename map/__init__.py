@@ -140,7 +140,7 @@ def stats_experiment(lib_id, exp_id, map_id=1, append=""):
     for fastq_file in fastq_files:
         if not os.path.exists(fastq_file):
             continue
-        output, error = pybio.utils.Cmd("bzcat {fastq_file} | wc -l".format(fastq_file=fastq_file)).run()
+        output, error = pybio.utils.Cmd("zcat {fastq_file} | wc -l".format(fastq_file=fastq_file)).run()
         temp_reads = output.split("\n")[0] # get last line of output
         temp_reads = int(temp_reads)/4
         num_reads += temp_reads

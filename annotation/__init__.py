@@ -209,6 +209,7 @@ class Library:
         f.write("owner:" + ",".join(self.owner) + "\n")
         f.write("method:" + self.method + "\n")
         f.write("genome:" + self.genome + "\n")
+        f.write("map_to:" + self.map_to + "\n")
         f.write("seq_type:" + self.seq_type + "\n")
         f.write("tags:" + self.tags + "\n")
         f.write("status:" + self.status + "\n")
