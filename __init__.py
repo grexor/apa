@@ -26,8 +26,8 @@ import apa.motifs
 
 version = "1.3"
 
-apa.path.init() # inicialize paths
 apa.config.init()
+apa.path.init() # inicialize paths
 apa.annotation.init() # read annotations
 
 def get_read_len(lib_id, exp_id):

@@ -2,19 +2,24 @@ import apa
 import os
 import glob
 
-data_folder = "data.apa"
-polya_folder = "data.polya"
-comps_folder = "data.comps"
-iCLIP_folder = "data.iCLIP"
-rnamotifs_folder = "/home/gregor/rnamotifs2"
-pybio_folder = "/home/gregor/pybio"
+def_data_folder = "data.apa"
+def_polya_folder = "data.polya"
+def_comps_folder = "data.comps"
+def_iCLIP_folder = "data.iCLIP"
+def_rnamotifs_folder = "/home/gregor/rnamotifs2"
+def_pybio_folder = "/home/gregor/pybio"
 
 def init():
-    apa.path.root_folder = os.path.abspath(os.path.join(os.path.abspath(__file__), "..", ".."))
-    apa.path.data_folder = os.path.join(root_folder, apa.path.data_folder)
-    apa.path.comps_folder = os.path.join(root_folder, apa.path.comps_folder)
-    apa.path.iCLIP_folder = os.path.join(root_folder, apa.path.iCLIP_folder)
-    apa.path.polya_folder = os.path.join(root_folder, apa.path.polya_folder)
+    if getattr(apa.path, "root_folder", None)==None:
+        apa.path.root_folder = os.path.abspath(os.path.join(os.path.abspath(__file__), "..", ".."))
+    if getattr(apa.path, "data_folder", None)==None:
+        apa.path.data_folder = os.path.join(root_folder, apa.path.def_data_folder)
+    if getattr(apa.path, "comps_folder", None)==None:
+        apa.path.comps_folder = os.path.join(root_folder, apa.path.def_comps_folder)
+    if getattr(apa.path, "iCLIP_folder", None)==None:
+        apa.path.iCLIP_folder = os.path.join(root_folder, apa.path.def_iCLIP_folder)
+    if getattr(apa.path, "polya_folder", None)==None:
+        apa.path.polya_folder = os.path.join(root_folder, apa.path.def_polya_folder)
 
 def r_filename(lib_id, exp_id, map_id=1):
     """
