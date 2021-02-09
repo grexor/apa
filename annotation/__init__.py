@@ -44,12 +44,13 @@ class Library:
         self.lib_id = lib_id
         self.experiments = {}
         self.fastq_files = {}
-        self.owner = [];
-        self.access = [];
-        self.name = "";
-        self.notes = "";
-        self.tags = "";
-        self.genome = "";
+        self.owner = []
+        self.access = []
+        self.name = ""
+        self.notes = ""
+        self.tags = ""
+        self.genome = ""
+        self.map_to = ""
         self.method = ""
         self.public_only = [];
         self.seq_type = "single" # sequencing type: single, paired
@@ -124,6 +125,10 @@ class Library:
                     self.genome = str(r[0].split("genome:")[1])
                     r = f.readline()
                     continue
+                if r[0].startswith("map_to:"):
+                    self.map_to = str(r[0].split("map_to:")[1])
+                    r = f.readline()
+                    continue
                 if r[0].startswith("method:"):
                     self.method = str(r[0].split("method:")[1])
                     r = f.readline()
@@ -167,6 +172,8 @@ class Library:
                 r = f.readline()
             fcntl.flock(f, fcntl.LOCK_UN)
             f.close()
+            if self.map_to=="":
+                self.map_to = self.genome
 
     def add_status(self, status_name=None):
         if self.status!="":
