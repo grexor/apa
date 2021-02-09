@@ -23,17 +23,19 @@ The inclusive nature of the framework, together with novel integrative solutions
 + integration with iCLIP (RNA-protein binding) and computing RNA-maps,
 + and other.
 
-## Installation
+## Installation and tryout [Docker]
 
-A few steps of how to download and setup `apa`. The best way to try the pipeline is using **Docker**.
+Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh`.
 
-### Docker
+This will build a Docker image with *apa*, *pybio* and all other dependencies installed. It will also create a "data" folder on your local drive (inside the same folder where build.sh is) where larger genome and result files will be stored. You can change the location of the data folder by modifying the `build.sh` script.
 
-Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh`. This will install *apa*, *pybio* and all dependencies. It will also create a "data" folder on your drive where larger genome and result files will be stored. To login to the system (user *apauser*), simply run the `run_apauser.sh` script.
+To login to the system (user *apauser*), simply run the `run_apauser.sh` script. To run the provided example, run `apa/docker/example.sh` inside the Docker container. This will map the 6 example experiments to the hg38 genome (only chromosome 22).
+
+## Installation and tryout [standalone]
 
 ### Clone the GitHub repository
 
-For now the most direct way of installing pybio is to clone the repository and add the containing folder to PYTHONPATH:
+Clone this repository and add the containing folder to PYTHONPATH:
 
 ```
 git clone https://github.com/grexor/apa.git
@@ -45,10 +47,6 @@ If, for example, you installed `apa` to `/home/user/apa`, you would add this com
 export PYTHONPATH=$PYTHONPATH:/home/user
 export PATH=$PATH:/home/user/apa/bin
 ```
-
-### Configure apa
-
-Rename the `apa/config/__init__.example` file to `apa/config/__init__.py` and edit directly the options (only number of cores on your computer / server for now).
 
 ### Dependencies
 
@@ -66,28 +64,28 @@ Here we provide basic `apa` usage examples.
 
 ### Download and prepare example library
 
-For this example we will call our library 20201104_1 (unique library identifier). Let's assume it contains 4 experiments (with id e1-e4). Each experiment is represented by one FASTQ file. The libraries are stored in the `apa.path.data_folder` (`apa/data.apa` by default):
+For this example we will call our library `example` (unique library identifier). Let's assume it contains 6 experiments (with ids e1-e6). Each experiment is represented by one FASTQ file. The libraries are stored in the `apa.path.data_folder` (`apa/data.apa` by default):
 
 ```
-apa/data.apa/20201104_1/20201104_1.config          # config file where you define species, reference genome and sequencing protocol
-apa/data.apa/20201104_1/annotation.tab             # annotation file describing the experiments of data library 20201104_1
-apa/data.apa/20201104_1/e1/20201104_1_e1.fastq.bz2 # FASTQ for experiment 1
-apa/data.apa/20201104_1/e2/20201104_1_e2.fastq.bz2 # FASTQ for experiment 2
-apa/data.apa/20201104_1/e3/20201104_1_e3.fastq.bz2 # FASTQ for experiment 3
-apa/data.apa/20201104_1/e4/20201104_1_e4.fastq.bz2 # FASTQ for experiment 4
+apa/data.apa/example/example.config          # config file where you define species, reference genome and sequencing protocol
+apa/data.apa/example/annotation.tab             # annotation file describing the experiments of data library 20201104_1
+apa/data.apa/example/e1/example_e1.fastq.gz     # FASTQ for experiment 1
+apa/data.apa/example/e2/example_e2.fastq.gz     # FASTQ for experiment 2
+apa/data.apa/example/e3/example_e3.fastq.gz     # FASTQ for experiment 3
+apa/data.apa/example/e3/example_e4.fastq.gz     # FASTQ for experiment 4
+apa/data.apa/example/e4/example_e5.fastq.gz     # FASTQ for experiment 5
+apa/data.apa/example/e4/example_e6.fastq.gz     # FASTQ for experiment 6
 ```
 
 You can download the files from the expressRNA.org server by running:
 
 ```
-cd apa/data.apa/20201104_1
-mkdir e1 e2 e3 e4
-wget https://expressrna.org/share/data/20201104_1/e1/20201104_1_e1.fastq.bz2 -O e1/20201104_1_e1.fastq.bz2
-wget https://expressrna.org/share/data/20201104_1/e2/20201104_1_e2.fastq.bz2 -O e2/20201104_1_e2.fastq.bz2
-wget https://expressrna.org/share/data/20201104_1/e3/20201104_1_e3.fastq.bz2 -O e3/20201104_1_e3.fastq.bz2
-wget https://expressrna.org/share/data/20201104_1/e4/20201104_1_e4.fastq.bz2 -O e4/20201104_1_e4.fastq.bz2
-wget https://expressrna.org/share/data/20201104_1/20201104_1.config -O 20201104_1.config
-wget https://expressrna.org/share/data/20201104_1/annotation.tab -O annotation.tab
+cd apa/data.apa/example
+for exp_id in 1 2 3 4 5 6
+do
+  mkdir e${exp_id}
+  wget https://expressrna.org/share/data/example/e${exp_id}/example_e${exp_id}.fastq.gz -O e${exp_id}/example_e${exp_id}.fastq.gz
+done
 ```
 
 ### Process example library
@@ -95,22 +93,22 @@ wget https://expressrna.org/share/data/20201104_1/annotation.tab -O annotation.t
 To map (align) the example library 4 fastq files to the reference genome (hg38), just run:
 
 ```
-apa.map.lib -lib_id 20201104_1
+apa.map.lib -lib_id example
 ```
 
 Next, run these commands to process the library:
 
 ```
-apa.bed.multi -lib_id 20201104_1        # creates bedGraph files from the mapped reads
+apa.bed.multi -lib_id example           # creates bedGraph files from the mapped reads
 mkdir apa/data.polya                    # create folder to contain polyA atlas
-apa.polya.makeconfig -lib_id 20201104_1 # create config file to include all experiments in the polyA atlas
-apa.polya -poly_id 20201104_1           # create polyA atlas from all experiments in the library
+apa.polya.makeconfig -lib_id example    # create config file to include all experiments in the polyA atlas
+apa.polya -poly_id example              # create polyA atlas from all experiments in the library
 ```
 
 Next, we use the created polyA atlas to compute "expression" (counts) for the polyA sites for each experiment:
 
 ```
-apa.bed.multi -lib_id 20201104_1 -type expression -poly_id 20201104_1 -upstream 10 -downstream 10
+apa.bed.multi -lib_id example -type expression -poly_id example -upstream 10 -downstream 10
 ```
 
 ### Prepare and process example control vs test comparison
