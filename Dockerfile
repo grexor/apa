@@ -46,4 +46,4 @@ WORKDIR /home/apauser
 RUN git clone https://github.com/grexor/pybio.git
 RUN ln -s /home/apauser/data /home/apauser/pybio/genomes/data
 RUN echo "pybio.path.genomes_folder='/home/apauser/pybio/genomes/data/genomes'" >> /home/apauser/pybio/config/config.txt
-RUN echo "apa.path.data_folder='/home/apauser/data/apa'" >> /home/apauser/apa/config/config.txt
+RUN echo "apa.path.data_folder='/home/apauser/data/libs'" >> /home/apauser/apa/config/config.txt
