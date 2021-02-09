@@ -12,6 +12,7 @@ RUN apt-get install -y python3
 RUN apt-get install -y git
 RUN apt-get install -y python3-pip
 RUN apt-get install -y rna-star
+RUN apt-get install -y samtools
 RUN pip3 install pysam
 RUN pip3 install numpy
 RUN pip3 install matplotlib==3.2
@@ -36,7 +37,7 @@ RUN rm salmon.tgz
 RUN mv salmon-latest_linux_x86_64/ salmon
 
 # paths
-RUN echo "export PATH=$PATH:~/software/salmon/bin" >> ~/.bashrc
+RUN echo "export PATH=$PATH:/home/apauser/apa/bin:/home/apauser/pybio/bin:~/software/salmon/bin" >> ~/.bashrc
 RUN echo "export PYTHONPATH=$PYTHONPATH:/home/apauser" >> ~/.bashrc
 
 WORKDIR /home/apauser
@@ -45,3 +46,4 @@ WORKDIR /home/apauser
 RUN git clone https://github.com/grexor/pybio.git
 RUN ln -s /home/apauser/data /home/apauser/pybio/genomes/data
 RUN echo "pybio.path.genomes_folder='/home/apauser/pybio/genomes/data/genomes'" >> /home/apauser/pybio/config/config.txt
+RUN echo "apa.path.data_folder='/home/apauser/data/apa'" >> /home/apauser/apa/config/config.txt
