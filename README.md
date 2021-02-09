@@ -1,7 +1,8 @@
 # apa: alternative polyadenylation (APA) analysis
 
 * [About](#about)
-* [Installation](#installation)
+* [Installation and tryout with Docker](#installation-and-tryout-with-docker)
+* [Installation and tryout as standalone](#installation-and-tryout-as-standalone)
 * [Documentation](#documentation)
   * [Download and prepare example library](#download-and-prepare-example-library)
   * [Process example library](#process-example-library)
@@ -23,7 +24,7 @@ The inclusive nature of the framework, together with novel integrative solutions
 + integration with iCLIP (RNA-protein binding) and computing RNA-maps,
 + and other.
 
-## Installation and tryout [Docker]
+## Installation and tryout with Docker
 
 Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh`.
 
@@ -31,7 +32,7 @@ This will build a Docker image with *apa*, *pybio* and all other dependencies in
 
 To login to the system (user *apauser*), simply run the `run_apauser.sh` script. To run the provided example, run `apa/docker/example.sh` inside the Docker container. This will map the 6 example experiments to the hg38 genome (only chromosome 22).
 
-## Installation and tryout [standalone]
+## Installation and tryout as standalone
 
 ### Clone the GitHub repository
 
