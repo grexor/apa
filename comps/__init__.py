@@ -995,7 +995,8 @@ def dexseq(comps_id, thr=0.05):
             for L1, L2 in pairs:
                 if L1["fc"]*L2["fc"]<0 and abs(L1["pos"]-L2["pos"])>comps.pair_dist: # direction opposite and pair distant enough? consider pair
                     all_pairs.append((abs(L1["fc"]-L2["fc"]), L1, L2))
-            all_pairs.sort(reverse=True)
+            #all_pairs.sort(reverse=True)
+            all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
             if len(all_pairs)>0:
                 site1, site2 = all_pairs[0][1], all_pairs[0][2]
                 pair_type = "reg"
@@ -1005,8 +1006,8 @@ def dexseq(comps_id, thr=0.05):
             for L1, L2 in zip(control_sites, control_sites[1:]): # 1,2; 2,3; 3,4; 4,5;...
                 if abs(L1["pos"]-L2["pos"])>comps.pair_dist:
                     all_pairs.append((L1["gene_exp"]+L2["gene_exp"], L1, L2))
-            all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
-            # all_pairs.sort(key=lambda x: x[0][0], reverse=True) # python 3
+            #all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
+            all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
             if len(all_pairs)>0:
                 site1, site2 = all_pairs[0][1], all_pairs[0][2]
                 pair_type = "control"
