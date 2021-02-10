@@ -827,14 +827,18 @@ def pairs_de(comps_id, gsites, replicates, polydb):
         row.append(pair_type)
         row.append(gene_class)
         results.append(row)
+
     results = sorted(results, key=lambda x: x[-1], reverse=True)
     results = sorted(results, key=lambda x: x[-2], reverse=True)
 
     # write in this order
-    for pt in ["same", "skipped", "composite", "other"]:
-        for row in results:
-            if row[-2]==pt:
-                f_pairs.write("\t".join([str(x) for x in row]) + "\n")
+    for rt in ["repressed", "enhanced", "control_up", "control_down"]:
+        for pt in ["same", "skipped", "composite", "other"]:
+            for row in results:
+                if row[-2]==pt and row[-1]==rt:
+                    f_pairs.write("\t".join([str(x) for x in row]) + "\n")
+#    for row in results:
+#        f_pairs.write("\Z" + "\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
 
     # save selected sites bedGraphs
