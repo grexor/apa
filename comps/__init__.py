@@ -1218,7 +1218,7 @@ def apa_plot(comps_id):
         plt.close()
 
 def prepare_heatmap_data(comps_id):
-    f = open("/home/gregor/apa/data.comps/%s/%s.pairs_de.tab" % (comps_id, comps_id), "rt")
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id), "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
     ntest = None
@@ -1275,7 +1275,7 @@ def prepare_heatmap_data(comps_id):
         r = f.readline()
     f.close()
 
-    fout = open("/home/gregor/apa/data.comps/%s/%s.heatmap.tab" % (comps_id, comps_id), "wt")
+    fout = open(os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap.tab" % comps_id), "wt")
     header2 = ["gene_name"]
     for i in range(0, ncontrol):
         header2.append(comps.control[i][2])
@@ -1287,7 +1287,7 @@ def prepare_heatmap_data(comps_id):
         fout.write("\t".join(str(x) for x in row) + "\n")
     fout.close()
 
-    fout_complete = open("/home/gregor/apa/data.comps/%s/%s.complete_heatmap.tab" % (comps_id, comps_id), "wt")
+    fout_complete = open(os.path.join(apa.path.comps_folder, comps_id, "%s.complete_heatmap.tab" % comps_id), "wt")
     header2 = ["gene_name"]
     for i in range(0, ncontrol):
         header2.append(comps.control[i][2])
