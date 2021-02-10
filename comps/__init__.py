@@ -977,6 +977,7 @@ def dexseq(comps_id, thr=0.05):
         r = f.readline()
     f.close()
 
+    dex_results = {}
     repressed = 0; enhanced = 0; c_up = 0; c_down = 0
     for gene_id, L in results.items():
         gene_class = None
@@ -1021,7 +1022,6 @@ def dexseq(comps_id, thr=0.05):
                 pair_type = "control"
 
         # determine proximal and distal
-
         if pair_type in ["reg", "control"]:
             if site1["pos"]<site2["pos"]:
                 proximal = site1
@@ -1058,8 +1058,8 @@ def dexseq(comps_id, thr=0.05):
             distance = abs(proximal_pos-distal_pos)
             proximal_fc = proximal["fc"]
             distal_fc = distal["fc"]
-            results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
-    return results
+            dex_results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
+    return dex_results
 
 """
 Plotly of fold changes from pairs_de table
