@@ -26,8 +26,7 @@ apa.map.lib -lib_id example
 apa.bed.multi -lib_id example
 apa.polya.makeconfig -lib_id example
 apa.polya -poly_id example
-cp ${polya_folder}/example/example.bed.gz ${polya_folder}/example/example_strong.bed.gz
+cp ${polya_folder}/example.bed.gz ${polya_folder}/example_strong.bed.gz
 apa.bed.gene_expression -lib_id example
 apa.bed.multi -lib_id example -type expression -poly_id example -upstream 10 -downstream 10
-
 apa.comps -comps_id example
