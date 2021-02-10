@@ -827,14 +827,18 @@ def pairs_de(comps_id, gsites, replicates, polydb):
         row.append(pair_type)
         row.append(gene_class)
         results.append(row)
+
     results = sorted(results, key=lambda x: x[-1], reverse=True)
     results = sorted(results, key=lambda x: x[-2], reverse=True)
 
     # write in this order
-    for pt in ["same", "skipped", "composite", "other"]:
-        for row in results:
-            if row[-2]==pt:
-                f_pairs.write("\t".join([str(x) for x in row]) + "\n")
+    for rt in ["repressed", "enhanced", "control_up", "control_down"]:
+        for pt in ["same", "skipped", "composite", "other"]:
+            for row in results:
+                if row[-2]==pt and row[-1]==rt:
+                    f_pairs.write("\t".join([str(x) for x in row]) + "\n")
+#    for row in results:
+#        f_pairs.write("\Z" + "\t".join([str(x) for x in row]) + "\n")
     f_pairs.close()
 
     # save selected sites bedGraphs
@@ -977,6 +981,7 @@ def dexseq(comps_id, thr=0.05):
         r = f.readline()
     f.close()
 
+    dex_results = {}
     repressed = 0; enhanced = 0; c_up = 0; c_down = 0
     for gene_id, L in results.items():
         gene_class = None
@@ -994,7 +999,8 @@ def dexseq(comps_id, thr=0.05):
             for L1, L2 in pairs:
                 if L1["fc"]*L2["fc"]<0 and abs(L1["pos"]-L2["pos"])>comps.pair_dist: # direction opposite and pair distant enough? consider pair
                     all_pairs.append((abs(L1["fc"]-L2["fc"]), L1, L2))
-            all_pairs.sort(reverse=True)
+            #all_pairs.sort(reverse=True)
+            all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
             if len(all_pairs)>0:
                 site1, site2 = all_pairs[0][1], all_pairs[0][2]
                 pair_type = "reg"
@@ -1004,8 +1010,8 @@ def dexseq(comps_id, thr=0.05):
             for L1, L2 in zip(control_sites, control_sites[1:]): # 1,2; 2,3; 3,4; 4,5;...
                 if abs(L1["pos"]-L2["pos"])>comps.pair_dist:
                     all_pairs.append((L1["gene_exp"]+L2["gene_exp"], L1, L2))
-            all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
-            # all_pairs.sort(key=lambda x: x[0][0], reverse=True) # python 3
+            #all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
+            all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
             if len(all_pairs)>0:
                 site1, site2 = all_pairs[0][1], all_pairs[0][2]
                 pair_type = "control"
@@ -1021,7 +1027,6 @@ def dexseq(comps_id, thr=0.05):
                 pair_type = "control"
 
         # determine proximal and distal
-
         if pair_type in ["reg", "control"]:
             if site1["pos"]<site2["pos"]:
                 proximal = site1
@@ -1058,8 +1063,8 @@ def dexseq(comps_id, thr=0.05):
             distance = abs(proximal_pos-distal_pos)
             proximal_fc = proximal["fc"]
             distal_fc = distal["fc"]
-            results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
-    return results
+            dex_results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
+    return dex_results
 
 """
 Plotly of fold changes from pairs_de table
@@ -1217,7 +1222,7 @@ def apa_plot(comps_id):
         plt.close()
 
 def prepare_heatmap_data(comps_id):
-    f = open("/home/gregor/apa/data.comps/%s/%s.pairs_de.tab" % (comps_id, comps_id), "rt")
+    f = open(os.path.join(apa.path.comps_folder, comps_id, "%s.pairs_de.tab" % comps_id), "rt")
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
     ntest = None
@@ -1274,7 +1279,7 @@ def prepare_heatmap_data(comps_id):
         r = f.readline()
     f.close()
 
-    fout = open("/home/gregor/apa/data.comps/%s/%s.heatmap.tab" % (comps_id, comps_id), "wt")
+    fout = open(os.path.join(apa.path.comps_folder, comps_id, "%s.heatmap.tab" % comps_id), "wt")
     header2 = ["gene_name"]
     for i in range(0, ncontrol):
         header2.append(comps.control[i][2])
@@ -1286,7 +1291,7 @@ def prepare_heatmap_data(comps_id):
         fout.write("\t".join(str(x) for x in row) + "\n")
     fout.close()
 
-    fout_complete = open("/home/gregor/apa/data.comps/%s/%s.complete_heatmap.tab" % (comps_id, comps_id), "wt")
+    fout_complete = open(os.path.join(apa.path.comps_folder, comps_id, "%s.complete_heatmap.tab" % comps_id), "wt")
     header2 = ["gene_name"]
     for i in range(0, ncontrol):
         header2.append(comps.control[i][2])
