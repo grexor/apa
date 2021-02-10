@@ -373,7 +373,7 @@ def read_polydb(poly_id):
     polyadb_tab = apa.path.polyadb_filename(poly_id, filetype="tab")
     if not os.path.exists(polyadb_tab):
         return db
-    f = gzip.open(polyadb_tab, "rt")
+    f = gzip.open(polyadb_tab)
     header = f.readline().replace("\r", "").replace("\n", "").split("\t")
     r = f.readline()
     while r:
