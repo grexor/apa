@@ -1,6 +1,6 @@
-# apa: alternative polyadenylation (APA) analysis
+# apa: alternative polyadenylation analysis (APA)
 
-* [About](#about)
+* [Introduction](#introduction)
 * [Run with Docker](#run-with-docker)
   * [Build the Docker image](#build-the-docker-image)
   * [Example dataset](#example-dataset)
