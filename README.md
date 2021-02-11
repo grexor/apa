@@ -15,7 +15,7 @@
 * [Authors](#authors)
 * [Reporting problems](#reporting-problems)
 
-## About
+## Introduction
 
 apa is a Python framework for processing and analysing 3'-end targeted sequence data to study alternative polyadenylation. [apa](https://github.com/grexor/apa) depends on [pybio](https://github.com/grexor/pybio) (basic handling of annotated genomes), [RNAmotifs2](https://github.com/grexor/rnamotifs2) (analysis of regulatory motif clusters) and other open-source software (DEXSeq, STAR short-read aligner).
 
