@@ -9,10 +9,6 @@
       * [Structure of example.config](#structure-of-example.config)
     * [Running the Example](#running-the-example)
 * [Installation as standalone](#installation-as-standalone)
-* [Documentation](#documentation)
-  * [Download and prepare example library](#download-and-prepare-example-library)
-  * [Process example library](#process-example-library)
-  * [Prepare and process example control vs test comparison](#prepare-and-process-example-control-vs-test-comparison)
 * [Authors](#authors)
 * [Reporting problems](#reporting-problems)
 
