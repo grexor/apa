@@ -5,8 +5,8 @@
   * [Build the Docker image](#build-the-docker-image)
   * [Example](#example)
     * [Data folder organization and structure](#data-folder-organization-and-structure)
-      * [Structure of annotation.tab](#structure-of-annotation.tab)
-      * [Structure of example.config](#structure-of-example.config)
+      * [Library config file](#library-config-file)
+      * [Library annotation file](#library-annotation-file)
     * [Running the Example](#running-the-example)
 * [Installation as standalone](#installation-as-standalone)
 * [Authors](#authors)
@@ -68,9 +68,9 @@ Data is organized inside **libraries**. Each library contains several experiment
   ->example3 [folder] # folder of sequencing library with id example3
   ...
 ```
-##### Structure of annotation.tab
+##### Library annotation file
 
-The `annotation.tab` file is present for each library and annotates the experiments within the library. It's a TAB separated file with the following structure:
+The `annotation.tab` file is present for each library (always with the same name) and annotates the experiments within the library. It's a TAB separated file with the following structure:
 
 ```
 # first line is always a comment
@@ -94,9 +94,9 @@ condition = descriptive
 replicate = descriptive
 ```
 
-##### Structure of example.config
+##### Library config file
 
-The minimum structure of the library config file is as follows:
+The library config file is named with `libraryid.config`. In our example, since our library has id `example`, the file is `example.config`. The minimum structure of the library config file is as follows:
 
 ```
 name:HEK-239
