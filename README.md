@@ -1,8 +1,14 @@
 # apa: alternative polyadenylation (APA) analysis
 
 * [About](#about)
-* [Installation and tryout with Docker](#installation-and-tryout-with-docker)
-* [Installation and tryout as standalone](#installation-and-tryout-as-standalone)
+* [Run with Docker](#run-with-docker)
+  * [Build the Docker image](#build-the-docker-image)
+  * [Example](#example)
+    * [Data folder organization and structure](#data-folder-organization-and-structure)
+      * [Structure of annotation.tab](#structure-of-annotation.tab)
+      * [Structure of example.config](#structure-of-example.config)
+    * [Running the Example](#running-the-example)
+* [Installation as standalone](#installation-as-standalone)
 * [Documentation](#documentation)
   * [Download and prepare example library](#download-and-prepare-example-library)
   * [Process example library](#process-example-library)
@@ -24,11 +30,11 @@ The inclusive nature of the framework, together with novel integrative solutions
 + integration with iCLIP (RNA-protein binding) and computing RNA-maps,
 + and other.
 
-## Run `apa` with Docker
+## Run with Docker
 
 Since this python package has several dependencies (`pybio` for genome download and manupulation, for example), the easiest way to try out the package with an example dataset is by running the docker image (provided with the [Dockerfile](Dockerfile)).
 
-### Build the Docker image and run (login) to the container
+### Build the Docker image
 
 Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh` to build the Docker image (you need to have Docker installed).
 
@@ -36,7 +42,7 @@ This will build a Docker image with *apa*, *pybio* and all other dependencies in
 
 To login to the system (user *apauser*), simply run the `run_apauser.sh` script. You are now running the Docker container with all required dependencies and software to run the `apa` example provided.
 
-### Example run
+### Example
 
 To directly run the example, skip to [Running the example](#running-the-example).
 
@@ -111,11 +117,11 @@ columns_display:[['Condition', 'condition'], ['Replicate', 'replicate']]
 
 #### Running the example
 
-To run the provided example, run `~/apa/docker/example.sh` inside the Docker container. This will download the chr22 of the hg38 genome assembly, download and map the 6 example experiments (3 HEK293 and 3 TDP-43 KD) to the hg38 genome (only chromosome 22). It will build a polyA database from the aligned reads, estimate read counts at the identified polyA sites and also provide gene expression.
+To run the provided example, start `~/apa/docker/example.sh` inside the Docker container. This will download the chr22 of the hg38 genome assembly, download and map the 6 example experiments (3 HEK293 and 3 TDP-43 KD) to the hg38 genome (only chromosome 22). It will build a polyA database from the aligned reads, estimate read counts at the identified polyA sites and also provide gene expression.
 
 ## Installation and tryout as standalone
 
-The best way to install `apa`, `pybio` and other dependencies on your own server is simply to follow the [Dockerfile](Dockerfile). In case of problems, please don't hesitate and open an Issue on this repository page.
+The best way to install `apa`, `pybio` and other dependencies on your own server is simply to follow the [Dockerfile](Dockerfile). In case of problems, open an Issue on this repository page.
 
 ### Dependencies
 
