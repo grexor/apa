@@ -3,10 +3,12 @@
 * [About](#about)
 * [Run with Docker](#run-with-docker)
   * [Build the Docker image](#build-the-docker-image)
-  * [Example](#example)
+  * [Example dataset](#example-dataset)
     * [Data folder organization and structure](#data-folder-organization-and-structure)
       * [Library config file](#library-config-file)
       * [Library annotation file](#library-annotation-file)
+    * [Comparative analysis](#comparative-analysis)
+      * [Comparison config file](#comparison-config-file)
     * [Running the Example](#running-the-example)
 * [Installation as standalone](#installation-as-standalone)
 * [Authors](#authors)
@@ -38,7 +40,7 @@ This will build a Docker image with *apa*, *pybio* and all other dependencies in
 
 To login to the system (user *apauser*), simply run the `run_apauser.sh` script. You are now running the Docker container with all required dependencies and software to run the `apa` example provided.
 
-### Example
+### Example dataset
 
 To directly start the example processing, follow brief instructions in [Running the example](#running-the-example).
 
@@ -111,9 +113,78 @@ columns:[['Condition', 'condition'], ['Replicate', 'replicate']]
 columns_display:[['Condition', 'condition'], ['Replicate', 'replicate']]
 ```
 
+#### Comparative analysis
+
+Using DEXSeq, we can identify APA genes by comparing sets of control vs. test experiments. The comparisons are stored in the `apa.path.comps_folder`, each comparison is defined by the config file.
+
+Structure of the comparison data folder is:
+
+```
+->comps_folder [folder]
+  ->example [folder] # folder of the comparison with id example
+    ->example.config [file] # config file of the comparison
+    ->example.pairs_de.tab [file] # TAB file with results, one line per gene, regulated and control pairs of polyA sites
+```
+
+We run the comparative analysis with `apa.comps -comps_id example` (for the example provided).
+
+##### Comparison config file
+
+TAB separated file:
+
+```
+id	experiments	name
+c1	example_e1	HEK293_1
+c2	example_e2	HEK293_2
+c3	example_e3	HEK293_3
+t1	example_e4	KD_1
+t2	example_e5	KD_2
+t3	example_e6	KD_3
+
+control_name:HEK293
+test_name:KD
+site_selection:DEX
+polya_db:example
+poly_type:["strong"]
+
+# at least half of the experiments at a specific polyA site need to count at least 5 reads
+presence_thr:2.0
+cDNA_thr:5
+
+analysis_type:apa
+method:lexrev
+genome:hg38chr22
+```
+
+In the example above, 3 control and 3 test experiments, all coming from library `example`.
+
 #### Running the example
 
 To run the provided example, start `~/apa/docker/example.sh` inside the Docker container. This will download the chr22 of the hg38 genome assembly, download and map the 6 example experiments (3 HEK293 and 3 TDP-43 KD) to the hg38 genome (only chromosome 22). It will build a polyA database from the aligned reads, estimate read counts at the identified polyA sites and also provide gene expression.
+
+Content of `docker/example.sh`:
+```
+# map all library experiments with STAR
+apa.map.lib -lib_id example
+
+# create BED files from mapped reads according to protocol
+apa.bed.multi -lib_id example
+
+# make configuration file for polyA database (includes all experiments in the library)
+apa.polya.makeconfig -lib_id example
+
+# create polyA database
+apa.polya -poly_id example
+
+# compute gene expression using htseq-count
+apa.bed.gene_expression -lib_id example
+
+# compute polyA site counts according to provided mapping and polyA database
+apa.bed.multi -lib_id example -type expression -poly_id example -upstream 10 -downstream 10
+
+# compute comparative analysis
+apa.comps -comps_id example
+```
 
 ## Installation as standalone
 
