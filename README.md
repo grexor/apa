@@ -24,32 +24,96 @@ The inclusive nature of the framework, together with novel integrative solutions
 + integration with iCLIP (RNA-protein binding) and computing RNA-maps,
 + and other.
 
-## Installation and tryout with Docker
+## Run `apa` with Docker
 
-Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh`.
+Since this python package has several dependencies (`pybio` for genome download and manupulation, for example), the easiest way to try out the package with an example dataset is by running the docker image (provided with the [Dockerfile](Dockerfile)).
 
-This will build a Docker image with *apa*, *pybio* and all other dependencies installed. It will also create a "data" folder on your local drive (inside the same folder where build.sh is) where larger genome and result files will be stored. You can change the location of the data folder by modifying the `build.sh` script.
+### Build the Docker image and run (login) to the container
 
-To login to the system (user *apauser*), simply run the `run_apauser.sh` script. To run the provided example, run `apa/docker/example.sh` inside the Docker container. This will map the 6 example experiments to the hg38 genome (only chromosome 22).
+Clone this repository (`git clone https://github.com/grexor/apa.git`) and run `build.sh` to build the Docker image (you need to have Docker installed).
+
+This will build a Docker image with *apa*, *pybio* and all other dependencies installed. It will also create a "data" folder on your local drive (inside the same folder where `build.sh` is) where larger genome and result files will be stored. You can change the location of the data folder by modifying the `build.sh` script.
+
+To login to the system (user *apauser*), simply run the `run_apauser.sh` script. You are now running the Docker container with all required dependencies and software to run the `apa` example provided.
+
+### Example run
+
+We provide an example Lexogen Quantseq Reverse sequencing run consisting of 6 experiments (3 HEK293, 3 TDP-43 KD). In total 6 FASTQ files. Reads were preselected to match only the ones mapping to the chr22 of the hg38 assembly.
+
+#### Data folder organization and structure
+
+Data is organized inside **libraries**. Each library contains several experiments. Each experiment is represented by a FASTQ file. The sequencing (library) data is stored in the `apa.path.data_folder`. The location of the data folder can be changed by editing `apa/config/config.txt` and adding a line with `apa.path.data_folder="/path/to/data_folder"`.
+
+```
+# structure the data folder on apa
+
+->data_folder [folder]
+  ->example [folder] # folder of sequencing library with id example
+    ->annotation.tab [file] # annotation TAB separated file (see below for structure)
+    ->example.config # config file for the entire library (see below for structure)
+    ->e1 [folder] # experiment 1
+      ->example_e1.fastq.gz [file] # FASTQ file of experiment 1
+      ->m1 [folder] # mapping 1, usually, we only map each experiment once, however several mappings (diverse parameters) can be addded (m1, m2, ...)
+    ->e2 [folder] # experiment 2
+      ->example_e2.fastq.gz [file] # FASTQ file of experiment 2
+  ->example2 [folder] # folder of sequencing library with id example2
+  ->example3 [folder] # folder of sequencing library with id example3
+  ...
+```
+##### Structure of annotation.tab
+
+The `annotation.tab` file is present for each library and annotates the experiments within the library. It's a TAB separated file with the following structure:
+
+```
+# first line is always a comment
+exp_id	species	map_to	method	condition	replicate
+1	hg38chr22	hg38chr22	lexrev	HEK293	1
+2	hg38chr22	hg38chr22	lexrev	HEK293	2
+3	hg38chr22	hg38chr22	lexrev	HEK293	3
+4	hg38chr22	hg38chr22	lexrev	KD	1
+5	hg38chr22	hg38chr22	lexrev	KD	2
+6	hg38chr22	hg38chr22	lexrev	KD	3
+```
+
+Each line represents an experiment.
+
+```
+exp_id = experiment id (integer number)
+species = species, descriptive (human, mouse, ms, hg, etc.)
+map_to = id of genome (linked to pybio package) for read mapping
+method = id of method
+condition = descriptive
+replicate = descriptive
+```
+
+##### Structure of example.config
+
+The minimum structure of the library config file is as follows:
+
+```
+name:HEK-239
+notes:Library with 3'-end Lexogen Quantrev sequencing of HEK-293 cell lines
+method:lexrev
+genome:hg38chr22
+map_to:hg38chr22
+seq_type:single
+tags:
+status:
+columns:[['Condition', 'condition'], ['Replicate', 'replicate']]
+columns_display:[['Condition', 'condition'], ['Replicate', 'replicate']]
+```
+
+#### Running the example
+
+To run the provided example, run `~/apa/docker/example.sh` inside the Docker container. This will download the chr22 of the hg38 genome assembly, download and map the 6 example experiments (3 HEK293 and 3 TDP-43 KD) to the hg38 genome (only chromosome 22). It will build a polyA database from the aligned reads, estimate read counts at the identified polyA sites and also provide gene expression.
 
 ## Installation and tryout as standalone
 
-### Clone the GitHub repository
-
-Clone this repository and add the containing folder to PYTHONPATH:
-
-```
-git clone https://github.com/grexor/apa.git
-```
-
-If, for example, you installed `apa` to `/home/user/apa`, you would add this command to the `.profile` file in your home folder:
-
-```
-export PYTHONPATH=$PYTHONPATH:/home/user
-export PATH=$PATH:/home/user/apa/bin
-```
+The best way to install `apa`, `pybio` and other dependencies on your own server is simply to follow the [Dockerfile](Dockerfile). In case of problems, please don't hesitate and open an Issue on this repository page.
 
 ### Dependencies
+
+For a full list of dependencies, please refer to the [Dockerfile](Dockerfile).
 
 * [pybio](https://github.com/grexor/pybio), install by following instructions on the GitHub page
 * [R](https://www.r-project.org), install following instructions, recommended latest release or at least >4.0.0
@@ -57,65 +121,6 @@ export PATH=$PATH:/home/user/apa/bin
 * [DEXSeq](https://bioconductor.org/packages/release/bioc/html/DEXSeq.html), `BiocManager::install("DEXSeq")`
 * [samtools](http://www.htslib.org/), `RUN pip3 install HTSeq`
 * [regex](https://pypi.org/project/regex), `pip3 install regex`
-
-For a full list of dependencies, please refer to the [Dockerfile](Dockerfile).
-
-## Documentation
-
-Here we provide basic `apa` usage examples.
-
-### Download and prepare example library
-
-For this example we will call our library `example` (unique library identifier). Let's assume it contains 6 experiments (with ids e1-e6). Each experiment is represented by one FASTQ file. The libraries are stored in the `apa.path.data_folder` (`apa/data.apa` by default):
-
-```
-apa/data.apa/example/example.config          # config file where you define species, reference genome and sequencing protocol
-apa/data.apa/example/annotation.tab             # annotation file describing the experiments of data library 20201104_1
-apa/data.apa/example/e1/example_e1.fastq.gz     # FASTQ for experiment 1
-apa/data.apa/example/e2/example_e2.fastq.gz     # FASTQ for experiment 2
-apa/data.apa/example/e3/example_e3.fastq.gz     # FASTQ for experiment 3
-apa/data.apa/example/e3/example_e4.fastq.gz     # FASTQ for experiment 4
-apa/data.apa/example/e4/example_e5.fastq.gz     # FASTQ for experiment 5
-apa/data.apa/example/e4/example_e6.fastq.gz     # FASTQ for experiment 6
-```
-
-You can download the files from the expressRNA.org server by running:
-
-```
-cd apa/data.apa/example
-for exp_id in 1 2 3 4 5 6
-do
-  mkdir e${exp_id}
-  wget https://expressrna.org/share/data/example/e${exp_id}/example_e${exp_id}.fastq.gz -O e${exp_id}/example_e${exp_id}.fastq.gz
-done
-```
-
-### Process example library
-
-To map (align) the example library 4 fastq files to the reference genome (hg38), just run:
-
-```
-apa.map.lib -lib_id example
-```
-
-Next, run these commands to process the library:
-
-```
-apa.bed.multi -lib_id example           # creates bedGraph files from the mapped reads
-mkdir apa/data.polya                    # create folder to contain polyA atlas
-apa.polya.makeconfig -lib_id example    # create config file to include all experiments in the polyA atlas
-apa.polya -poly_id example              # create polyA atlas from all experiments in the library
-```
-
-Next, we use the created polyA atlas to compute "expression" (counts) for the polyA sites for each experiment:
-
-```
-apa.bed.multi -lib_id example -type expression -poly_id example -upstream 10 -downstream 10
-```
-
-### Prepare and process example control vs test comparison
-
-Coming soon
 
 ## Authors
 
