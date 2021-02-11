@@ -64,7 +64,7 @@ Data is organized inside **libraries**. Each library contains several experiment
     ->example.config # config file for the entire library (see below for structure)
     ->e1 [folder] # experiment 1
       ->example_e1.fastq.gz [file] # FASTQ file of experiment 1
-      ->m1 [folder] # mapping 1, usually, we only map each experiment once, however several mappings (diverse parameters) can be addded (m1, m2, ...)
+      ->m1 [folder] # several mappings can be performed (diverse parameters), named m1, m2, ...
     ->e2 [folder] # experiment 2
       ->example_e2.fastq.gz [file] # FASTQ file of experiment 2
   ->example2 [folder] # folder of sequencing library with id example2
