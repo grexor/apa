@@ -51,13 +51,14 @@ export PATH=$PATH:/home/user/apa/bin
 
 ### Dependencies
 
-There are a few software tools pybio depends on:
-
 * [pybio](https://github.com/grexor/pybio), install by following instructions on the GitHub page
 * [R](https://www.r-project.org), install following instructions, recommended latest release or at least >4.0.0
 * [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html), `BiocManager::install("edgeR")`
 * [DEXSeq](https://bioconductor.org/packages/release/bioc/html/DEXSeq.html), `BiocManager::install("DEXSeq")`
+* [samtools](http://www.htslib.org/), `RUN pip3 install HTSeq`
 * [regex](https://pypi.org/project/regex), `pip3 install regex`
+
+For a full list of dependencies, please refer to the [Dockerfile](Dockerfile).
 
 ## Documentation
 
