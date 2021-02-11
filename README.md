@@ -42,7 +42,7 @@ To login to the system (user *apauser*), simply run the `run_apauser.sh` script.
 
 To directly run the example, skip to [Running the example](#running-the-example).
 
-We provide an example Lexogen Quantseq Reverse sequencing run consisting of 6 experiments (3 HEK293, 3 TDP-43 KD) from the publication:
+We provide an example [Lexogen Quantseq Reverse](https://www.lexogen.com/quantseq-3mrna-sequencing/) sequencing run consisting of 6 experiments (3 HEK293, 3 TDP-43 KD) from the publication:
 
 [High-resolution RNA maps suggest common principles of splicing and polyadenylation regulation by TDP-43](http://www.cell.com/cell-reports/abstract/S2211-1247(17)30522-3)<br />
 
