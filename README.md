@@ -115,7 +115,7 @@ columns_display:[['Condition', 'condition'], ['Replicate', 'replicate']]
 
 To run the provided example, start `~/apa/docker/example.sh` inside the Docker container. This will download the chr22 of the hg38 genome assembly, download and map the 6 example experiments (3 HEK293 and 3 TDP-43 KD) to the hg38 genome (only chromosome 22). It will build a polyA database from the aligned reads, estimate read counts at the identified polyA sites and also provide gene expression.
 
-## Installation and tryout as standalone
+## Installation as standalone
 
 The best way to install `apa`, `pybio` and other dependencies on your own server is simply to follow the [Dockerfile](Dockerfile). In case of problems, open an Issue on this repository page.
 
