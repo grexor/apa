@@ -38,7 +38,13 @@ To login to the system (user *apauser*), simply run the `run_apauser.sh` script.
 
 ### Example run
 
-We provide an example Lexogen Quantseq Reverse sequencing run consisting of 6 experiments (3 HEK293, 3 TDP-43 KD). In total 6 FASTQ files. Reads were preselected to match only the ones mapping to the chr22 of the hg38 assembly.
+To directly run the example, skip to [Running the example](#running-the-example).
+
+We provide an example Lexogen Quantseq Reverse sequencing run consisting of 6 experiments (3 HEK293, 3 TDP-43 KD) from the publication:
+
+[High-resolution RNA maps suggest common principles of splicing and polyadenylation regulation by TDP-43](http://www.cell.com/cell-reports/abstract/S2211-1247(17)30522-3)<br />
+
+In total 6 FASTQ files. The reads will be downloaded and processed in the Docker container by the `docker/example.sh` script. Reads for the example were preselected to match only the ones mapping to the chr22 of the hg38 assembly.
 
 #### Data folder organization and structure
 
