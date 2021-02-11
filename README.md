@@ -40,7 +40,7 @@ To login to the system (user *apauser*), simply run the `run_apauser.sh` script.
 
 ### Example
 
-To directly run the example, skip to [Running the example](#running-the-example).
+To directly start the example processing, follow brief instructions in [Running the example](#running-the-example).
 
 We provide an example [Lexogen Quantseq Reverse](https://www.lexogen.com/quantseq-3mrna-sequencing-rev/) sequencing run consisting of 6 experiments (3 HEK293, 3 TDP-43 KD) from the publication:
 
