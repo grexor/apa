@@ -10,6 +10,7 @@
     * [Comparative analysis](#comparative-analysis)
       * [Comparison config file](#comparison-config-file)
     * [Running the Example](#running-the-example)
+* [Run with expressRNA](#run-with-expressrna)
 * [Installation as standalone](#installation-as-standalone)
 * [Authors](#authors)
 * [Reporting problems](#reporting-problems)
@@ -185,6 +186,10 @@ apa.bed.multi -lib_id example -type expression -poly_id example -upstream 10 -do
 # compute comparative analysis
 apa.comps -comps_id example
 ```
+
+## Run with expressRNA
+
+Since the setup and analysis of data with this package can be time consuming, we developed an interactive online platform [expressRNA](https://expressRNA.org). You can upload your experiment FASTQ files, annotate and perform analysis on the expressRNA server if desired.
 
 ## Installation as standalone
 
