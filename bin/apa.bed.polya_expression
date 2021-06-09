@@ -9,7 +9,7 @@ parser.add_argument('-map_id', action="store", dest="map_id", default=1)
 args = parser.parse_args()
 
 if args.lib_id==None:
-    print "specify library to process (-lib_id)"
+    print("specify library to process (-lib_id)")
     sys.exit(1)
 
 lib = apa.annotation.Library(args.lib_id)
