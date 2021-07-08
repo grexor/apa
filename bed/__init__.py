@@ -168,7 +168,7 @@ def polya_expression(lib_id, poly_id, map_id=1, upstream=None, downstream=None):
     f = open(table_fname, "wt")
     f.write("\t".join(str(x) for x in header)+"\n")
     keys = list(keys)
-    keys = sorted(keys, key=lambda tup: (int(tup[0]) if tup[0].isdigit() else tup[0],tup[1], tup[2]))
+    keys = sorted(keys, key=lambda tup: (tup[0],tup[1],tup[2]))
     for chr, strand, pos in keys:
         _, gid, _, _, _ = pybio.genomes.annotate(map_to, chr, strand, pos, extension=5000)
         gene_id = ""

@@ -173,7 +173,7 @@ def salmon(lib_id):
     for exp_id in library.experiments.keys():
         fastq_file = apa.path.map_fastq_file(lib_id, exp_id)
         output_folder = os.path.join(apa.path.data_folder, lib_id, "salmon", "e%s" % exp_id)
-        f.write("salmon quant -i %s -l A -r <(bunzip2 -c %s) --validateMappings -o %s\n" % (genome_folder, fastq_file, output_folder))
+        f.write("salmon quant -i %s -l A -r <(gunzip -c %s) --validateMappings -o %s\n" % (genome_folder, fastq_file, output_folder))
     f.close()
 
     os.system("chmod +x %s" % script_fname)

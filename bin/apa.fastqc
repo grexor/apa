@@ -1,6 +1,6 @@
 apa.lib.add_status -lib_id $2 -status fastq
 echo "computing Fastqc of folder $1"
 cd $1
-fastqc -t 5 e*/*.fastq.bz2
+fastqc -t 5 e*/*.fastq.gz
 multiqc -p e*/ -f
 apa.lib.remove_status -lib_id $2 -status fastq

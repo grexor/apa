@@ -20,6 +20,8 @@ def init():
         apa.path.iCLIP_folder = os.path.join(root_folder, apa.path.def_iCLIP_folder)
     if getattr(apa.path, "polya_folder", None)==None:
         apa.path.polya_folder = os.path.join(root_folder, apa.path.def_polya_folder)
+    if getattr(apa.path, "pybio_folder", None)==None:
+        apa.path.pybio_folder = def_pybio_folder
 
 def r_filename(lib_id, exp_id, map_id=1):
     """
