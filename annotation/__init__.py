@@ -101,7 +101,10 @@ class Library:
                         raise
                     else:
                         time.sleep(random.random())
-            r = f.readline()
+            try:
+                r = f.readline()
+            except:
+                return "failed reading config file"
             while r:
                 r = r.replace("\r", "").replace("\n", "")
                 r = r.split(" #")[0] # remove comments

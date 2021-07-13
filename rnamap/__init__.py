@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use("Agg", warn=False)
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import math
 import gzip

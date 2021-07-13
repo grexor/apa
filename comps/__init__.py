@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use("Agg", warn=False)
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import math
 from matplotlib import cm as CM
@@ -477,7 +477,7 @@ def process_comps(comps_id, map_id=1, clean=True):
         # draw num sites per gene
         # =======================
         import matplotlib
-        matplotlib.use("Agg", warn=False)
+        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         import math
         import gzip

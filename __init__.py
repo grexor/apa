@@ -6,7 +6,6 @@ Research platform for bioinformatics analysis of NGS alternative polyadenylation
 """
 import warnings
 warnings.filterwarnings("ignore",category=UserWarning)
-
 import sys
 import os
 import pybio
