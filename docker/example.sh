@@ -11,6 +11,7 @@ mkdir ${comps_folder}
 mkdir ${polya_folder}
 mkdir ${data_folder}/example
 mkdir ${comps_folder}/example
+
 cd ${data_folder}/example
 for exp_id in 1 2 3 4 5 6
 do
