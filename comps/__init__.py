@@ -18,7 +18,7 @@ import itertools
 from collections import Counter
 import copy
 
-minor_major_thr = 0.05 # for a site to be considered, it's expression needs to be >5% of the max site inside the gene
+minor_major_thr = 0.01 # for a site to be considered, it's expression needs to be >5% of the max site inside the gene
 
 class Comps:
 
@@ -37,7 +37,7 @@ class Comps:
         self.owner = []
         self.cDNA_thr = 5 # at least cDNA
         self.presence_thr = 2.0 # for at least half of experiments
-        self.significance_thr = 0.05
+        self.significance_thr = 0.1
         self.pair_dist = 0
         self.exp_data = {}
         self.polya_db = ""
@@ -427,12 +427,12 @@ def process_comps(comps_id, map_id=1, clean=True):
 
                     # re-added 20170612, not included in the paper version of analysis
                     expression_vector = [1 if cDNA>=comps.cDNA_thr else 0 for cDNA in expression_vector]
-                    if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
-                        continue
+                    #if sum(expression_vector) < len(expression_vector)/comps.presence_thr:
+                    #    continue
 
                     # filter lowly expressed sites, paper version
-                    if (control_sum<10) and (test_sum<10):
-                        continue
+                    #if (control_sum<10) and (test_sum<10):
+                    #    continue
 
                     site_data["cDNA_sum"] = int(cDNA_sum)
                     site_data["site_hex"] = polydb_annotated.get("%s_%s_%s" % (chr, strand, pos), {}).get("PAShex_PASloci_PASindex", "")
@@ -442,6 +442,8 @@ def process_comps(comps_id, map_id=1, clean=True):
                     num_sites_genes_expressed += 1
 
         # filter out sites that have expression < minor_major_thr of maximally expressed site
+        # removed for now 20210831
+        """
         for gene_id, sites in gsites.items():
             max_exp = 0
             for pos, site_data in sites.items():
@@ -449,6 +451,7 @@ def process_comps(comps_id, map_id=1, clean=True):
             for pos, site_data in list(sites.items()): # python3 safe
                 if site_data["cDNA_sum"] < (minor_major_thr * max_exp):
                     del sites[pos]
+        """
 
         num_sites_per_gene = {}
         for gene_id, sites in gsites.items():
@@ -755,78 +758,79 @@ def pairs_de(comps_id, gsites, replicates, polydb):
         if gene_id not in selected_sites.keys():
             continue
 
-        proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class = selected_sites[gene_id]
-        proximal_site = sites[proximal_pos]
-        distal_site = sites[distal_pos]
-        pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_pos, distal_pos)
-        s1, s2 = get_s1_s2(gene_id, chr, strand, comps.species, proximal_pos, distal_pos, pair_type)
+        for sel_site in selected_sites[gene_id]:
+            proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class = sel_site
+            proximal_site = sites[proximal_pos]
+            distal_site = sites[distal_pos]
+            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_pos, distal_pos)
+            s1, s2 = get_s1_s2(gene_id, chr, strand, comps.species, proximal_pos, distal_pos, pair_type)
 
-        proximal_control = []
-        proximal_test = []
-        for (rshort, _) in replicates:
-            if rshort.startswith("c"):
-                proximal_control.append(proximal_site[rshort])
-            else:
-                proximal_test.append(proximal_site[rshort])
+            proximal_control = []
+            proximal_test = []
+            for (rshort, _) in replicates:
+                if rshort.startswith("c"):
+                    proximal_control.append(proximal_site[rshort])
+                else:
+                    proximal_test.append(proximal_site[rshort])
 
-        distal_control = []
-        distal_test = []
-        for (rshort, _) in replicates:
-            if rshort.startswith("c"):
-                distal_control.append(distal_site[rshort])
-            else:
-                distal_test.append(distal_site[rshort])
+            distal_control = []
+            distal_test = []
+            for (rshort, _) in replicates:
+                if rshort.startswith("c"):
+                    distal_control.append(distal_site[rshort])
+                else:
+                    distal_test.append(distal_site[rshort])
 
-        # update bedGraph for selected sites
-        bg_selected_sites_control.set_value(chr, strand, proximal_pos, sum(proximal_control))
-        bg_selected_sites_test.set_value(chr, strand, proximal_pos, sum(proximal_test))
-        bg_selected_sites_control.set_value(chr, strand, distal_pos, sum(distal_control))
-        bg_selected_sites_test.set_value(chr, strand, distal_pos, sum(distal_test))
+            # update bedGraph for selected sites
+            bg_selected_sites_control.set_value(chr, strand, proximal_pos, sum(proximal_control))
+            bg_selected_sites_test.set_value(chr, strand, proximal_pos, sum(proximal_test))
+            bg_selected_sites_control.set_value(chr, strand, distal_pos, sum(distal_control))
+            bg_selected_sites_test.set_value(chr, strand, distal_pos, sum(distal_test))
 
-        row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
-        row.append(proximal_pos)
-        proximal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("PAShex_PASloci_PASindex", "")
-        row.append(proximal_hex)
-        row.append(proximal_site["gene_feature"])
-        row.append(sum(proximal_test+proximal_control))
-        row.append(distal_pos)
-        distal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("PAShex_PASloci_PASindex", "")
-        row.append(distal_hex)
-        row.append(distal_site["gene_feature"])
-        row.append(sum(distal_test+distal_control))
+            row = [chr, strand, gene_locus, gene_id, gene["gene_name"], gene["gene_biotype"], len(sites)]
+            row.append(proximal_pos)
+            proximal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("PAShex_PASloci_PASindex", "")
+            row.append(proximal_hex)
+            row.append(proximal_site["gene_feature"])
+            row.append(sum(proximal_test+proximal_control))
+            row.append(distal_pos)
+            distal_hex = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("PAShex_PASloci_PASindex", "")
+            row.append(distal_hex)
+            row.append(distal_site["gene_feature"])
+            row.append(sum(distal_test+distal_control))
 
-        row.append(s1)
-        row.append(s2)
+            row.append(s1)
+            row.append(s2)
 
-        row.append(";".join(str(x) for x in proximal_control))
-        row.append(sum(proximal_control))
-        row.append(";".join(str(x) for x in distal_control))
-        row.append(sum(distal_control))
-        row.append(";".join(str(x) for x in proximal_test))
-        row.append(sum(proximal_test))
-        row.append(";".join(str(x) for x in distal_test))
-        row.append(sum(distal_test))
+            row.append(";".join(str(x) for x in proximal_control))
+            row.append(sum(proximal_control))
+            row.append(";".join(str(x) for x in distal_control))
+            row.append(sum(distal_control))
+            row.append(";".join(str(x) for x in proximal_test))
+            row.append(sum(proximal_test))
+            row.append(";".join(str(x) for x in distal_test))
+            row.append(sum(distal_test))
 
-        # strong, weak, noclass...
-        #proximal_class = polydb.get_value(chr, strand, proximal_pos, db="meta")
-        #distal_class = polydb.get_value(chr, strand, distal_pos, db="meta")
-        proximal_class = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("pas_type", "")
-        distal_class = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("pas_type", "")
-        row.append(proximal_class)
-        row.append(distal_class)
+            # strong, weak, noclass...
+            #proximal_class = polydb.get_value(chr, strand, proximal_pos, db="meta")
+            #distal_class = polydb.get_value(chr, strand, distal_pos, db="meta")
+            proximal_class = polydb_annotated.get("%s_%s_%s" % (chr, strand, proximal_pos), {}).get("pas_type", "")
+            distal_class = polydb_annotated.get("%s_%s_%s" % (chr, strand, distal_pos), {}).get("pas_type", "")
+            row.append(proximal_class)
+            row.append(distal_class)
 
-        row.append("%.5f" % proximal_fc)
-        row.append("%.5f" % distal_fc)
+            row.append("%.5f" % proximal_fc)
+            row.append("%.5f" % distal_fc)
 
-        row.append("%.2f" % (sum(proximal_control)/float(sum(proximal_control)+sum(proximal_test))))
-        row.append("%.2f" % (sum(distal_control)/float(sum(distal_control)+sum(distal_test))))
-        row.append("%.5f" % proximal_p)
-        row.append("%.5f" % distal_p)
+            row.append("%.2f" % (sum(proximal_control)/float(sum(proximal_control)+sum(proximal_test))))
+            row.append("%.2f" % (sum(distal_control)/float(sum(distal_control)+sum(distal_test))))
+            row.append("%.5f" % proximal_p)
+            row.append("%.5f" % distal_p)
 
-        pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_site["pos"], distal_site["pos"])
-        row.append(pair_type)
-        row.append(gene_class)
-        results.append(row)
+            pair_type = apa.polya.annotate_pair(comps.species, chr, strand, proximal_site["pos"], distal_site["pos"])
+            row.append(pair_type)
+            row.append(gene_class)
+            results.append(row)
 
     results = sorted(results, key=lambda x: x[-1], reverse=True)
     results = sorted(results, key=lambda x: x[-2], reverse=True)
@@ -990,80 +994,92 @@ def dexseq(comps_id, thr=0.05):
         # assert(len(L)>1) # no longer valid, since if the expression accross replicates is too low, DEXseq returns NA for certain sites and it could be that certain genes have only 1 polyA site
         if len(L)<2:
             continue
-        sig_sites = [x for x in L if x["padj"]<=thr]
-        control_sites = [x for x in L if x["padj"]>thr]
+        sig_sites = [("sig", x) for x in L if x["padj"]<=thr]
+        control_sites = [("control", x) for x in L if x["padj"]>thr]
+        all_sites = sig_sites+control_sites
+        all_pairs = []
+        pairs = list(itertools.combinations(all_sites, 2))
+        for (L1_type, L1), (L2_type, L2) in pairs:
+            if abs(L1["pos"]-L2["pos"])>comps.pair_dist:
+                pair_type = "control"
+                if L1_type=="sig" and L2_type=="sig":
+                    pair_type = "reg"
+                all_pairs.append((pair_type, L1["gene_exp"]+L2["gene_exp"], L1, L2))
 
+        """
         if len(sig_sites)>1:
             pairs = list(itertools.combinations(sig_sites, 2))
-            all_pairs = []
             for L1, L2 in pairs:
                 if L1["fc"]*L2["fc"]<0 and abs(L1["pos"]-L2["pos"])>comps.pair_dist: # direction opposite and pair distant enough? consider pair
-                    all_pairs.append((abs(L1["fc"]-L2["fc"]), L1, L2))
-            #all_pairs.sort(reverse=True)
-            all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
-            if len(all_pairs)>0:
-                site1, site2 = all_pairs[0][1], all_pairs[0][2]
-                pair_type = "reg"
-        elif len(control_sites)>1:
+                    all_pairs.append(("reg", abs(L1["fc"]-L2["fc"]), L1, L2))
+            #if len(all_pairs)>0:
+            #    site1, site2 = all_pairs[0][1], all_pairs[0][2]
+            #    pair_type = "reg"
+        if len(control_sites)>1:
             control_sites.sort(key=lambda x: x["gene_exp"], reverse=True)
-            all_pairs = []
-            for L1, L2 in zip(control_sites, control_sites[1:]): # 1,2; 2,3; 3,4; 4,5;...
+            pairs = list(itertools.combinations(control_sites, 2))
+            for L1, L2 in pairs:
                 if abs(L1["pos"]-L2["pos"])>comps.pair_dist:
-                    all_pairs.append((L1["gene_exp"]+L2["gene_exp"], L1, L2))
-            #all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
-            all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
-            if len(all_pairs)>0:
-                site1, site2 = all_pairs[0][1], all_pairs[0][2]
-                pair_type = "control"
-        elif len(sig_sites)==1:
-            all_pairs = []
+                    all_pairs.append(("control", L1["gene_exp"]+L2["gene_exp"], L1, L2))
+                    #if gid=="ENSMUSG00000024513":
+                    #    print("append", ("control", L1["gene_exp"]+L2["gene_exp"], L1, L2))
+            # all_pairs.sort(reverse=True) # just to check, because they are already sorted by highest expression
+            #all_pairs.sort(key=lambda x: x[0], reverse=True) # python 3
+            #if len(all_pairs)>0:
+            #    site1, site2 = all_pairs[0][1], all_pairs[0][2]
+            #    pair_type = "control"
+        if len(sig_sites)==1:
             site1 = sig_sites[0]
             control_sites.sort(key=lambda x: x["gene_exp"], reverse=True)
             for potential_control in control_sites:
-                if abs(site1["pos"]-potential_control["pos"])>comps.pair_dist:
-                    all_pairs.append((site1, potential_control))
-            if len(all_pairs)>0:
-                site1, site2 = all_pairs[0][0], all_pairs[0][1]
-                pair_type = "control"
+                #if abs(site1["pos"]-potential_control["pos"])>comps.pair_dist:
+                all_pairs.append(("control", 1, site1, potential_control))
+            #if len(all_pairs)>0:
+            #    site1, site2 = all_pairs[0][1], all_pairs[0][2]
+            #    pair_type = "control"
+        """
 
-        # determine proximal and distal
-        if pair_type in ["reg", "control"]:
-            if site1["pos"]<site2["pos"]:
-                proximal = site1
-                distal = site2
-            else:
-                proximal = site2
-                distal = site1
-            strand = site1["strand"]
+        all_pairs.sort(key=lambda x: x[1], reverse=True) # python 3
+        for pair_type, fc, site1, site2 in all_pairs:
+            # determine proximal and distal
+            if pair_type in ["reg", "control"]:
+                if site1["pos"]<site2["pos"]:
+                    proximal = site1
+                    distal = site2
+                else:
+                    proximal = site2
+                    distal = site1
+                strand = site1["strand"]
+                if strand=="-":
+                    proximal, distal = distal, proximal
 
-            if strand=="-":
-                proximal, distal = distal, proximal
+            # gene regulation
+            if pair_type=="control":
+                if proximal["fc"]<0:
+                    c_up += 1
+                    gene_class = "control_up"
+                else:
+                    c_down += 1
+                    gene_class = "control_down"
+            elif pair_type=="reg":
+                if proximal["fc"]>0:
+                    gene_class = "enhanced"
+                    enhanced += 1
+                else:
+                    gene_class = "repressed"
+                    repressed += 1
 
-        # gene regulation
-        if pair_type=="control":
-            if proximal["fc"]<0:
-                c_up += 1
-                gene_class = "control_up"
-            else:
-                c_down += 1
-                gene_class = "control_down"
-        elif pair_type=="reg":
-            if proximal["fc"]>0:
-                gene_class = "enhanced"
-                enhanced += 1
-            else:
-                gene_class = "repressed"
-                repressed += 1
-
-        if gene_class!=None:
-            proximal_pos = proximal["pos"]
-            distal_pos = distal["pos"]
-            proximal_p = proximal["padj"]
-            distal_p = distal["padj"]
-            distance = abs(proximal_pos-distal_pos)
-            proximal_fc = proximal["fc"]
-            distal_fc = distal["fc"]
-            dex_results[gid] = (proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class)
+            if gene_class!=None:
+                proximal_pos = proximal["pos"]
+                distal_pos = distal["pos"]
+                proximal_p = proximal["padj"]
+                distal_p = distal["padj"]
+                distance = abs(proximal_pos-distal_pos)
+                proximal_fc = proximal["fc"]
+                distal_fc = distal["fc"]
+                gene_pair_db = dex_results.get(gid, [])
+                gene_pair_db.append((proximal_pos, distal_pos, proximal_p, distal_p, proximal_fc, distal_fc, gene_class))
+                dex_results[gid] = gene_pair_db
     return dex_results
 
 """
